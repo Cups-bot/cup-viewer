@@ -1,0 +1,70 @@
+/* =========================================================================
+   3D Cup Viewer — responsive / small-screen adjustments
+   ========================================================================= */
+
+/* Tablets and below: tighten the control panel so it always fits. */
+@media (max-width: 640px) {
+  .info-text {
+    top: 12px;
+    width: calc(100% - 24px);
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+
+  .controls-panel {
+    bottom: 16px;
+    gap: 6px;
+    padding: 8px 12px;
+    max-width: calc(100% - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  :root {
+    --btn-size: 40px;
+  }
+
+  .btn {
+    font-size: 16px;
+  }
+
+  .btn--texture {
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .divider {
+    display: none;
+  }
+}
+
+/* Phones: hide the descriptive text label on the texture button to save room. */
+@media (max-width: 400px) {
+  .btn--texture {
+    width: var(--btn-size);
+    padding: 0;
+    font-size: 16px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-indent: -9999px;
+  }
+
+  .btn--texture::before {
+    content: '🖼️';
+    text-indent: 0;
+    float: left;
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Landscape phones: pull the panel in from the very bottom edge. */
+@media (max-height: 450px) and (orientation: landscape) {
+  .controls-panel {
+    bottom: 10px;
+  }
+
+  .info-text {
+    display: none;
+  }
+}
