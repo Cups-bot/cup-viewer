@@ -79,7 +79,7 @@ export function frameObject(camera, controls, box, offset = 1.3) {
   camera.position.copy(center).addScaledVector(direction, distance);
 
   camera.near = distance / 100;
-  camera.far = distance * 100;
+  camera.far = distance * 1000;
   camera.updateProjectionMatrix();
   controls.update();
 }
