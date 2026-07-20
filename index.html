@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cup Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 60px;
+            padding: 12px 25px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            align-items: center;
+        }
+
+        .btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(1.1);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn.active {
+            background: rgba(100, 200, 255, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .btn-texture {
+            width: auto;
+            padding: 0 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            gap: 8px;
+            background: rgba(255, 107, 107, 0.3);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+        }
+
+        .btn-texture:hover {
+            background: rgba(255, 107, 107, 0.5);
+        }
+
+        .divider {
+            width: 1px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 5px;
+        }
+
+        .info-text {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 100;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .loader {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .loader.active {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(76, 175, 80, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 300;
+            backdrop-filter: blur(10px);
+            animation: fadeInOut 2s ease;
+            pointer-events: none;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div class="info-text">
+        🖱️ Drag to rotate • Scroll to zoom • Right-click to pan
+    </div>
+    
+    <div class="loader" id="loader">
+        <span class="spinner"></span> Loading model...
+    </div>
+    
+    <div class="controls-panel">
+        <button class="btn" id="reset-btn" title="Reset view (R)">🔄</button>
+        <button class="btn" id="bg-btn" title="Change background (B)">🎨</button>
+        <button class="btn" id="wireframe-btn" title="Wireframe (W)">🔲</button>
+        <button class="btn active" id="autorotate-btn" title="Auto rotate (A)">💫</button>
+        <button class="btn" id="screenshot-btn" title="Screenshot (S)">📸</button>
+        
+        <div class="divider"></div>
+        
+        <button class="btn btn-texture" id="texture-btn" title="Replace texture">
+            🖼️ Replace Texture
+        </button>
+        
+        <input type="file" id="texture-input" accept=".jpg,.jpeg,.png">
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <script type="module" src="main.js"></script>
+</body>
+</html>
