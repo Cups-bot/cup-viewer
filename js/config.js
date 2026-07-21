@@ -38,7 +38,7 @@ export const CONFIG = Object.freeze({
     enableDamping: true,
     dampingFactor: 0.05,
     minDistance: 1,
-    maxDistance: 20,
+    maxDistance: 50,
     /** Radians. Math.PI allows orbiting fully under the model. */
     maxPolarAngle: Math.PI,
     autoRotate: true,
