@@ -1,0 +1,255 @@
+/* =========================================================================
+   3D Cup Viewer — base styles
+   Design tokens live in :root so the whole look can be retuned in one place.
+   ========================================================================= */
+
+:root {
+  --color-bg: #1a1a2e;
+  --color-text: #ffffff;
+
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-hover: rgba(255, 255, 255, 0.4);
+  --surface-strong: rgba(255, 255, 255, 0.2);
+  --border: rgba(255, 255, 255, 0.2);
+
+  --accent: rgba(100, 200, 255, 0.5);
+  --accent-texture: rgba(255, 107, 107, 0.3);
+  --accent-texture-hover: rgba(255, 107, 107, 0.5);
+  --accent-texture-border: rgba(255, 107, 107, 0.5);
+
+  --color-success: rgba(76, 175, 80, 0.95);
+  --color-error: rgba(255, 107, 107, 0.95);
+
+  --blur: 20px;
+  --radius-pill: 60px;
+  --radius-round: 50%;
+  --btn-size: 44px;
+  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.3);
+
+  --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --transition: 0.25s ease;
+  --z-hud: 100;
+  --z-loader: 200;
+  --z-toast: 300;
+  --z-overlay: 400;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#canvas-container {
+  position: fixed;
+  inset: 0;
+}
+
+#canvas-container canvas {
+  display: block;
+}
+
+/* ---- Heads-up hint ---------------------------------------------------- */
+.info-text {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  font-size: 13px;
+  text-align: center;
+  background: var(--surface);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  z-index: var(--z-hud);
+  pointer-events: none;
+}
+
+/* ---- Control panel ---------------------------------------------------- */
+.controls-panel {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 25px;
+  background: var(--surface);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-panel);
+  z-index: var(--z-hud);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--btn-size);
+  height: var(--btn-size);
+  font-size: 18px;
+  color: var(--color-text);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--surface-strong);
+  border: 2px solid transparent;
+  border-radius: var(--radius-round);
+  backdrop-filter: blur(10px);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.btn:hover {
+  background: var(--surface-hover);
+  transform: scale(1.1);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.btn.is-active {
+  background: var(--accent);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.btn--texture {
+  width: auto;
+  gap: 8px;
+  padding: 0 20px;
+  font-size: 14px;
+  border-radius: 30px;
+  background: var(--accent-texture);
+  border: 1px solid var(--accent-texture-border);
+}
+
+.btn--texture:hover {
+  background: var(--accent-texture-hover);
+}
+
+.divider {
+  width: 1px;
+  height: 30px;
+  margin: 0 5px;
+  background: var(--border);
+}
+
+/* ---- Loader ----------------------------------------------------------- */
+.loader {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 40px;
+  font-size: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+  z-index: var(--z-loader);
+}
+
+.loader[hidden] {
+  display: none;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--color-text);
+  border-radius: var(--radius-round);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Toast ------------------------------------------------------------ */
+.toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-success);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  animation: toast-in-out 2.5s ease forwards;
+}
+
+.toast--error {
+  background: var(--color-error);
+}
+
+@keyframes toast-in-out {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* ---- Drag & drop overlay --------------------------------------------- */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-overlay);
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay__message {
+  padding: 30px 50px;
+  font-size: 20px;
+  border: 3px dashed rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
