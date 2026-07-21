@@ -1,14 +1,11 @@
-/**
- * Owns every DOM interaction: the control panel, keyboard shortcuts,
- * loader, toasts and drag & drop. It knows nothing about Three.js — it only
- * translates user intent into calls on the handler object it is bound to,
- * keeping presentation cleanly separated from viewer logic.
- */
+// Владеет всеми взаимодействиями с DOM: панель управления, горячие клавиши,
+// индикатор загрузки, всплывающие сообщения, drag & drop. О Three.js не знает —
+// только переводит действия пользователя в вызовы привязанных обработчиков.
 
-/** File extensions treated as 3D models on drag & drop. */
+// Расширения файлов, считающиеся 3D-моделями при перетаскивании.
 const MODEL_EXTENSIONS = ['.glb', '.gltf'];
 
-/** Keyboard shortcuts → handler action names. */
+// Горячие клавиши → имена действий обработчика.
 const SHORTCUTS = {
   b: 'onChangeBackground',
   a: 'onToggleAutoRotate',
@@ -17,11 +14,9 @@ const SHORTCUTS = {
 };
 
 export class UIManager {
-  /** @param {import('../config.js').CONFIG} config */
   constructor(config) {
     this.config = config;
     this.dom = this.#queryElements();
-    /** @type {Partial<Record<string, Function>>} */
     this.handlers = {};
     this.dragDepth = 0;
   }
@@ -29,7 +24,7 @@ export class UIManager {
   #queryElements() {
     const byId = (id) => {
       const el = document.getElementById(id);
-      if (!el) throw new Error(`UIManager: missing element #${id}`);
+      if (!el) throw new Error(`UIManager: нет элемента #${id}`);
       return el;
     };
     return {
@@ -47,11 +42,7 @@ export class UIManager {
     };
   }
 
-  /**
-   * Wire DOM events to the given handlers. Handlers are optional; only the
-   * provided ones are invoked.
-   * @param {object} handlers
-   */
+  // Привязывает события DOM к обработчикам. Обработчики необязательны.
   bind(handlers) {
     this.handlers = handlers;
     const { buttons, textureInput } = this.dom;
@@ -81,15 +72,11 @@ export class UIManager {
   #onFilePicked(event) {
     const file = event.target.files?.[0];
     if (file) this.#call('onImageFile', file);
-    event.target.value = ''; // allow re-selecting the same file
+    event.target.value = ''; // чтобы можно было выбрать тот же файл повторно
   }
 
-  /* -------------------------------------------------------------------- */
-  /* Drag & drop                                                          */
-  /* -------------------------------------------------------------------- */
-
   #bindDragAndDrop() {
-    // Enter/leave use a depth counter so nested elements don't flicker.
+    // Enter/leave через счётчик глубины, чтобы вложенные элементы не мигали.
     window.addEventListener('dragenter', (e) => {
       e.preventDefault();
       if (++this.dragDepth === 1) this.dom.dropOverlay.hidden = false;
@@ -115,7 +102,7 @@ export class UIManager {
     } else if (file.type.startsWith('image/')) {
       this.#call('onImageFile', file);
     } else {
-      this.showToast('Unsupported file type', 'error');
+      this.showToast('Неподдерживаемый тип файла', 'error');
     }
   }
 
@@ -124,20 +111,13 @@ export class UIManager {
     this.dom.dropOverlay.hidden = true;
   }
 
-  /* -------------------------------------------------------------------- */
-  /* Feedback: loader, toasts, button state                              */
-  /* -------------------------------------------------------------------- */
-
-  showLoader(text = 'Loading…') {
+  showLoader(text = 'Загрузка…') {
     this.dom.loaderText.textContent = text;
     this.dom.loader.hidden = false;
   }
 
-  /**
-   * @param {number} percent 0–100, or -1 when total is unknown.
-   * @param {string} [label='Loading…'] Prefix shown before the percentage.
-   */
-  updateProgress(percent, label = 'Loading…') {
+  // percent: 0–100 или -1, если общий размер неизвестен.
+  updateProgress(percent, label = 'Загрузка…') {
     this.dom.loaderText.textContent =
       percent >= 0 ? `${label} ${Math.round(percent)}%` : label;
   }
@@ -146,10 +126,6 @@ export class UIManager {
     this.dom.loader.hidden = true;
   }
 
-  /**
-   * @param {string} message
-   * @param {'success' | 'error'} [type='success']
-   */
   showToast(message, type = 'success') {
     document.querySelector('.toast')?.remove();
     const toast = document.createElement('div');
@@ -160,11 +136,7 @@ export class UIManager {
     setTimeout(() => toast.remove(), this.config.ui.toastDuration);
   }
 
-  /**
-   * Reflect a toggle's state on its button (visual + ARIA).
-   * @param {'autorotate'} name
-   * @param {boolean} active
-   */
+  // Отражает состояние переключателя на кнопке (вид + ARIA).
   setToggleState(name, active) {
     const button = this.dom.buttons[name];
     button.classList.toggle('is-active', active);

@@ -1,8 +1,6 @@
-/* =========================================================================
-   3D Cup Viewer — responsive / small-screen adjustments
-   ========================================================================= */
+/* Адаптив под небольшие экраны. */
 
-/* Tablets and below: tighten the control panel so it always fits. */
+/* Планшеты и уже: поджимаем панель, чтобы она всегда помещалась. */
 @media (max-width: 640px) {
   .info-text {
     top: 12px;
@@ -39,7 +37,7 @@
   }
 }
 
-/* Phones: drop the texture button's text label, keeping just its icon. */
+/* Телефоны: у кнопки дизайна убираем подпись, оставляя иконку. */
 @media (max-width: 400px) {
   .btn--texture {
     width: var(--btn-size);
@@ -51,7 +49,7 @@
   }
 }
 
-/* Landscape phones: pull the panel in from the very bottom edge. */
+/* Телефоны в альбомной ориентации: приподнимаем панель от нижнего края. */
 @media (max-height: 450px) and (orientation: landscape) {
   .controls-panel {
     bottom: 10px;

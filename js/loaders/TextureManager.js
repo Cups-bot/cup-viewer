@@ -1,53 +1,35 @@
 import * as THREE from 'three';
 
-/**
- * Manages the base-color texture applied to the current model.
- *
- * Replaces textures in place (no model reload), automatically targets the
- * meshes the {@link ModelLoader} flagged as texturable, and disposes the
- * previous textures it created to avoid GPU memory leaks.
- */
+// Управляет base-color текстурой текущей модели: меняет её на месте (без
+// перезагрузки модели), целится в меши, помеченные ModelLoader как texturable,
+// и освобождает созданные им ранее текстуры, чтобы не течь по памяти GPU.
 export class TextureManager {
-  /**
-   * @param {object} deps
-   * @param {import('./ModelLoader.js').ModelLoader} deps.modelLoader
-   * @param {import('../config.js').CONFIG} deps.config
-   * @param {number} [deps.maxAnisotropy=1] GPU anisotropic filtering limit.
-   */
   constructor({ modelLoader, config, maxAnisotropy = 1 }) {
     this.modelLoader = modelLoader;
     this.config = config;
     this.maxAnisotropy = maxAnisotropy;
     this.loader = new THREE.TextureLoader();
-    /** Textures created by this manager, tracked for disposal. */
+    // Текстуры, созданные этим менеджером, — для последующего освобождения.
     this.ownedTextures = new Set();
   }
 
-  /**
-   * Load a texture from any URL (http path, blob: or data: URI).
-   * @param {string} url
-   * @returns {Promise<THREE.Texture>}
-   */
+  // Грузит текстуру по любому URL (http, blob: или data:).
   loadTexture(url) {
     return new Promise((resolve, reject) => {
       this.loader.load(
         url,
         (texture) => resolve(this.#configure(texture)),
         undefined,
-        () => reject(new Error(`Failed to load texture "${url}"`)),
+        () => reject(new Error(`Не удалось загрузить текстуру "${url}"`)),
       );
     });
   }
 
-  /**
-   * Load a texture from a user-selected `File` (input or drag & drop).
-   * A blob URL is used and revoked once decoded — cheaper than base64.
-   * @param {File} file
-   * @returns {Promise<THREE.Texture>}
-   */
+  // Грузит текстуру из выбранного файла. Через blob-URL, который сразу
+  // отзывается, — дешевле base64.
   async loadFromFile(file) {
     if (!file.type.startsWith('image/')) {
-      throw new Error(`"${file.name}" is not an image file`);
+      throw new Error(`"${file.name}" не является изображением`);
     }
     const url = URL.createObjectURL(file);
     try {
@@ -57,11 +39,8 @@ export class TextureManager {
     }
   }
 
-  /**
-   * Apply a texture as the base-color map of every texturable mesh.
-   * @param {THREE.Texture} texture
-   * @returns {number} Number of materials updated.
-   */
+  // Ставит текстуру как base-color каждого texturable-меша. Возвращает число
+  // обновлённых материалов.
   applyTexture(texture) {
     const meshes = this.modelLoader.texturableMeshes;
     if (meshes.length === 0) return 0;
@@ -80,21 +59,17 @@ export class TextureManager {
     return updated;
   }
 
-  /**
-   * Convenience: load a texture from a URL and apply it in one call.
-   * @param {string} url
-   * @returns {Promise<number>} Number of materials updated.
-   */
+  // Загрузить текстуру по URL и применить одним вызовом.
   async replaceTexture(url) {
     return this.applyTexture(await this.loadTexture(url));
   }
 
-  /** Apply color-space and wrapping settings shared by all textures. */
+  // Общие для всех текстур настройки цветового пространства и заворачивания.
   #configure(texture) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    // glTF UVs are authored with the WebGL convention; don't flip.
+    // UV в glTF авторизованы по конвенции WebGL — не переворачиваем.
     texture.flipY = false;
     texture.anisotropy = this.maxAnisotropy;
     texture.generateMipmaps = true;
@@ -104,7 +79,7 @@ export class TextureManager {
     return texture;
   }
 
-  /** Dispose a texture only if this manager created it (never the model's own). */
+  // Освобождает текстуру, только если её создал этот менеджер (не исходную).
   #disposeOwned(texture) {
     if (this.ownedTextures.has(texture)) {
       texture.dispose();
@@ -112,7 +87,7 @@ export class TextureManager {
     }
   }
 
-  /** Release every texture this manager owns. */
+  // Освобождает все текстуры, которыми владеет менеджер.
   dispose() {
     for (const texture of this.ownedTextures) texture.dispose();
     this.ownedTextures.clear();
