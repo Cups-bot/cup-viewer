@@ -9,7 +9,7 @@ export const CONFIG = Object.freeze({
   /** Assets loaded on startup. */
   assets: {
     model: 'assets/models/8cups.glb',
-    texture: 'assets/textures/mockup.jpg',
+    texture: 'assets/textures/img_mokup.jpg',
   },
 
   /** Renderer / color pipeline. */
@@ -36,9 +36,9 @@ export const CONFIG = Object.freeze({
   /** OrbitControls. */
   controls: {
     enableDamping: true,
-    dampingFactor: 0.05,
+    dampingFactor: 0.5,
     minDistance: 1,
-    maxDistance: 50,
+    maxDistance: 5,
     /** Radians. Math.PI allows orbiting fully under the model. */
     maxPolarAngle: Math.PI,
     autoRotate: true,
@@ -48,13 +48,13 @@ export const CONFIG = Object.freeze({
 
   /** Lighting rig. Add/remove entries freely — the rig is data-driven. */
   lighting: {
-    ambient: { color: 0xffffff, intensity: 1.5 },
+    ambient: { color: 0xffffff, intensity: 2 },
     directional: [
       { color: 0xffffff, intensity: 3, position: { x: 5, y: 10, z: 5 }, castShadow: true },
       { color: 0xffffff, intensity: 1.5, position: { x: -5, y: 0, z: -5 }, castShadow: false },
     ],
     shadow: {
-      mapSize: 2048,
+      mapSize: 4096,
       near: 0.5,
       far: 50,
       bias: -0.0005,
@@ -67,7 +67,7 @@ export const CONFIG = Object.freeze({
    */
   model: {
     /** Largest bounding-box dimension is scaled down to this many units. */
-    targetSize: 10,
+    targetSize: 0.5,
     /** Multiplier applied when framing the camera (>1 = more margin). */
     cameraFitOffset: 1.3,
   },
