@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <meta name="description" content="A lightweight, configurable 3D model viewer built with Three.js." />
     <title>3D Cup Viewer</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☕</text></svg>"/>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/responsive.css" />
   </head>
@@ -23,17 +20,29 @@
       <div class="drop-overlay__message">Drop image or .glb model to load</div>
     </div>
 
+    <!--
+      Control icons are plain <img> tags pointing at assets/icons/*.svg.
+      To use your own artwork, replace the file — the markup stays untouched.
+    -->
     <nav class="controls-panel" aria-label="Viewer controls">
-      <button class="btn" id="reset-btn" type="button" title="Reset camera (R)" aria-label="Reset camera">🔄</button>
-      <button class="btn" id="bg-btn" type="button" title="Change background (B)" aria-label="Change background">🎨</button>
-      <button class="btn is-active" id="autorotate-btn" type="button" title="Auto-rotate (A)" aria-label="Toggle auto-rotate" aria-pressed="true">💫</button>
-      <button class="btn" id="screenshot-btn" type="button" title="Screenshot (S)" aria-label="Take screenshot">📸</button>
-      <button class="btn" id="fullscreen-btn" type="button" title="Fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+      <button class="btn" id="bg-btn" type="button" title="Change background (B)" aria-label="Change background">
+        <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
+      </button>
+      <button class="btn is-active" id="autorotate-btn" type="button" title="Auto-rotate (A)" aria-label="Toggle auto-rotate" aria-pressed="true">
+        <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
+      </button>
+      <button class="btn" id="screenshot-btn" type="button" title="Screenshot (S)" aria-label="Take screenshot">
+        <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
+      </button>
+      <button class="btn" id="fullscreen-btn" type="button" title="Fullscreen (F)" aria-label="Toggle fullscreen">
+        <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
+      </button>
 
       <span class="divider" aria-hidden="true"></span>
 
       <button class="btn btn--texture" id="texture-btn" type="button" title="Replace texture">
-        🖼️ Replace Texture
+        <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
+        <span class="btn__label">Replace Texture</span>
       </button>
       <input type="file" id="texture-input" accept="image/*" hidden />
     </nav>

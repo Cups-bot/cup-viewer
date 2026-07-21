@@ -8,6 +8,7 @@ import { Viewer } from './Viewer.js';
  *
  *   loadModel('assets/models/8cups.glb');
  *   replaceTexture('assets/textures/mockup.jpg');
+ *   setRoughness(0.6);   // 0 = зеркало, 1 = матовая
  *
  * For permanent changes, edit `js/config.js` instead — no logic required.
  */
@@ -22,6 +23,8 @@ function bootstrap() {
   window.cupViewer = viewer;
   window.loadModel = (url) => viewer.loadModel(url);
   window.replaceTexture = (url) => viewer.textureManager.replaceTexture(url);
+  window.setRoughness = (roughness) => viewer.setSurfaceFinish({ roughness });
+  window.setMetalness = (metalness) => viewer.setSurfaceFinish({ metalness });
 }
 
 if (document.readyState === 'loading') {

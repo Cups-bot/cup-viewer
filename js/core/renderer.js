@@ -10,7 +10,13 @@ export function createRenderer(config) {
   const { antialias, preserveDrawingBuffer, alpha, maxPixelRatio, toneMappingExposure, shadows } =
     config.renderer;
 
-  const renderer = new THREE.WebGLRenderer({ antialias, preserveDrawingBuffer, alpha });
+  const renderer = new THREE.WebGLRenderer({
+    antialias,
+    preserveDrawingBuffer,
+    alpha,
+    // Ask for the discrete GPU on dual-graphics laptops.
+    powerPreference: 'high-performance',
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
 
   // Correct color management: textures are authored in sRGB, lighting is

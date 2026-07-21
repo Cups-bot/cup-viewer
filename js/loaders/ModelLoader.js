@@ -18,12 +18,14 @@ export class ModelLoader {
    * @param {THREE.PerspectiveCamera} deps.camera
    * @param {import('three').OrbitControls} deps.controls
    * @param {import('../config.js').CONFIG} deps.config
+   * @param {number} [deps.maxAnisotropy=1] GPU anisotropic filtering limit.
    */
-  constructor({ scene, camera, controls, config }) {
+  constructor({ scene, camera, controls, config, maxAnisotropy = 1 }) {
     this.scene = scene;
     this.camera = camera;
     this.controls = controls;
     this.config = config;
+    this.maxAnisotropy = maxAnisotropy;
 
     this.loader = new GLTFLoader();
     // Support Draco-compressed meshes transparently; the decoder is only
@@ -64,14 +66,44 @@ export class ModelLoader {
   #onLoaded(model) {
     this.dispose();
 
-    this.#normalizeTransform(model);
     this.#prepareMaterials(model);
+    const pivot = this.#normalizeTransform(model);
 
-    this.scene.add(model);
-    this.currentModel = model;
+    this.scene.add(pivot);
+    this.currentModel = pivot;
 
+    this.applySurfaceFinish();
     this.frameCurrentModel();
-    return model;
+    return pivot;
+  }
+
+  /**
+   * Set the finish of the meshes the texture is applied to.
+   *
+   * Only touches `texturableMeshes`, so the rest of the model keeps the
+   * materials it was authored with. A `null` value leaves that property
+   * alone, which is how you opt out per-property rather than all-or-nothing.
+   *
+   * @param {{roughness?: number|null, metalness?: number|null}} [finish]
+   *   Defaults to `config.texturedSurface`.
+   * @returns {number} Number of materials updated.
+   */
+  applySurfaceFinish(finish = this.config.texturedSurface) {
+    if (!finish) return 0;
+    let updated = 0;
+
+    for (const mesh of this.texturableMeshes) {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of materials) {
+        // Only PBR materials have these; MeshBasicMaterial and friends do not.
+        if (!('roughness' in material)) continue;
+        if (finish.roughness != null) material.roughness = finish.roughness;
+        if (finish.metalness != null) material.metalness = finish.metalness;
+        material.needsUpdate = true;
+        updated++;
+      }
+    }
+    return updated;
   }
 
   /** Re-frame the camera around the current model, keeping the view angle. */
@@ -85,13 +117,32 @@ export class ModelLoader {
     );
   }
 
-  /** Center at the origin and scale so the largest dimension is `targetSize`. */
+  /**
+   * Wrap the model in a pivot that is centred on the origin and scaled so the
+   * largest dimension is `targetSize`.
+   *
+   * The offset has to live on the inner object and the scale on the outer one.
+   * Doing both on a single object would apply the (unscaled) offset after the
+   * scale — `position` is not affected by an object's own `scale` — leaving the
+   * model off-centre. That also gives the spin a correct pivot: rotating the
+   * returned group turns the model about its own centre instead of swinging it
+   * around a point off to one side.
+   *
+   * @param {THREE.Group} model
+   * @returns {THREE.Group} The pivot to add to the scene.
+   */
   #normalizeTransform(model) {
     const { center, size } = measure(model);
     model.position.sub(center);
 
+    const pivot = new THREE.Group();
+    pivot.name = 'ModelPivot';
+    pivot.add(model);
+
     const maxDim = Math.max(size.x, size.y, size.z);
-    if (maxDim > 0) model.scale.setScalar(this.config.model.targetSize / maxDim);
+    if (maxDim > 0) pivot.scale.setScalar(this.config.model.targetSize / maxDim);
+
+    return pivot;
   }
 
   /** Enable shadows and index materials that can receive a replacement texture. */
@@ -103,8 +154,21 @@ export class ModelLoader {
       node.receiveShadow = true;
 
       const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        if (material) this.#sharpenTextures(material);
+      }
       if (materials.some((m) => m?.map)) this.texturableMeshes.push(node);
     });
+  }
+
+  /** Raise every map the model ships with to the GPU's anisotropy limit. */
+  #sharpenTextures(material) {
+    for (const value of Object.values(material)) {
+      if (value?.isTexture) {
+        value.anisotropy = this.maxAnisotropy;
+        value.needsUpdate = true;
+      }
+    }
   }
 
   /** Remove and free the current model's GPU resources. */

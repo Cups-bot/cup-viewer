@@ -22,6 +22,7 @@
 
   :root {
     --btn-size: 40px;
+    --icon-size: 18px;
   }
 
   .btn {
@@ -38,23 +39,15 @@
   }
 }
 
-/* Phones: hide the descriptive text label on the texture button to save room. */
+/* Phones: drop the texture button's text label, keeping just its icon. */
 @media (max-width: 400px) {
   .btn--texture {
     width: var(--btn-size);
     padding: 0;
-    font-size: 16px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-indent: -9999px;
   }
 
-  .btn--texture::before {
-    content: '🖼️';
-    text-indent: 0;
-    float: left;
-    width: 100%;
-    text-align: center;
+  .btn__label {
+    display: none;
   }
 }
 

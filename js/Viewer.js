@@ -5,9 +5,14 @@ import { createCamera } from './core/camera.js';
 import { createRenderer } from './core/renderer.js';
 import { createLighting } from './core/lighting.js';
 import { createControls } from './core/controls.js';
+import { createGround } from './core/ground.js';
+import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
+
+/** Longest frame step the animation will honour, in seconds. */
+const MAX_FRAME_DELTA = 0.1;
 
 /**
  * Top-level application object. It composes the rendering core, the loaders
@@ -28,9 +33,10 @@ export class Viewer {
 
     this.backgroundIndex = 0;
     this.frameId = null;
+    this.autoRotate = config.autoRotate.enabled;
   }
 
-  /** Create scene, camera, renderer, lighting and controls. */
+  /** Create scene, camera, renderer, lighting, ground and controls. */
   #initCore() {
     const { clientWidth: w, clientHeight: h } = this.container;
 
@@ -42,21 +48,34 @@ export class Viewer {
 
     createLighting(this.scene, this.config);
     this.controls = createControls(this.camera, this.renderer.domElement, this.config);
+
+    if (this.config.ground.enabled) {
+      this.ground = createGround(this.config);
+      this.scene.add(this.ground);
+    }
   }
 
   /** Create loaders and UI, then wire UI actions to viewer methods. */
   #initModules() {
+    // Sharpest possible textures at grazing angles — the value is a GPU limit,
+    // so it has to be read from the live renderer rather than hard-coded.
+    const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+
     this.modelLoader = new ModelLoader({
       scene: this.scene,
       camera: this.camera,
       controls: this.controls,
       config: this.config,
+      maxAnisotropy,
     });
-    this.textureManager = new TextureManager({ modelLoader: this.modelLoader, config: this.config });
+    this.textureManager = new TextureManager({
+      modelLoader: this.modelLoader,
+      config: this.config,
+      maxAnisotropy,
+    });
     this.ui = new UIManager(this.config);
 
     this.ui.bind({
-      onResetCamera: () => this.resetCamera(),
       onChangeBackground: () => this.cycleBackground(),
       onToggleAutoRotate: () => this.toggleAutoRotate(),
       onScreenshot: () => this.takeScreenshot(),
@@ -75,6 +94,7 @@ export class Viewer {
     this.#observeResize();
     this.#handleContextLoss();
     this.#startRenderLoop();
+    await this.loadHDRI();
     await this.loadModel(this.config.assets.model);
     await this.#loadDefaultTexture();
   }
@@ -83,7 +103,18 @@ export class Viewer {
     const clock = new THREE.Clock();
     const tick = () => {
       this.frameId = requestAnimationFrame(tick);
-      this.controls.update(clock.getDelta());
+      // Clamp: a backgrounded tab pauses rAF, so the first frame back reports
+      // the whole gap as one delta and the model would visibly jump.
+      const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
+
+      // Spin the model, not the camera: the HDRI stays put, so highlights and
+      // reflections stay anchored to the environment while the cup turns.
+      // Mouse-dragging orbits the camera instead, moving everything together.
+      if (this.autoRotate && this.modelLoader.currentModel) {
+        this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
+      }
+
+      this.controls.update(delta);
       this.renderer.render(this.scene, this.camera);
     };
     tick();
@@ -120,6 +151,26 @@ export class Viewer {
   /* Loading                                                              */
   /* -------------------------------------------------------------------- */
 
+  /** Load and pre-filter the HDRI. Failure is non-fatal: lights still work. */
+  async loadHDRI() {
+    this.ui.showLoader('Loading environment…');
+    try {
+      await this.loadEnvironmentMap();
+    } catch (error) {
+      console.error(error);
+      this.ui.showToast('Failed to load HDRI — falling back to lights only', 'error');
+    } finally {
+      this.ui.hideLoader();
+    }
+  }
+
+  /** @returns {Promise<THREE.Texture>} */
+  loadEnvironmentMap() {
+    return loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
+      this.ui.updateProgress(percent, 'Loading environment…'),
+    );
+  }
+
   /**
    * Load a model by URL, with UI progress and error feedback.
    * @param {string} url
@@ -128,12 +179,24 @@ export class Viewer {
     this.ui.showLoader('Loading model…');
     try {
       await this.modelLoader.load(url, (percent) => this.ui.updateProgress(percent));
+      applyEnvironmentIntensity(
+        this.modelLoader.currentModel,
+        this.config.lighting.environmentIntensity,
+      );
+      this.#placeGround();
     } catch (error) {
       console.error(error);
       this.ui.showToast('Failed to load model', 'error');
     } finally {
       this.ui.hideLoader();
     }
+  }
+
+  /** Sit the shadow catcher exactly at the model's lowest point. */
+  #placeGround() {
+    if (!this.ground || !this.modelLoader.currentModel) return;
+    const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
+    this.ground.position.y = box.min.y;
   }
 
   /** @param {File} file A dropped .glb/.gltf file. */
@@ -176,16 +239,16 @@ export class Viewer {
   /* Viewer actions                                                       */
   /* -------------------------------------------------------------------- */
 
-  resetCamera() {
-    const { position } = this.config.camera;
-    // Restore the default view direction, then re-fit so any model frames well.
-    this.controls.target.set(0, 0, 0);
-    this.camera.position.set(position.x, position.y, position.z);
-    if (this.modelLoader.currentModel) {
-      this.modelLoader.frameCurrentModel();
-    } else {
-      this.controls.update();
-    }
+  /**
+   * Change the finish of the textured surface at runtime.
+   * @param {{roughness?: number|null, metalness?: number|null}} finish
+   * @returns {number} Number of materials updated.
+   */
+  setSurfaceFinish(finish) {
+    return this.modelLoader.applySurfaceFinish({
+      ...this.config.texturedSurface,
+      ...finish,
+    });
   }
 
   cycleBackground() {
@@ -195,8 +258,8 @@ export class Viewer {
   }
 
   toggleAutoRotate() {
-    this.controls.autoRotate = !this.controls.autoRotate;
-    this.ui.setToggleState('autorotate', this.controls.autoRotate);
+    this.autoRotate = !this.autoRotate;
+    this.ui.setToggleState('autorotate', this.autoRotate);
   }
 
   takeScreenshot() {
@@ -205,7 +268,7 @@ export class Viewer {
     link.download = this.config.ui.screenshotName;
     link.href = this.renderer.domElement.toDataURL('image/png');
     link.click();
-    this.ui.showToast('Screenshot saved 📸');
+    this.ui.showToast('Screenshot saved');
   }
 
   toggleFullscreen() {
@@ -224,6 +287,9 @@ export class Viewer {
     this.resizeObserver?.disconnect();
     this.modelLoader.dispose();
     this.textureManager.dispose();
+    this.scene.environment?.dispose();
+    this.ground?.geometry.dispose();
+    this.ground?.material.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

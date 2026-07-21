@@ -10,7 +10,6 @@ const MODEL_EXTENSIONS = ['.glb', '.gltf'];
 
 /** Keyboard shortcuts → handler action names. */
 const SHORTCUTS = {
-  r: 'onResetCamera',
   b: 'onChangeBackground',
   a: 'onToggleAutoRotate',
   s: 'onScreenshot',
@@ -39,7 +38,6 @@ export class UIManager {
       dropOverlay: byId('drop-overlay'),
       textureInput: byId('texture-input'),
       buttons: {
-        reset: byId('reset-btn'),
         background: byId('bg-btn'),
         autorotate: byId('autorotate-btn'),
         screenshot: byId('screenshot-btn'),
@@ -58,7 +56,6 @@ export class UIManager {
     this.handlers = handlers;
     const { buttons, textureInput } = this.dom;
 
-    buttons.reset.addEventListener('click', () => this.#call('onResetCamera'));
     buttons.background.addEventListener('click', () => this.#call('onChangeBackground'));
     buttons.autorotate.addEventListener('click', () => this.#call('onToggleAutoRotate'));
     buttons.screenshot.addEventListener('click', () => this.#call('onScreenshot'));
@@ -136,10 +133,13 @@ export class UIManager {
     this.dom.loader.hidden = false;
   }
 
-  /** @param {number} percent 0–100, or -1 when total is unknown. */
-  updateProgress(percent) {
+  /**
+   * @param {number} percent 0–100, or -1 when total is unknown.
+   * @param {string} [label='Loading…'] Prefix shown before the percentage.
+   */
+  updateProgress(percent, label = 'Loading…') {
     this.dom.loaderText.textContent =
-      percent >= 0 ? `Loading… ${Math.round(percent)}%` : 'Loading…';
+      percent >= 0 ? `${label} ${Math.round(percent)}%` : label;
   }
 
   hideLoader() {
