@@ -1,24 +1,24 @@
 # 3D Cup Viewer
 
-A small Three.js viewer for looking at a 3D model in the browser and trying
-different textures on it. No build step — it's plain ES modules served off any
-static host.
+Небольшой просмотрщик на Three.js: показывает 3D-модель в браузере и позволяет
+примерять на неё разные текстуры. Сборка не нужна — это обычные ES-модули,
+которые работают с любого статического сервера.
 
-![The viewer showing a red cup](docs/preview.png)
+![Просмотрщик с красным стаканом](docs/preview.png)
 
-## Running it
+## Запуск
 
-The page loads its modules and assets over HTTP, so open it through a server
-rather than double-clicking `index.html`:
+Страница подгружает модули и ассеты по HTTP, поэтому открывайте её через сервер,
+а не двойным кликом по `index.html`:
 
 ```bash
 python3 -m http.server 8000
-# open http://localhost:8000
+# откройте http://localhost:8000
 ```
 
-## Using a different model
+## Другая модель
 
-Drag a `.glb`/`.gltf` file onto the page, or point `js/config.js` at it:
+Перетащите файл `.glb`/`.gltf` на страницу или пропишите путь в `js/config.js`:
 
 ```js
 assets: {
@@ -27,43 +27,44 @@ assets: {
 }
 ```
 
-The model is centered, scaled and framed for you.
+Модель сама центрируется, масштабируется и попадает в кадр.
 
-## Changing the texture
+## Смена текстуры
 
-Click **Replace Texture**, drop an image onto the page, or from the console:
+Нажмите **Replace Texture**, перетащите картинку на страницу или вызовите из
+консоли:
 
 ```js
 replaceTexture('assets/textures/mockup.jpg');
 ```
 
-The texture is swapped in place — the model isn't reloaded.
+Текстура меняется на месте — модель не перезагружается.
 
-## Controls
+## Управление
 
-Drag to orbit, scroll to zoom, right-click to pan. The bottom bar and a few
-keys handle the rest:
+Зажатая кнопка мыши — вращение, колесо — зум, правая кнопка — панорамирование.
+Остальное — на нижней панели и на паре клавиш:
 
-- `R` — reset the camera
-- `B` — cycle the background
-- `A` — toggle auto-rotate
-- `S` — save a screenshot
-- `F` — fullscreen
+- `R` — сбросить камеру
+- `B` — сменить фон
+- `A` — включить/выключить автоповорот
+- `S` — сохранить скриншот
+- `F` — полноэкранный режим
 
-## Layout
+## Структура
 
 ```
-index.html        markup
-css/              styles
-js/config.js      settings (camera, lights, zoom limits, backgrounds, shadows…)
-js/main.js        entry point
-js/Viewer.js      wires everything together
-js/core/          scene, camera, renderer, lights, controls
-js/loaders/       model + texture loading
-js/ui/            buttons, shortcuts, drag & drop
-js/utils/         shared helpers
-assets/           models and textures
+index.html        разметка
+css/              стили
+js/config.js      настройки (камера, свет, пределы зума, фон, тени…)
+js/main.js        точка входа
+js/Viewer.js      связывает всё вместе
+js/core/          сцена, камера, рендерер, свет, управление
+js/loaders/       загрузка модели и текстур
+js/ui/            кнопки, горячие клавиши, drag & drop
+js/utils/         общие вспомогательные функции
+assets/           модели и текстуры
 ```
 
-Almost everything you'd want to tweak lives in `js/config.js`. Three.js itself
-is pulled from a CDN via the import map in `index.html`.
+Почти всё, что захочется поменять, лежит в `js/config.js`. Сам Three.js
+подключается с CDN через import map в `index.html`.
