@@ -12,7 +12,6 @@ const MODEL_EXTENSIONS = ['.glb', '.gltf'];
 const SHORTCUTS = {
   r: 'onResetCamera',
   b: 'onChangeBackground',
-  w: 'onToggleWireframe',
   a: 'onToggleAutoRotate',
   s: 'onScreenshot',
   f: 'onToggleFullscreen',
@@ -42,7 +41,6 @@ export class UIManager {
       buttons: {
         reset: byId('reset-btn'),
         background: byId('bg-btn'),
-        wireframe: byId('wireframe-btn'),
         autorotate: byId('autorotate-btn'),
         screenshot: byId('screenshot-btn'),
         fullscreen: byId('fullscreen-btn'),
@@ -62,7 +60,6 @@ export class UIManager {
 
     buttons.reset.addEventListener('click', () => this.#call('onResetCamera'));
     buttons.background.addEventListener('click', () => this.#call('onChangeBackground'));
-    buttons.wireframe.addEventListener('click', () => this.#call('onToggleWireframe'));
     buttons.autorotate.addEventListener('click', () => this.#call('onToggleAutoRotate'));
     buttons.screenshot.addEventListener('click', () => this.#call('onScreenshot'));
     buttons.fullscreen.addEventListener('click', () => this.#call('onToggleFullscreen'));
@@ -165,7 +162,7 @@ export class UIManager {
 
   /**
    * Reflect a toggle's state on its button (visual + ARIA).
-   * @param {'wireframe' | 'autorotate'} name
+   * @param {'autorotate'} name
    * @param {boolean} active
    */
   setToggleState(name, active) {

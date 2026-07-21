@@ -8,7 +8,6 @@ import { createControls } from './core/controls.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
-import { forEachMaterial } from './utils/helpers.js';
 
 /**
  * Top-level application object. It composes the rendering core, the loaders
@@ -28,7 +27,6 @@ export class Viewer {
     this.#initModules();
 
     this.backgroundIndex = 0;
-    this.wireframe = false;
     this.frameId = null;
   }
 
@@ -60,7 +58,6 @@ export class Viewer {
     this.ui.bind({
       onResetCamera: () => this.resetCamera(),
       onChangeBackground: () => this.cycleBackground(),
-      onToggleWireframe: () => this.toggleWireframe(),
       onToggleAutoRotate: () => this.toggleAutoRotate(),
       onScreenshot: () => this.takeScreenshot(),
       onToggleFullscreen: () => this.toggleFullscreen(),
@@ -131,7 +128,6 @@ export class Viewer {
     this.ui.showLoader('Loading model…');
     try {
       await this.modelLoader.load(url, (percent) => this.ui.updateProgress(percent));
-      this.applyWireframe(this.wireframe);
     } catch (error) {
       console.error(error);
       this.ui.showToast('Failed to load model', 'error');
@@ -196,21 +192,6 @@ export class Viewer {
     const { backgrounds } = this.config;
     this.backgroundIndex = (this.backgroundIndex + 1) % backgrounds.length;
     this.scene.background = new THREE.Color(backgrounds[this.backgroundIndex]);
-  }
-
-  toggleWireframe() {
-    this.applyWireframe(!this.wireframe);
-  }
-
-  /** @param {boolean} enabled */
-  applyWireframe(enabled) {
-    this.wireframe = enabled;
-    if (this.modelLoader.currentModel) {
-      forEachMaterial(this.modelLoader.currentModel, (material) => {
-        material.wireframe = enabled;
-      });
-    }
-    this.ui.setToggleState('wireframe', enabled);
   }
 
   toggleAutoRotate() {
