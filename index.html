@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <meta name="description" content="A lightweight, configurable 3D model viewer built with Three.js." />
-    <title>3D Cup Viewer</title>
+    <meta name="description" content="Лёгкий настраиваемый просмотрщик 3D-моделей на Three.js." />
+    <title>Просмотрщик 3D-модели</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/responsive.css" />
   </head>
@@ -13,36 +13,34 @@
 
     <div class="loader" id="loader" role="status" aria-live="polite" hidden>
       <span class="spinner" aria-hidden="true"></span>
-      <span class="loader-text" id="loader-text">Loading…</span>
+      <span class="loader-text" id="loader-text">Загрузка…</span>
     </div>
 
     <div class="drop-overlay" id="drop-overlay" hidden>
-      <div class="drop-overlay__message">Drop image or .glb model to load</div>
+      <div class="drop-overlay__message">Перетащите изображение или .glb-модель</div>
     </div>
 
-    <!--
-      Control icons are plain <img> tags pointing at assets/icons/*.svg.
-      To use your own artwork, replace the file — the markup stays untouched.
-    -->
-    <nav class="controls-panel" aria-label="Viewer controls">
-      <button class="btn" id="bg-btn" type="button" title="Change background (B)" aria-label="Change background">
+    <!-- Иконки — обычные <img> на assets/icons/*.svg. Чтобы поставить свои,
+         замените файл — разметка не меняется. -->
+    <nav class="controls-panel" aria-label="Управление просмотром">
+      <button class="btn" id="bg-btn" type="button" title="Сменить фон (B)" aria-label="Сменить фон">
         <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
       </button>
-      <button class="btn is-active" id="autorotate-btn" type="button" title="Auto-rotate (A)" aria-label="Toggle auto-rotate" aria-pressed="true">
+      <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
         <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
       </button>
-      <button class="btn" id="screenshot-btn" type="button" title="Screenshot (S)" aria-label="Take screenshot">
+      <button class="btn" id="screenshot-btn" type="button" title="Скриншот (S)" aria-label="Сделать скриншот">
         <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
       </button>
-      <button class="btn" id="fullscreen-btn" type="button" title="Fullscreen (F)" aria-label="Toggle fullscreen">
+      <button class="btn" id="fullscreen-btn" type="button" title="Полный экран (F)" aria-label="Полноэкранный режим">
         <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
       </button>
 
       <span class="divider" aria-hidden="true"></span>
 
-      <button class="btn btn--texture" id="texture-btn" type="button" title="Replace texture">
+      <button class="btn btn--texture" id="texture-btn" type="button" title="Заменить дизайн">
         <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
-        <span class="btn__label">Replace Texture</span>
+        <span class="btn__label">Заменить дизайн</span>
       </button>
       <input type="file" id="texture-input" accept="image/*" hidden />
     </nav>

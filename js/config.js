@@ -1,33 +1,30 @@
-/**
- * Central configuration for the 3D Cup Viewer.
- *
- * This is the single place to tweak the viewer's behaviour. In most cases
- * you can adapt the whole project without touching any logic — just edit
- * the values below (swap the model, change lighting, adjust the camera…).
- */
+// Настройки просмотрщика. Всё, что обычно нужно менять, собрано здесь —
+// логику трогать не требуется: заменить модель, свет, камеру и т.д.
 export const CONFIG = Object.freeze({
-  /** Assets loaded on startup. */
+  // Ассеты, загружаемые при старте.
   assets: {
     model: 'assets/models/8cups.glb',
     texture: 'assets/textures/img_mokup.jpg',
     hdri: 'assets/hdri/main.hdr',
-    /** Folder the control-panel icons are read from (one .svg per action). */
     icons: 'assets/icons/',
   },
 
-  /** Renderer / color pipeline. */
+  // Рендерер и цветовой конвейер.
   renderer: {
     antialias: true,
-    /** Required so screenshots can read pixels back from the canvas. */
+    // Нужно, чтобы скриншот мог считать пиксели с холста.
     preserveDrawingBuffer: true,
     alpha: true,
-    /** Clamp DPR to avoid rendering huge buffers on hi-dpi screens. */
+    // Ограничение DPR, чтобы не рендерить огромные буферы на hi-dpi экранах.
     maxPixelRatio: 2,
     toneMappingExposure: 1.0,
-    shadows: true,
+    // Карты теней (только самозатенение модели). Тень под моделью рисует
+    // contactShadow.js, ей карта теней не нужна. Включать смысл есть только
+    // вместе с ключевым светом (lighting.sunFromHDRI.intensityScale > 0).
+    shadows: false,
   },
 
-  /** Perspective camera. */
+  // Перспективная камера.
   camera: {
     fov: 40,
     near: 0.1,
@@ -35,99 +32,107 @@ export const CONFIG = Object.freeze({
     position: { x: 0, y: 0.35, z: 1.2 },
   },
 
-  /** OrbitControls. Auto-rotation is done on the model, not the camera. */
+  // OrbitControls. Автоповорот крутит модель, а не камеру.
   controls: {
     enableDamping: true,
     dampingFactor: 0.08,
     minDistance: 0.4,
     maxDistance: 3,
-    /** Radians. Math.PI allows orbiting fully under the model. */
+    // Math.PI — можно облететь модель полностью, вплоть до вида снизу.
     maxPolarAngle: Math.PI,
     enablePan: true,
   },
 
-  /**
-   * Model spin. The model itself turns while the camera and the HDRI stay
-   * put, so highlights and reflections remain anchored to the environment.
-   * Dragging with the mouse orbits the camera instead, which moves the
-   * lighting and the model together.
-   */
+  // Вращается сама модель, камера и HDRI стоят на месте — блики и отражения
+  // остаются привязаны к окружению. Перетаскивание мышью вращает камеру.
   autoRotate: {
     enabled: true,
-    /** Radians per second. */
-    speed: 0.45,
+    speed: 0.45, // рад/с
   },
 
-  /** Image-based lighting from the HDRI, plus a key light for the shadow. */
   lighting: {
-    /** Strength of the HDRI contribution on the model's materials. */
-    environmentIntensity: 1.0,
+    // Вклад HDRI в освещение материалов.
+    environmentIntensity: 1.2,
+    // Ключевой свет наводится вдоль солнца, найденного в HDRI. По умолчанию
+    // выключен (intensityScale: 0): HDRI уже освещает модель вместе с солнцем,
+    // а тень берёт направление из карты напрямую. Поднять до 0.5–1, если нужен
+    // жёсткий блик поверх окружения; enabled: false — вернуться к position.
+    sunFromHDRI: {
+      enabled: true,
+      distance: 1,
+      intensityScale: 0,
+      useColor: true,
+    },
+
     directional: [
       {
         color: 0xffffff,
-        intensity: 2.2,
+        intensity: 1.2,
+        // Перекрывается sunFromHDRI, пока тот включён.
         position: { x: 1.5, y: 2.5, z: 1.5 },
         castShadow: true,
       },
     ],
+    // Самозатенение, работает только при renderer.shadows: true.
     shadow: {
-      mapSize: 4096,
+      mapSize: 2048,
       near: 0.1,
       far: 12,
-      /** Half-extent of the shadow camera's frustum, in world units. */
-      radius: 1.2,
+      frustum: 1.2, // половина фрустума камеры теней, в мировых единицах
       bias: -0.0002,
       normalBias: 0.008,
     },
   },
 
-  /**
-   * Invisible ground plane that only catches the model's shadow, so the cup
-   * appears grounded without a visible floor.
-   */
-  ground: {
+  // Мягкая тень под моделью — рендерится в текстуру и размывается, без карты
+  // теней (см. core/contactShadow.js).
+  contactShadow: {
     enabled: true,
-    size: 20,
-    /** 0–1. How dark the caught shadow is drawn. */
-    opacity: 0.35,
+    // Размер плоскости тени. Должен вмещать след модели после сдвига солнцем.
+    size: 2,
+    // Разрешение offscreen-таргета. Небольшое намеренно: результат размывается.
+    resolution: 2048,
+    // Тень отбрасывает только геометрия ниже этой высоты, с затуханием вверх.
+    height: 0.9,
+    // Насколько тёмной становится тень до применения opacity.
+    darkness: 1.3,
+
+    // Мягкость, плотность и направление берутся из HDRI (см. analyzeSun).
+    // false — задать blur и opacity вручную ниже.
+    matchHDRI: true,
+    // Типичная высота отбрасывающей геометрии над полом.
+    receiverDistance: 0.25,
+    blurScale: 1.0,
+    minBlur: 1,
+    maxBlur: 10,
+    minOpacity: 0.1,
+    maxOpacity: 0.6,
+
+    // Значения по умолчанию, когда matchHDRI: false.
+    blur: 4,
+    opacity: 0.6,
   },
 
-  /**
-   * Surface finish of the meshes the loaded texture lands on.
-   *
-   * 8cups.glb ships that material with `roughness: 0` — a perfect mirror,
-   * which reads as glossy plastic rather than printed paper. There is no
-   * roughnessMap on it, so this single scalar controls the whole finish:
-   *   0.0  зеркало / глянцевый пластик
-   *   0.3  лакированная поверхность
-   *   0.6  матовая печать на бумаге  ← по умолчанию
-   *   1.0  полностью матовая, без бликов
-   *
-   * Set either value to `null` to keep whatever the model was authored with.
-   * Tune it live from the console with `setRoughness(0.4)`.
-   */
+  // Отделка поверхности, на которую ложится текстура. У 8cups.glb этот материал
+  // приходит с roughness: 0 (зеркало), roughnessMap нет — всё решает один
+  // скаляр: 0 — зеркало, 0.6 — матовая печать, 1 — полностью матовая.
+  // null оставляет свойство как в модели. Подстройка из консоли: setRoughness(0.4).
   texturedSurface: {
-    roughness: 0.2,
+    roughness: 0.8,
     metalness: 0,
   },
 
-  /**
-   * How the loaded model is normalised. The loader fits any model into a
-   * predictable size and re-frames the camera automatically.
-   */
+  // Нормализация модели: подгонка под предсказуемый размер и авто-кадрирование.
   model: {
-    /** Largest bounding-box dimension is scaled down to this many units. */
-    targetSize: 0.5,
-    /** Multiplier applied when framing the camera (>1 = more margin). */
-    cameraFitOffset: 1.6,
+    targetSize: 0.5, // наибольшая сторона bounding box масштабируется к этому
+    cameraFitOffset: 1.6, // запас при кадрировании (>1 — больше отступ)
   },
 
-  /** Cycled by the "Change background" button. First entry is the default. */
+  // Перебираются кнопкой «сменить фон». Первый — по умолчанию.
   backgrounds: ['#ffffff', '#e8e8e8', '#9a9a9a', '#1c1c1e'],
 
-  /** UI behaviour. */
   ui: {
     toastDuration: 2500,
-    screenshotName: 'cup-viewer-screenshot.png',
+    screenshotName: 'cup-viewer.png',
   },
 });

@@ -1,16 +1,9 @@
 import * as THREE from 'three';
 
-/**
- * Pure, reusable helpers with no viewer state of their own.
- * Keeping them isolated makes them trivial to test and share.
- */
+// Чистые вспомогательные функции без собственного состояния.
 
-/**
- * Recursively dispose geometries, materials and their textures under an
- * object so the GPU memory it held is released. Prevents leaks when a model
- * is swapped out at runtime.
- * @param {THREE.Object3D} root
- */
+// Рекурсивно освобождает геометрии, материалы и их текстуры под объектом, чтобы
+// вернуть память GPU при смене модели на лету.
 export function disposeObject(root) {
   root.traverse((node) => {
     if (node.geometry) node.geometry.dispose();
@@ -20,10 +13,7 @@ export function disposeObject(root) {
   });
 }
 
-/**
- * Dispose a material and every texture it references.
- * @param {THREE.Material} material
- */
+// Освобождает материал и все его текстуры.
 export function disposeMaterial(material) {
   for (const value of Object.values(material)) {
     if (value && value.isTexture) value.dispose();
@@ -31,10 +21,7 @@ export function disposeMaterial(material) {
   material.dispose();
 }
 
-/**
- * Compute the bounding box, center and size of an object in one pass.
- * @param {THREE.Object3D} object
- */
+// Bounding box, центр и размер объекта за один проход.
 export function measure(object) {
   const box = new THREE.Box3().setFromObject(object);
   return {
@@ -44,22 +31,20 @@ export function measure(object) {
   };
 }
 
-/**
- * Position a perspective camera so the given bounding sphere fits the frame,
- * keeping the camera's current viewing direction.
- * @param {THREE.PerspectiveCamera} camera
- * @param {import('three').OrbitControls} controls
- * @param {THREE.Box3} box
- * @param {number} [offset=1.3] Margin multiplier around the object.
- */
+// Ставит перспективную камеру так, чтобы объект помещался в кадр, сохраняя
+// текущее направление взгляда. offset — множитель отступа вокруг объекта.
 export function frameObject(camera, controls, box, offset = 1.3) {
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
 
   const fitHeightDistance = maxDim / (2 * Math.tan((Math.PI * camera.fov) / 360));
-  const fitWidthDistance = fitHeightDistance / camera.aspect;
-  const distance = offset * Math.max(fitHeightDistance, fitWidthDistance);
+  const aspect = Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1;
+  const fitWidthDistance = fitHeightDistance / aspect;
+  // Пустой или вырожденный box иначе поставил бы камеру в NaN, что тихо портит
+  // все матрицы дальше и заклинивает рендерер.
+  const fitted = offset * Math.max(fitHeightDistance, fitWidthDistance);
+  const distance = Number.isFinite(fitted) && fitted > 0 ? fitted : 1;
 
   const direction = camera.position.clone().sub(controls.target).normalize();
   controls.target.copy(center);

@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 
-/**
- * Create a WebGL renderer configured with a modern, physically-based color
- * pipeline: sRGB output, ACES Filmic tone mapping and clamped pixel ratio.
- * @param {import('../config.js').CONFIG} config
- * @returns {THREE.WebGLRenderer}
- */
+// WebGL-рендерер с физически корректным цветовым конвейером: вывод в sRGB,
+// тонмаппинг ACES Filmic, ограниченный pixel ratio.
 export function createRenderer(config) {
   const { antialias, preserveDrawingBuffer, alpha, maxPixelRatio, toneMappingExposure, shadows } =
     config.renderer;
@@ -14,17 +10,18 @@ export function createRenderer(config) {
     antialias,
     preserveDrawingBuffer,
     alpha,
-    // Ask for the discrete GPU on dual-graphics laptops.
+    // Просим дискретную видеокарту на ноутбуках с двумя GPU.
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
 
-  // Correct color management: textures are authored in sRGB, lighting is
-  // computed in linear space and the final image is tone-mapped back to sRGB.
+  // Текстуры авторизованы в sRGB, свет считается в линейном пространстве,
+  // итог тонмаппится обратно в sRGB.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = toneMappingExposure;
 
+  // Только самозатенение; тень под моделью рисует contactShadow.js.
   if (shadows) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;

@@ -1,17 +1,14 @@
-/* =========================================================================
-   3D Cup Viewer — base styles
-   Design tokens live in :root so the whole look can be retuned in one place.
-   ========================================================================= */
+/* Базовые стили. Токены оформления живут в :root — весь вид меняется в одном
+   месте. */
 
 :root {
-  /* Matches backgrounds[0] in js/config.js so there is no flash before the
-     canvas paints. */
+  /* Совпадает с backgrounds[0] в js/config.js, чтобы не было вспышки до
+     отрисовки холста. */
   --color-bg: #ffffff;
   --color-text: #ffffff;
 
-  /* The HUD floats over user-selectable backgrounds that run from white to
-     near-black, so the panel is a dark neutral glass: white icons stay legible
-     on every one of them, which a translucent-white panel could not manage. */
+  /* Панель висит над фонами от белого до почти чёрного, поэтому она — тёмное
+     нейтральное стекло: белые иконки читаются на любом из них. */
   --surface: rgba(24, 24, 27, 0.62);
   --surface-hover: rgba(255, 255, 255, 0.22);
   --surface-strong: rgba(255, 255, 255, 0.1);
@@ -70,7 +67,7 @@ body {
   display: block;
 }
 
-/* ---- Heads-up hint ---------------------------------------------------- */
+/* ---- Подсказка сверху -------------------------------------------------- */
 .info-text {
   position: fixed;
   top: 20px;
@@ -87,7 +84,7 @@ body {
   pointer-events: none;
 }
 
-/* ---- Control panel ---------------------------------------------------- */
+/* ---- Панель управления ------------------------------------------------- */
 .controls-panel {
   position: fixed;
   bottom: 30px;
@@ -122,8 +119,8 @@ body {
   transition: background var(--transition), transform var(--transition);
 }
 
-/* Icons are separate .svg files, so they are swapped by replacing the file in
-   assets/icons/ — no markup or CSS change needed. */
+/* Иконки — отдельные .svg; меняются заменой файла в assets/icons/, без правки
+   разметки и CSS. */
 .btn__icon {
   width: var(--icon-size);
   height: var(--icon-size);
@@ -172,7 +169,7 @@ body {
   background: var(--border);
 }
 
-/* ---- Loader ----------------------------------------------------------- */
+/* ---- Индикатор загрузки ------------------------------------------------ */
 .loader {
   position: fixed;
   top: 50%;
@@ -208,7 +205,7 @@ body {
   }
 }
 
-/* ---- Toast ------------------------------------------------------------ */
+/* ---- Всплывающее сообщение --------------------------------------------- */
 .toast {
   position: fixed;
   bottom: 100px;
@@ -236,7 +233,7 @@ body {
   100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
 }
 
-/* ---- Drag & drop overlay --------------------------------------------- */
+/* ---- Оверлей перетаскивания -------------------------------------------- */
 .drop-overlay {
   position: fixed;
   inset: 0;

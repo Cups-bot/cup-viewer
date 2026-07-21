@@ -3,27 +3,26 @@ import * as THREE from 'three';
 import { createScene } from './core/scene.js';
 import { createCamera } from './core/camera.js';
 import { createRenderer } from './core/renderer.js';
-import { createLighting } from './core/lighting.js';
+import { createLighting, aimLightAtSun } from './core/lighting.js';
 import { createControls } from './core/controls.js';
-import { createGround } from './core/ground.js';
+import { createContactShadow } from './core/contactShadow.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
 
-/** Longest frame step the animation will honour, in seconds. */
+// Максимальный шаг кадра, который учитывает анимация (сек).
 const MAX_FRAME_DELTA = 0.1;
 
-/**
- * Top-level application object. It composes the rendering core, the loaders
- * and the UI, owns the animation loop, and implements the viewer actions the
- * UI delegates to it. This is the only place that knows about all the pieces.
- */
+// Отношение сторон, всегда конечное и положительное.
+function aspectOf(width, height) {
+  const aspect = width / height;
+  return Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+}
+
+// Собирает ядро рендера, загрузчики и UI, владеет циклом отрисовки и реализует
+// действия, которые UI ему делегирует.
 export class Viewer {
-  /**
-   * @param {HTMLElement} container Element the canvas is appended to.
-   * @param {import('./config.js').CONFIG} config
-   */
   constructor(container, config) {
     this.container = container;
     this.config = config;
@@ -36,29 +35,29 @@ export class Viewer {
     this.autoRotate = config.autoRotate.enabled;
   }
 
-  /** Create scene, camera, renderer, lighting, ground and controls. */
   #initCore() {
     const { clientWidth: w, clientHeight: h } = this.container;
 
     this.scene = createScene(this.config);
-    this.camera = createCamera(this.config, w / h);
+    // Контейнер без раскладки (скрытая вкладка, display:none) отдаёт 0×0, а
+    // 0/0 = NaN, который уходит в aspect и заклинивает рендерер. ResizeObserver
+    // исправит это, как только элемент получит реальный размер.
+    this.camera = createCamera(this.config, aspectOf(w, h));
     this.renderer = createRenderer(this.config);
     this.renderer.setSize(w, h);
     this.container.appendChild(this.renderer.domElement);
 
-    createLighting(this.scene, this.config);
+    this.lightingRig = createLighting(this.scene, this.config);
     this.controls = createControls(this.camera, this.renderer.domElement, this.config);
 
-    if (this.config.ground.enabled) {
-      this.ground = createGround(this.config);
-      this.scene.add(this.ground);
+    if (this.config.contactShadow.enabled) {
+      this.contactShadow = createContactShadow(this.config);
+      this.scene.add(this.contactShadow.group);
     }
   }
 
-  /** Create loaders and UI, then wire UI actions to viewer methods. */
   #initModules() {
-    // Sharpest possible textures at grazing angles — the value is a GPU limit,
-    // so it has to be read from the live renderer rather than hard-coded.
+    // Предел анизотропии — аппаратный, читается с живого рендерера.
     const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
 
     this.modelLoader = new ModelLoader({
@@ -85,11 +84,7 @@ export class Viewer {
     });
   }
 
-  /* -------------------------------------------------------------------- */
-  /* Lifecycle                                                            */
-  /* -------------------------------------------------------------------- */
-
-  /** Load default assets, start observers and the render loop. */
+  // Загрузка ассетов, запуск наблюдателей и цикла отрисовки.
   async start() {
     this.#observeResize();
     this.#handleContextLoss();
@@ -103,29 +98,29 @@ export class Viewer {
     const clock = new THREE.Clock();
     const tick = () => {
       this.frameId = requestAnimationFrame(tick);
-      // Clamp: a backgrounded tab pauses rAF, so the first frame back reports
-      // the whole gap as one delta and the model would visibly jump.
+      // Ограничиваем: свёрнутая вкладка ставит rAF на паузу, и первый кадр
+      // после возврата отдал бы весь простой одной дельтой — модель дёрнулась бы.
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
 
-      // Spin the model, not the camera: the HDRI stays put, so highlights and
-      // reflections stay anchored to the environment while the cup turns.
-      // Mouse-dragging orbits the camera instead, moving everything together.
       if (this.autoRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
       }
 
       this.controls.update(delta);
+      // Тень перерисовывается каждый кадр (модель под ней крутится) и до
+      // основного рендера — она сначала рисует сцену в свой таргет.
+      this.contactShadow?.update(this.renderer, this.scene);
       this.renderer.render(this.scene, this.camera);
     };
     tick();
   }
 
-  /** Keep renderer and camera in sync with the container's real size. */
+  // Держим рендерер и камеру в согласии с реальным размером контейнера.
   #observeResize() {
     const onResize = () => {
       const { clientWidth: w, clientHeight: h } = this.container;
       if (w === 0 || h === 0) return;
-      this.camera.aspect = w / h;
+      this.camera.aspect = aspectOf(w, h);
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
     };
@@ -133,50 +128,71 @@ export class Viewer {
     this.resizeObserver.observe(this.container);
   }
 
-  /** Recover gracefully if the browser drops the WebGL context. */
+  // Восстановление при потере контекста WebGL.
   #handleContextLoss() {
     const canvas = this.renderer.domElement;
     canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
       if (this.frameId) cancelAnimationFrame(this.frameId);
-      this.ui.showToast('WebGL context lost — attempting to recover…', 'error');
+      this.ui.showToast('Контекст WebGL потерян — восстановление…', 'error');
     });
     canvas.addEventListener('webglcontextrestored', () => {
       this.#startRenderLoop();
-      this.ui.showToast('WebGL context restored');
+      this.ui.showToast('Контекст WebGL восстановлен');
     });
   }
 
-  /* -------------------------------------------------------------------- */
-  /* Loading                                                              */
-  /* -------------------------------------------------------------------- */
-
-  /** Load and pre-filter the HDRI. Failure is non-fatal: lights still work. */
+  // Загрузка HDRI. Сбой не критичен: свет продолжает работать.
   async loadHDRI() {
-    this.ui.showLoader('Loading environment…');
+    this.ui.showLoader('Загрузка окружения…');
     try {
       await this.loadEnvironmentMap();
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Failed to load HDRI — falling back to lights only', 'error');
+      this.ui.showToast('Не удалось загрузить HDRI — работает только свет', 'error');
     } finally {
       this.ui.hideLoader();
     }
   }
 
-  /** @returns {Promise<THREE.Texture>} */
-  loadEnvironmentMap() {
-    return loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
-      this.ui.updateProgress(percent, 'Loading environment…'),
+  // Грузит HDRI и передаёт тени параметры солнца из карты: направление,
+  // ширину и плотность.
+  async loadEnvironmentMap() {
+    const { envMap, sun } = await loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
+      this.ui.updateProgress(percent, 'Загрузка окружения…'),
     );
+
+    this.sun = sun;
+    aimLightAtSun(this.lightingRig, sun, this.config);
+    this.shadowMatch = this.contactShadow?.matchToSun(sun) ?? null;
+    return envMap;
   }
 
-  /**
-   * Load a model by URL, with UI progress and error feedback.
-   * @param {string} url
-   */
+  // Где солнце HDRI и что из него вывелось для тени. Читать из консоли, когда
+  // тень выглядит не так: большой angularRadius при низком contrast должен
+  // давать мягкую и бледную тень, малый при высоком — резкую и тёмную.
+  describeSun() {
+    if (!this.sun) return null;
+    const { direction, color, irradiance, angularRadius, peak, mean } = this.sun;
+    const toDeg = 180 / Math.PI;
+    return {
+      elevation: +(Math.asin(direction.y) * toDeg).toFixed(1),
+      azimuth: +(Math.atan2(direction.z, direction.x) * toDeg).toFixed(1),
+      direction: direction.toArray().map((n) => +n.toFixed(3)),
+      color: `#${color.getHexString()}`,
+      irradiance: +irradiance.toFixed(3),
+      angularRadius: +(angularRadius * toDeg).toFixed(2),
+      contrast: Math.round(peak / mean),
+      shadow: this.shadowMatch && {
+        blur: +this.shadowMatch.blur.toFixed(1),
+        opacity: +this.shadowMatch.opacity.toFixed(3),
+      },
+    };
+  }
+
+  // Загрузка модели по URL с индикацией прогресса и обработкой ошибок.
   async loadModel(url) {
-    this.ui.showLoader('Loading model…');
+    this.ui.showLoader('Загрузка модели…');
     try {
       await this.modelLoader.load(url, (percent) => this.ui.updateProgress(percent));
       applyEnvironmentIntensity(
@@ -186,64 +202,55 @@ export class Viewer {
       this.#placeGround();
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Failed to load model', 'error');
+      this.ui.showToast('Не удалось загрузить модель', 'error');
     } finally {
       this.ui.hideLoader();
     }
   }
 
-  /** Sit the shadow catcher exactly at the model's lowest point. */
+  // Ставим плоскость тени точно на нижнюю точку модели.
   #placeGround() {
-    if (!this.ground || !this.modelLoader.currentModel) return;
+    if (!this.contactShadow || !this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
-    this.ground.position.y = box.min.y;
+    this.contactShadow.group.position.y = box.min.y;
   }
 
-  /** @param {File} file A dropped .glb/.gltf file. */
   async loadModelFromFile(file) {
     const url = URL.createObjectURL(file);
     try {
       await this.loadModel(url);
       await this.#loadDefaultTexture();
-      this.ui.showToast(`Loaded model: ${file.name}`);
+      this.ui.showToast(`Модель загружена: ${file.name}`);
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
-  /** Apply the configured default texture, ignoring absence silently. */
+  // Применяем текстуру по умолчанию, молча игнорируя её отсутствие.
   async #loadDefaultTexture() {
     try {
       await this.textureManager.replaceTexture(this.config.assets.texture);
     } catch {
-      /* No default texture — keep the model's original materials. */
+      // Текстуры по умолчанию нет — оставляем исходные материалы модели.
     }
   }
 
-  /** @param {File} file An image file (input or drag & drop). */
   async replaceTextureFromFile(file) {
     try {
       const texture = await this.textureManager.loadFromFile(file);
       const updated = this.textureManager.applyTexture(texture);
       this.ui.showToast(
-        updated > 0 ? `Texture applied: ${file.name}` : 'No texturable material in this model',
+        updated > 0 ? `Дизайн применён: ${file.name}` : 'В модели нет поверхности для дизайна',
         updated > 0 ? 'success' : 'error',
       );
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Failed to apply texture', 'error');
+      this.ui.showToast('Не удалось применить дизайн', 'error');
     }
   }
 
-  /* -------------------------------------------------------------------- */
-  /* Viewer actions                                                       */
-  /* -------------------------------------------------------------------- */
-
-  /**
-   * Change the finish of the textured surface at runtime.
-   * @param {{roughness?: number|null, metalness?: number|null}} finish
-   * @returns {number} Number of materials updated.
-   */
+  // Меняет отделку поверхности с текстурой на лету. Возвращает число
+  // обновлённых материалов.
   setSurfaceFinish(finish) {
     return this.modelLoader.applySurfaceFinish({
       ...this.config.texturedSurface,
@@ -268,7 +275,7 @@ export class Viewer {
     link.download = this.config.ui.screenshotName;
     link.href = this.renderer.domElement.toDataURL('image/png');
     link.click();
-    this.ui.showToast('Screenshot saved');
+    this.ui.showToast('Скриншот сохранён');
   }
 
   toggleFullscreen() {
@@ -276,20 +283,19 @@ export class Viewer {
       document.exitFullscreen();
     } else {
       this.container.requestFullscreen?.().catch(() => {
-        this.ui.showToast('Fullscreen not available', 'error');
+        this.ui.showToast('Полноэкранный режим недоступен', 'error');
       });
     }
   }
 
-  /** Release all GPU resources and observers. */
+  // Освобождает все ресурсы GPU и наблюдателей.
   dispose() {
     if (this.frameId) cancelAnimationFrame(this.frameId);
     this.resizeObserver?.disconnect();
     this.modelLoader.dispose();
     this.textureManager.dispose();
     this.scene.environment?.dispose();
-    this.ground?.geometry.dispose();
-    this.ground?.material.dispose();
+    this.contactShadow?.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
