@@ -6,19 +6,6 @@ import * as THREE from 'three';
  */
 
 /**
- * Iterate every material on an object (handles the single / array cases).
- * @param {THREE.Object3D} root
- * @param {(material: THREE.Material, mesh: THREE.Mesh) => void} callback
- */
-export function forEachMaterial(root, callback) {
-  root.traverse((node) => {
-    if (!node.isMesh || !node.material) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    for (const material of materials) callback(material, node);
-  });
-}
-
-/**
  * Recursively dispose geometries, materials and their textures under an
  * object so the GPU memory it held is released. Prevents leaks when a model
  * is swapped out at runtime.
