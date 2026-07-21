@@ -12,10 +12,12 @@ export class TextureManager {
    * @param {object} deps
    * @param {import('./ModelLoader.js').ModelLoader} deps.modelLoader
    * @param {import('../config.js').CONFIG} deps.config
+   * @param {number} [deps.maxAnisotropy=1] GPU anisotropic filtering limit.
    */
-  constructor({ modelLoader, config }) {
+  constructor({ modelLoader, config, maxAnisotropy = 1 }) {
     this.modelLoader = modelLoader;
     this.config = config;
+    this.maxAnisotropy = maxAnisotropy;
     this.loader = new THREE.TextureLoader();
     /** Textures created by this manager, tracked for disposal. */
     this.ownedTextures = new Set();
@@ -94,7 +96,10 @@ export class TextureManager {
     texture.wrapT = THREE.RepeatWrapping;
     // glTF UVs are authored with the WebGL convention; don't flip.
     texture.flipY = false;
-    texture.anisotropy = 8;
+    texture.anisotropy = this.maxAnisotropy;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
     this.ownedTextures.add(texture);
     return texture;
   }

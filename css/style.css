@@ -4,18 +4,23 @@
    ========================================================================= */
 
 :root {
-  --color-bg: #1a1a2e;
+  /* Matches backgrounds[0] in js/config.js so there is no flash before the
+     canvas paints. */
+  --color-bg: #ffffff;
   --color-text: #ffffff;
 
-  --surface: rgba(255, 255, 255, 0.1);
-  --surface-hover: rgba(255, 255, 255, 0.4);
-  --surface-strong: rgba(255, 255, 255, 0.2);
-  --border: rgba(255, 255, 255, 0.2);
+  /* The HUD floats over user-selectable backgrounds that run from white to
+     near-black, so the panel is a dark neutral glass: white icons stay legible
+     on every one of them, which a translucent-white panel could not manage. */
+  --surface: rgba(24, 24, 27, 0.62);
+  --surface-hover: rgba(255, 255, 255, 0.22);
+  --surface-strong: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.14);
 
-  --accent: rgba(100, 200, 255, 0.5);
-  --accent-texture: rgba(255, 107, 107, 0.3);
-  --accent-texture-hover: rgba(255, 107, 107, 0.5);
-  --accent-texture-border: rgba(255, 107, 107, 0.5);
+  --accent: rgba(80, 165, 255, 0.85);
+  --accent-texture: rgba(255, 107, 107, 0.45);
+  --accent-texture-hover: rgba(255, 107, 107, 0.65);
+  --accent-texture-border: rgba(255, 107, 107, 0.55);
 
   --color-success: rgba(76, 175, 80, 0.95);
   --color-error: rgba(255, 107, 107, 0.95);
@@ -24,7 +29,8 @@
   --radius-pill: 60px;
   --radius-round: 50%;
   --btn-size: 44px;
-  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.3);
+  --icon-size: 20px;
+  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.22);
 
   --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --transition: 0.25s ease;
@@ -114,6 +120,16 @@ body {
   border-radius: var(--radius-round);
   backdrop-filter: blur(10px);
   transition: background var(--transition), transform var(--transition);
+}
+
+/* Icons are separate .svg files, so they are swapped by replacing the file in
+   assets/icons/ — no markup or CSS change needed. */
+.btn__icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: block;
+  flex: none;
+  pointer-events: none;
 }
 
 .btn:hover {
