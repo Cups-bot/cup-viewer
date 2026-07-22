@@ -21,7 +21,7 @@ export const CONFIG = Object.freeze({
     // Карты теней (только самозатенение модели). Тень под моделью рисует
     // contactShadow.js, ей карта теней не нужна. Включать смысл есть только
     // вместе с ключевым светом (lighting.sunFromHDRI.intensityScale > 0).
-    shadows: false,
+    shadows: true,
   },
 
   // Перспективная камера.
