@@ -27,12 +27,14 @@ export class Viewer {
     this.container = container;
     this.config = config;
 
-    this.#initCore();
-    this.#initModules();
-
     this.backgroundIndex = 0;
     this.frameId = null;
     this.autoRotate = config.autoRotate.enabled;
+    // Пока пользователь вручную крутит слайдером — автоповорот на паузе.
+    this.manualRotate = false;
+
+    this.#initCore();
+    this.#initModules();
   }
 
   #initCore() {
@@ -76,12 +78,18 @@ export class Viewer {
 
     this.ui.bind({
       onChangeBackground: () => this.cycleBackground(),
+      onSelectBackground: (index) => this.selectBackground(index),
       onToggleAutoRotate: () => this.toggleAutoRotate(),
+      onManualRotateStart: () => this.setManualRotate(true),
+      onManualRotateEnd: () => this.setManualRotate(false),
+      onManualRotate: (degrees) => this.rotateModelTo(degrees),
       onScreenshot: () => this.takeScreenshot(),
       onToggleFullscreen: () => this.toggleFullscreen(),
       onImageFile: (file) => this.replaceTextureFromFile(file),
       onModelFile: (file) => this.loadModelFromFile(file),
     });
+
+    this.ui.setActiveBackground(this.backgroundIndex);
   }
 
   // Загрузка ассетов, запуск наблюдателей и цикла отрисовки.
@@ -102,7 +110,7 @@ export class Viewer {
       // после возврата отдал бы весь простой одной дельтой — модель дёрнулась бы.
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
 
-      if (this.autoRotate && this.modelLoader.currentModel) {
+      if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
       }
 
@@ -260,13 +268,40 @@ export class Viewer {
 
   cycleBackground() {
     const { backgrounds } = this.config;
-    this.backgroundIndex = (this.backgroundIndex + 1) % backgrounds.length;
-    this.scene.background = new THREE.Color(backgrounds[this.backgroundIndex]);
+    this.selectBackground((this.backgroundIndex + 1) % backgrounds.length);
+  }
+
+  // Ставит конкретный фон по индексу (выбор кружочком).
+  selectBackground(index) {
+    this.backgroundIndex = index;
+    this.scene.background = new THREE.Color(this.config.backgrounds[index]);
+    this.ui.setActiveBackground(index);
   }
 
   toggleAutoRotate() {
     this.autoRotate = !this.autoRotate;
     this.ui.setToggleState('autorotate', this.autoRotate);
+  }
+
+  // Наведение на слайдер приостанавливает автоповорот; при открытии бегунок
+  // подгоняется под текущий угол модели.
+  setManualRotate(active) {
+    this.manualRotate = active;
+    if (active) this.#syncRotationSlider();
+  }
+
+  // Поворачивает модель на заданный угол (градусы) вокруг вертикальной оси.
+  rotateModelTo(degrees) {
+    const model = this.modelLoader.currentModel;
+    if (model) model.rotation.y = THREE.MathUtils.degToRad(degrees);
+  }
+
+  // Синхронизирует бегунок слайдера с текущим углом модели (0–360°).
+  #syncRotationSlider() {
+    const model = this.modelLoader.currentModel;
+    if (!model) return;
+    const degrees = THREE.MathUtils.radToDeg(model.rotation.y);
+    this.ui.setRotationSlider(((degrees % 360) + 360) % 360);
   }
 
   takeScreenshot() {

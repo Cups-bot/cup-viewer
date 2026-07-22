@@ -32,6 +32,9 @@ export class UIManager {
       loaderText: byId('loader-text'),
       dropOverlay: byId('drop-overlay'),
       textureInput: byId('texture-input'),
+      bgSwatches: byId('bg-swatches'),
+      rotateWrap: byId('rotate-wrap'),
+      rotateSlider: byId('rotate-slider'),
       buttons: {
         background: byId('bg-btn'),
         autorotate: byId('autorotate-btn'),
@@ -42,10 +45,27 @@ export class UIManager {
     };
   }
 
+  // Строит кружочки фонов из config.backgrounds. Клик по кружочку выбирает фон.
+  #buildSwatches() {
+    this.swatches = this.config.backgrounds.map((color, index) => {
+      const swatch = document.createElement('button');
+      swatch.type = 'button';
+      swatch.className = 'swatch';
+      swatch.style.background = color;
+      swatch.setAttribute('role', 'menuitem');
+      swatch.setAttribute('aria-label', `Фон ${color}`);
+      swatch.addEventListener('click', () => this.#call('onSelectBackground', index));
+      this.dom.bgSwatches.appendChild(swatch);
+      return swatch;
+    });
+  }
+
   // Привязывает события DOM к обработчикам. Обработчики необязательны.
   bind(handlers) {
     this.handlers = handlers;
-    const { buttons, textureInput } = this.dom;
+    const { buttons, textureInput, rotateWrap, rotateSlider } = this.dom;
+
+    this.#buildSwatches();
 
     buttons.background.addEventListener('click', () => this.#call('onChangeBackground'));
     buttons.autorotate.addEventListener('click', () => this.#call('onToggleAutoRotate'));
@@ -54,6 +74,14 @@ export class UIManager {
 
     buttons.texture.addEventListener('click', () => textureInput.click());
     textureInput.addEventListener('change', (e) => this.#onFilePicked(e));
+
+    // Слайдер поворота: пока курсор над панелькой — автоповорот на паузе, чтобы
+    // не спорить с ручным вращением.
+    rotateWrap.addEventListener('mouseenter', () => this.#call('onManualRotateStart'));
+    rotateWrap.addEventListener('mouseleave', () => this.#call('onManualRotateEnd'));
+    rotateSlider.addEventListener('input', () =>
+      this.#call('onManualRotate', Number(rotateSlider.value)),
+    );
 
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
     this.#bindDragAndDrop();
@@ -141,5 +169,17 @@ export class UIManager {
     const button = this.dom.buttons[name];
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-pressed', String(active));
+  }
+
+  // Подсвечивает кружочек текущего фона.
+  setActiveBackground(index) {
+    this.swatches?.forEach((swatch, i) => {
+      swatch.classList.toggle('is-active', i === index);
+    });
+  }
+
+  // Ставит бегунок слайдера на текущий угол поворота (в градусах).
+  setRotationSlider(degrees) {
+    this.dom.rotateSlider.value = String(Math.round(degrees));
   }
 }
