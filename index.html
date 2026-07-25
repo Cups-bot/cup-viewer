@@ -10,31 +10,12 @@
   </head>
   <body class="approve">
     <main class="page">
-      <!-- ── Шапка ──────────────────────────────────────────────────── -->
-      <header class="order-head">
-        <div class="order-head__id">
-          <span class="logo-box" aria-hidden="true">logo mycups</span>
-          <div class="order-head__titles">
-            <p class="order-head__title">Заказ № 2431 · Кофейня «Пар»</p>
-            <p class="order-head__sub">
-              Персональная ссылка · <span id="order-link">mycups.ru/o/2431-KF7</span> ·
-              ссылка активна до 3 августа
-            </p>
-          </div>
-        </div>
-        <div class="order-head__manager">
-          <p class="order-head__manager-name">Ваш менеджер · Ирина Соловьёва</p>
-          <a class="order-head__phone" href="tel:+78122705589">+7 (812) 270-55-89</a>
-        </div>
-      </header>
-
-      <!-- ── Основной блок: слева вьювер, справа согласование ──────────── -->
       <section class="approve-grid">
         <!-- Левая колонка — 3D-сцена -->
-        <div class="stage">
+        <div class="stage" id="stage">
           <div id="canvas-container"></div>
 
-          <!-- Переключатель режимов (верх-слева) -->
+          <!-- Переключатель режимов -->
           <div class="stage-tabs" role="tablist" aria-label="Режим просмотра">
             <button class="stage-tab is-active" type="button" role="tab" aria-selected="true">
               3D-визуализация
@@ -43,42 +24,23 @@
             <button class="stage-tab" type="button" role="tab" aria-selected="false">Фото-сцена</button>
           </div>
 
-          <!-- Кружочки фонов (верх-справа). UIManager наполняет #bg-swatches -->
+          <!-- Кружочки фонов. UIManager наполняет #bg-swatches -->
           <div class="stage-swatches">
             <div id="bg-swatches" role="menu" aria-label="Выбор фона"></div>
-            <!-- Нужен UIManager; в этом макете скрыт, фон выбирается кружочками -->
             <button class="btn" id="bg-btn" type="button" hidden aria-label="Сменить фон">
               <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
             </button>
           </div>
 
-          <!-- Подпись под моделью -->
-          <p class="stage-caption">
-            3D-модель · двухслойный 300 мл · дизайн «Пар» нанесён на модель
-          </p>
-
-          <!-- Подсказка (низ-слева) -->
-          <p class="stage-hint" id="stage-hint">
-            Перетаскивание модели — облёт камерой · колесо мыши — зум
-          </p>
-
-          <!-- Плавающая панель управления (низ-центр) -->
+          <!-- Плавающая панель управления -->
           <nav class="controls-panel stage-controls" aria-label="Управление просмотром">
-            <button class="btn" id="texture-btn" type="button" title="Заменить дизайн" aria-label="Заменить дизайн">
+            <button class="btn" id="turntable-btn" type="button" title="Поворотный круг" aria-label="Поворотный круг" aria-pressed="false">
               <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
             </button>
-            <input type="file" id="texture-input" accept="image/*" hidden />
 
-            <div class="btn-wrap" id="rotate-wrap">
-              <div class="popover popover--slider">
-                <div class="popover__inner">
-                  <input class="rotate-slider" id="rotate-slider" type="range" min="0" max="360" step="1" value="0" aria-label="Повернуть модель вручную" />
-                </div>
-              </div>
-              <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
-                <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
-              </button>
-            </div>
+            <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
+              <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
+            </button>
 
             <button class="btn" id="screenshot-btn" type="button" title="Скриншот (S)" aria-label="Сделать скриншот">
               <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
@@ -86,9 +48,28 @@
             <button class="btn" id="fullscreen-btn" type="button" title="Полный экран (F)" aria-label="Полноэкранный режим">
               <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
             </button>
-            <button class="btn stage-info" id="info-btn" type="button" title="Подсказка" aria-label="Подсказка">
-              <span aria-hidden="true">i</span>
+
+            <!-- Подсказка «как управлять» — раскрывается при наведении -->
+            <div class="btn-wrap help-wrap">
+              <div class="help-popover" role="tooltip" id="help-popover">
+                <p class="help-popover__title">Управление</p>
+                <p><b>Поворотный круг под стаканом</b> — вращает только стакан, свет остаётся на месте</p>
+                <p><b>Перетаскивание модели</b> — облёт камерой вокруг сцены</p>
+                <p><b>Колесо мыши</b> — приблизить и отдалить</p>
+                <p><b>Двойной клик</b> — вернуть исходный вид</p>
+                <p><b>На телефоне</b>: круг — пальцем, облёт — свайп по стакану, зум — щипок</p>
+              </div>
+              <button class="btn stage-info" id="info-btn" type="button" title="Как управлять" aria-label="Как управлять" aria-describedby="help-popover">
+                <span aria-hidden="true">i</span>
+              </button>
+            </div>
+
+            <!-- Замена дизайна остаётся доступной перетаскиванием файла на
+                 страницу; кнопка скрыта, но нужна UIManager. -->
+            <button class="btn" id="texture-btn" type="button" hidden aria-label="Заменить дизайн">
+              <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
             </button>
+            <input type="file" id="texture-input" accept="image/*" hidden />
           </nav>
         </div>
 
@@ -107,53 +88,65 @@
 
           <dl class="spec">
             <div class="spec__row"><dt>Тип</dt><dd>Двухслойный, рифленый борт</dd></div>
-            <div class="spec__row"><dt>Объём</dt><dd>300 мл (до 430 мл)</dd></div>
-            <div class="spec__row"><dt>Печать</dt><dd>4+0, флексо, вылеты 2 мм</dd></div>
-            <div class="spec__row"><dt>Тираж</dt><dd>5 000 шт.</dd></div>
-            <div class="spec__row"><dt>Крышка</dt><dd>Чёрная, D80, 5 000 шт.</dd></div>
-            <div class="spec__row"><dt>В печать</dt><dd>после согласования, 5 рабочих дней</dd></div>
+            <div class="spec__row"><dt>Объём</dt><dd>250 мл (до 280 мл)</dd></div>
+            <div class="spec__row"><dt>Печать</dt><dd>Офсет</dd></div>
           </dl>
 
-          <button class="cta cta--approve" id="approve-btn" type="button">
-            Согласовать и запустить в печать
-          </button>
-          <div class="approve-panel__secondary">
-            <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
-            <button class="cta cta--ghost" id="share-btn" type="button">Поделиться ссылкой</button>
+          <!-- Действия согласования -->
+          <div class="approve-actions" id="approve-actions">
+            <!-- Чек-лист: появляется после нажатия «Согласовать» -->
+            <div class="checklist" id="checklist" hidden>
+              <p class="checklist__title">Подтвердите перед печатью</p>
+              <p class="checklist__sub">
+                Мы отметили всё за вас — снимите галочку, если что-то нужно поправить.
+              </p>
+              <label class="check">
+                <input type="checkbox" checked />
+                <span class="check__box" aria-hidden="true"></span>
+                <span class="check__text">Логотип и его пропорции соответствуют брендбуку</span>
+              </label>
+              <label class="check">
+                <input type="checkbox" checked />
+                <span class="check__box" aria-hidden="true"></span>
+                <span class="check__text">Цвета в макете: Pantone 485 C и 100% чёрный</span>
+              </label>
+              <label class="check">
+                <input type="checkbox" checked />
+                <span class="check__box" aria-hidden="true"></span>
+                <span class="check__text">Контакты и сайт на стакане написаны верно</span>
+              </label>
+            </div>
+
+            <button class="cta cta--approve" id="approve-btn" type="button">
+              Согласовать и запустить в печать
+            </button>
+            <div class="approve-panel__secondary">
+              <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
+              <button class="cta cta--ghost" id="share-btn" type="button">Поделиться ссылкой</button>
+            </div>
+            <p class="approve-panel__note">
+              Согласование фиксирует макет: после запуска в печать правки невозможны.
+            </p>
           </div>
-          <p class="approve-panel__note">
-            Согласование фиксирует макет: после запуска в печать правки невозможны.
-          </p>
+
+          <!-- Форма правок -->
+          <form class="edits" id="edits-form" hidden>
+            <p class="edits__title">Что поправить в макете?</p>
+            <textarea
+              class="edits__input"
+              id="edits-text"
+              rows="4"
+              placeholder="Например: логотип поднять на 3 мм, красный сделать теплее — как в вывеске"
+            ></textarea>
+            <div class="edits__actions">
+              <button class="cta cta--dark" type="submit">Отправить правки</button>
+              <button class="cta cta--ghost" type="button" id="edits-cancel">Отмена</button>
+            </div>
+          </form>
         </aside>
       </section>
-
-      <!-- ── Нижний степпер ────────────────────────────────────────────── -->
-      <ol class="steps">
-        <li class="steps__item">
-          <span class="steps__num steps__num--done">1</span>
-          <div class="steps__body">
-            <p class="steps__title">Дизайн отрисован</p>
-            <p class="steps__sub">макет готов и оплачен</p>
-          </div>
-        </li>
-        <li class="steps__item">
-          <span class="steps__num steps__num--current">2</span>
-          <div class="steps__body">
-            <p class="steps__title">Ваше согласование</p>
-            <p class="steps__sub">на этой странице</p>
-          </div>
-        </li>
-        <li class="steps__item">
-          <span class="steps__num">3</span>
-          <div class="steps__body">
-            <p class="steps__title">Печать и доставка</p>
-            <p class="steps__sub">5 рабочих дней + курьер</p>
-          </div>
-        </li>
-      </ol>
     </main>
 
-    <!-- Индикатор загрузки и оверлей перетаскивания (нужны UIManager) -->
     <div class="loader" id="loader" role="status" aria-live="polite" hidden>
       <span class="spinner" aria-hidden="true"></span>
       <span class="loader-text" id="loader-text">Загрузка…</span>

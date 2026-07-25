@@ -296,12 +296,65 @@ export class Viewer {
     if (model) model.rotation.y = THREE.MathUtils.degToRad(degrees);
   }
 
+  // Текущий угол поворота модели в градусах (0–360).
+  getModelRotation() {
+    const model = this.modelLoader.currentModel;
+    if (!model) return 0;
+    const degrees = THREE.MathUtils.radToDeg(model.rotation.y);
+    return ((degrees % 360) + 360) % 360;
+  }
+
+  // Возвращает камеру в исходный кадр (двойной клик по сцене).
+  resetView() {
+    this.modelLoader.frameCurrentModel();
+  }
+
+  // Геометрия поворотного круга под моделью в координатах холста: центр
+  // основания и два базисных вектора (проекции осей X и Z пола). Точка круга
+  // под углом a — это center + cos(a)·ex + sin(a)·ez, поэтому круг ложится в
+  // перспективу и наклоняется вместе с камерой. null, если модели нет.
+  getTurntableGeometry() {
+    const model = this.modelLoader.currentModel;
+    const canvas = this.renderer.domElement;
+    if (!model || !canvas.clientWidth || !canvas.clientHeight) return null;
+
+    const box = new THREE.Box3().setFromObject(model);
+    if (box.isEmpty()) return null;
+
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    // С запасом вокруг следа модели, чтобы круг был чуть шире стакана.
+    const radius = (Math.max(size.x, size.z) / 2) * 1.35;
+    const base = new THREE.Vector3(center.x, box.min.y, center.z);
+
+    const project = (point) => {
+      const v = point.clone().project(this.camera);
+      return {
+        x: (v.x * 0.5 + 0.5) * canvas.clientWidth,
+        y: (-v.y * 0.5 + 0.5) * canvas.clientHeight,
+      };
+    };
+
+    const origin = project(base);
+    const alongX = project(base.clone().add(new THREE.Vector3(radius, 0, 0)));
+    const alongZ = project(base.clone().add(new THREE.Vector3(0, 0, radius)));
+
+    const ex = { x: alongX.x - origin.x, y: alongX.y - origin.y };
+    const ez = { x: alongZ.x - origin.x, y: alongZ.y - origin.y };
+
+    // Вырожденный базис (взгляд строго вдоль пола) развернуть в угол нельзя.
+    const det = ex.x * ez.y - ez.x * ex.y;
+    const finite = [origin.x, origin.y, ex.x, ex.y, ez.x, ez.y].every(Number.isFinite);
+    if (!finite || Math.abs(det) < 1) return null;
+
+    return { cx: origin.x, cy: origin.y, ex, ez };
+  }
+
   // Синхронизирует бегунок слайдера с текущим углом модели (0–360°).
   #syncRotationSlider() {
     const model = this.modelLoader.currentModel;
     if (!model) return;
-    const degrees = THREE.MathUtils.radToDeg(model.rotation.y);
-    this.ui.setRotationSlider(((degrees % 360) + 360) % 360);
+    this.ui.setRotationSlider(this.getModelRotation());
   }
 
   takeScreenshot() {

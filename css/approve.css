@@ -1,5 +1,5 @@
-/* Дизайн «страницы согласования» (блок 2 макета MyCups): двухколоночная
-   карточка вокруг 3D-вьювера. Грузится ПОСЛЕ style.css/responsive.css и
+/* Дизайн «страницы согласования» (блок 2 макета MyCups): карточка со сценой
+   вьювера и панелью согласования. Грузится ПОСЛЕ style.css/responsive.css и
    переопределяет полноэкранную раскладку вьювера на встроенную в макет.
    Идентификаторы элементов управления сохранены — UIManager работает как есть. */
 
@@ -9,13 +9,13 @@
   --ink: #1a1a1a;
   --muted: #6f7075;
   --line: rgba(0, 0, 0, 0.08);
-  --page-bg: #efece7;
+  /* Голубой из макета: им же залита сцена и фон страницы. */
+  --sky: #eaf5ff;
+  --page-bg: var(--sky);
   --card: #ffffff;
-  --stage-bg: #eaf5ff;
   --done: #16a34a;
 }
 
-/* Страница теперь прокручивается и живёт на тёплом фоне. */
 body.approve {
   overflow: auto;
   color: var(--ink);
@@ -28,72 +28,6 @@ body.approve {
   max-width: 1360px;
   margin: 0 auto;
   padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* ── Шапка ─────────────────────────────────────────────────────────────── */
-.order-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 18px 26px;
-  background: var(--card);
-  border-radius: 18px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.order-head__id {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.logo-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 118px;
-  height: 46px;
-  flex: none;
-  font-size: 12px;
-  color: #b6b6b6;
-  background: repeating-linear-gradient(
-    -45deg, #f4f4f4, #f4f4f4 6px, #ececec 6px, #ececec 12px
-  );
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-}
-
-.order-head__title {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.order-head__sub {
-  margin-top: 3px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.order-head__manager {
-  text-align: right;
-}
-
-.order-head__manager-name {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.order-head__phone {
-  display: inline-block;
-  margin-top: 2px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--brand);
-  text-decoration: none;
 }
 
 /* ── Основной блок ─────────────────────────────────────────────────────── */
@@ -102,14 +36,14 @@ body.approve {
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 14px;
   align-items: stretch;
-  min-height: 620px;
+  min-height: min(760px, calc(100vh - 44px));
 }
 
 /* Левая колонка: сцена вьювера. */
 .stage {
   position: relative;
   overflow: hidden;
-  background: var(--stage-bg);
+  background: var(--sky);
   border-radius: 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -120,7 +54,7 @@ body.approve {
   inset: 0;
 }
 
-/* Верхние переключатели режимов. */
+/* Переключатели режимов. */
 .stage-tabs {
   position: absolute;
   top: 20px;
@@ -170,13 +104,13 @@ body.approve {
   gap: 10px;
 }
 
-/* #bg-btn нужен UIManager, но в этом макете фон выбирают кружочки. Атрибут
-   hidden перебивается .btn { display:flex }, поэтому прячем явно. */
-.stage-swatches #bg-btn {
+/* #bg-btn нужен UIManager, но фон здесь выбирают кружочки. Атрибут hidden
+   перебивается .btn { display:flex }, поэтому прячем явно. */
+.stage-swatches #bg-btn,
+.stage-controls #texture-btn {
   display: none;
 }
 
-/* Переопределяем .swatch из style.css: крупнее, активный — красное кольцо. */
 .stage-swatches .swatch {
   width: 28px;
   height: 28px;
@@ -189,39 +123,55 @@ body.approve {
   box-shadow: 0 0 0 2px var(--brand);
 }
 
-/* Подпись под моделью. */
-.stage-caption {
+/* ── Поворотный круг под моделью ───────────────────────────────────────── */
+.turntable {
   position: absolute;
-  bottom: 96px;
-  left: 0;
-  right: 0;
-  z-index: 4;
-  text-align: center;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: #9aa2ac;
-  pointer-events: none;
-}
-
-/* Подсказка внизу слева. */
-.stage-hint {
-  position: absolute;
-  bottom: 30px;
-  left: 26px;
+  inset: 0;
+  /* Явные размеры обязательны: у абсолютно спозиционированного SVG без них
+     ширина берётся из внутреннего размера (300×150), и круг обрезается. */
+  width: 100%;
+  height: 100%;
   z-index: 5;
-  max-width: 280px;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: #98a0aa;
+  opacity: 0;
+  /* Ловим события только бегунком — вращение камеры мышью не перехватываем. */
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
-.stage-hint[hidden] {
-  display: none;
+.turntable.is-visible {
+  opacity: 1;
 }
 
-/* ── Плавающая панель управления (белая, как в макете) ─────────────────── */
+.turntable__ring {
+  fill: none;
+  stroke: rgba(28, 28, 30, 0.16);
+  stroke-width: 1.5;
+}
+
+.turntable__ticks circle {
+  fill: rgba(28, 28, 30, 0.28);
+}
+
+.turntable__knob {
+  fill: var(--brand);
+  stroke: #fff;
+  stroke-width: 3;
+  cursor: grab;
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 10px rgba(232, 41, 12, 0.45));
+  transition: r 0.15s ease;
+}
+
+.turntable__knob:hover {
+  r: 15;
+}
+
+.turntable.is-dragging .turntable__knob {
+  cursor: grabbing;
+  r: 15;
+}
+
+/* ── Плавающая панель управления ───────────────────────────────────────── */
 .stage-controls {
   position: absolute;
   left: 50%;
@@ -234,9 +184,9 @@ body.approve {
   border-radius: 999px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
   backdrop-filter: none;
+  z-index: 7;
 }
 
-/* Кнопки на белой панели: тёмные иконки на прозрачном фоне. */
 .stage-controls .btn {
   width: 46px;
   height: 46px;
@@ -258,7 +208,6 @@ body.approve {
   opacity: 0.66;
 }
 
-/* Активный автоповорот — фирменный красный кружок с белой иконкой. */
 .stage-controls .btn.is-active {
   background: var(--brand);
   border: none;
@@ -276,15 +225,50 @@ body.approve {
   color: var(--muted);
 }
 
-/* Слайдер-поповер над кнопкой автоповорота — на светлом фоне. */
-.stage-controls .popover__inner {
-  background: var(--card);
-  border: 1px solid var(--line);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+/* Подсказка «как управлять» — тёмная карточка над кнопкой «i». */
+.help-wrap {
+  position: relative;
 }
 
-.stage-controls .rotate-slider {
-  accent-color: var(--brand);
+.help-popover {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  width: 320px;
+  margin-bottom: 14px;
+  padding: 18px 20px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+  background: #1c1c1e;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.help-wrap:hover .help-popover,
+.help-wrap:focus-within .help-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.help-popover p + p {
+  margin-top: 12px;
+}
+
+.help-popover b {
+  color: #fff;
+  font-weight: 600;
+}
+
+.help-popover__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
 }
 
 /* ── Правая панель согласования ────────────────────────────────────────── */
@@ -341,7 +325,6 @@ body.approve {
   color: #55565b;
 }
 
-/* Таблица характеристик. */
 .spec {
   margin: 22px 0;
   border-top: 1px solid var(--line);
@@ -368,7 +351,104 @@ body.approve {
   text-align: right;
 }
 
-/* Кнопки действий. */
+/* Блок действий прижат к низу панели. */
+.approve-actions {
+  margin-top: auto;
+}
+
+.approve-actions[hidden],
+.edits[hidden],
+.checklist[hidden] {
+  display: none;
+}
+
+/* ── Чек-лист перед печатью ────────────────────────────────────────────── */
+.checklist {
+  margin-bottom: 18px;
+  padding: 20px;
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.checklist__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.checklist__sub {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  background: #eaf7ee;
+  border: 1px solid #cfe9d8;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+/* Настоящий чекбокс скрыт, но остаётся доступным с клавиатуры. */
+.check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.check__box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  background: #fff;
+  border: 1.5px solid #c9cdd2;
+  border-radius: 7px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.check__box::after {
+  content: '✓';
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.check input:checked + .check__box {
+  background: #2fa860;
+  border-color: #2fa860;
+}
+
+.check input:checked + .check__box::after {
+  opacity: 1;
+}
+
+/* Снятая галочка гасит зелёный фон — видно, что пункт под вопросом. */
+.check:has(input:not(:checked)) {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.check input:focus-visible + .check__box {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ── Кнопки действий ───────────────────────────────────────────────────── */
 .cta {
   font: inherit;
   cursor: pointer;
@@ -381,7 +461,7 @@ body.approve {
 }
 
 .cta--approve {
-  margin-top: auto;
+  width: 100%;
   padding: 18px 22px;
   font-size: 15px;
   font-weight: 700;
@@ -395,6 +475,12 @@ body.approve {
 
 .cta--approve:hover {
   background: var(--brand-strong);
+}
+
+.cta--approve:disabled {
+  cursor: default;
+  opacity: 0.6;
+  box-shadow: none;
 }
 
 .approve-panel__secondary {
@@ -418,6 +504,11 @@ body.approve {
   background: #fafafa;
 }
 
+.cta--ghost:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .approve-panel__note {
   margin-top: 16px;
   font-size: 12.5px;
@@ -425,58 +516,72 @@ body.approve {
   color: #9a9ba0;
 }
 
-/* ── Нижний степпер ────────────────────────────────────────────────────── */
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  list-style: none;
-}
-
-.steps__item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 24px;
-  background: var(--card);
+/* ── Форма правок ──────────────────────────────────────────────────────── */
+.edits {
+  margin-top: auto;
+  padding: 22px;
+  background: #fdf1ef;
   border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.steps__num {
+.edits__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.edits__input {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  resize: vertical;
+}
+
+.edits__input::placeholder {
+  color: #a9adb3;
+}
+
+.edits__input:focus {
+  outline: 2px solid rgba(232, 41, 12, 0.35);
+  outline-offset: 1px;
+}
+
+.edits__actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  font-size: 13px;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cta--dark {
+  flex: 1;
+  padding: 16px 22px;
+  font-size: 14px;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: #fff;
-  background: #c4c4c4;
-  border-radius: 50%;
+  background: #16161a;
+  border: none;
+  border-radius: 999px;
 }
 
-.steps__num--done {
-  background: var(--done);
+.cta--dark:hover {
+  background: #000;
 }
 
-.steps__num--current {
-  background: var(--brand);
+.edits__actions .cta--ghost {
+  border-radius: 999px;
+  padding: 16px 24px;
 }
 
-.steps__title {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.steps__sub {
-  margin-top: 2px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-/* ── Адаптив: на узких экранах колонки складываются (близко к блоку 2b) ─── */
+/* ── Адаптив ───────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .approve-grid {
     grid-template-columns: 1fr;
@@ -488,27 +593,12 @@ body.approve {
     min-height: 420px;
   }
 
-  .order-head,
-  .steps {
-    grid-template-columns: 1fr;
-  }
-
-  .order-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .order-head__manager {
-    text-align: left;
-  }
-
-  .steps {
-    grid-template-columns: 1fr;
-  }
-
   .approve-panel__title {
     font-size: 26px;
+  }
+
+  .help-popover {
+    width: min(320px, calc(100vw - 48px));
   }
 }
 
