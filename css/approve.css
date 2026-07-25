@@ -1,0 +1,535 @@
+/* Дизайн «страницы согласования» (блок 2 макета MyCups): двухколоночная
+   карточка вокруг 3D-вьювера. Грузится ПОСЛЕ style.css/responsive.css и
+   переопределяет полноэкранную раскладку вьювера на встроенную в макет.
+   Идентификаторы элементов управления сохранены — UIManager работает как есть. */
+
+:root {
+  --brand: #e8290c;
+  --brand-strong: #cf2109;
+  --ink: #1a1a1a;
+  --muted: #6f7075;
+  --line: rgba(0, 0, 0, 0.08);
+  --page-bg: #efece7;
+  --card: #ffffff;
+  --stage-bg: #eaf5ff;
+  --done: #16a34a;
+}
+
+/* Страница теперь прокручивается и живёт на тёплом фоне. */
+body.approve {
+  overflow: auto;
+  color: var(--ink);
+  background: var(--page-bg);
+  user-select: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Arial, sans-serif;
+}
+
+.page {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Шапка ─────────────────────────────────────────────────────────────── */
+.order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 26px;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.order-head__id {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.logo-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  height: 46px;
+  flex: none;
+  font-size: 12px;
+  color: #b6b6b6;
+  background: repeating-linear-gradient(
+    -45deg, #f4f4f4, #f4f4f4 6px, #ececec 6px, #ececec 12px
+  );
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+
+.order-head__title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.order-head__sub {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.order-head__manager {
+  text-align: right;
+}
+
+.order-head__manager-name {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.order-head__phone {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+/* ── Основной блок ─────────────────────────────────────────────────────── */
+.approve-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 14px;
+  align-items: stretch;
+  min-height: 620px;
+}
+
+/* Левая колонка: сцена вьювера. */
+.stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--stage-bg);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Холст заполняет колонку, а не весь экран (переопределяет style.css). */
+#canvas-container {
+  position: absolute;
+  inset: 0;
+}
+
+/* Верхние переключатели режимов. */
+.stage-tabs {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.stage-tab {
+  padding: 9px 18px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.stage-tab:hover {
+  color: var(--ink);
+}
+
+.stage-tab.is-active {
+  color: #fff;
+  background: #1c1c1e;
+}
+
+/* Кружочки фонов. */
+.stage-swatches {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 6;
+}
+
+.stage-swatches #bg-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+/* #bg-btn нужен UIManager, но в этом макете фон выбирают кружочки. Атрибут
+   hidden перебивается .btn { display:flex }, поэтому прячем явно. */
+.stage-swatches #bg-btn {
+  display: none;
+}
+
+/* Переопределяем .swatch из style.css: крупнее, активный — красное кольцо. */
+.stage-swatches .swatch {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.stage-swatches .swatch.is-active {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
+/* Подпись под моделью. */
+.stage-caption {
+  position: absolute;
+  bottom: 96px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #9aa2ac;
+  pointer-events: none;
+}
+
+/* Подсказка внизу слева. */
+.stage-hint {
+  position: absolute;
+  bottom: 30px;
+  left: 26px;
+  z-index: 5;
+  max-width: 280px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #98a0aa;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.stage-hint[hidden] {
+  display: none;
+}
+
+/* ── Плавающая панель управления (белая, как в макете) ─────────────────── */
+.stage-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  backdrop-filter: none;
+}
+
+/* Кнопки на белой панели: тёмные иконки на прозрачном фоне. */
+.stage-controls .btn {
+  width: 46px;
+  height: 46px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  backdrop-filter: none;
+}
+
+.stage-controls .btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: none;
+}
+
+/* Иконки в комплекте залиты белым — на белой панели делаем их тёмными. */
+.stage-controls .btn__icon {
+  filter: brightness(0);
+  opacity: 0.66;
+}
+
+/* Активный автоповорот — фирменный красный кружок с белой иконкой. */
+.stage-controls .btn.is-active {
+  background: var(--brand);
+  border: none;
+}
+
+.stage-controls .btn.is-active .btn__icon {
+  filter: none;
+  opacity: 1;
+}
+
+.stage-info {
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Слайдер-поповер над кнопкой автоповорота — на светлом фоне. */
+.stage-controls .popover__inner {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+}
+
+.stage-controls .rotate-slider {
+  accent-color: var(--brand);
+}
+
+/* ── Правая панель согласования ────────────────────────────────────────── */
+.approve-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 30px 26px;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  background: #fdece9;
+  border-radius: 999px;
+}
+
+.status-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.status-chip.is-done {
+  color: var(--done);
+  background: #e7f6ec;
+}
+
+.status-chip.is-done .status-chip__dot {
+  background: var(--done);
+}
+
+.approve-panel__title {
+  margin-top: 18px;
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.approve-panel__lead {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #55565b;
+}
+
+/* Таблица характеристик. */
+.spec {
+  margin: 22px 0;
+  border-top: 1px solid var(--line);
+}
+
+.spec__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.spec__row dt {
+  font-size: 14px;
+  color: var(--muted);
+  flex: none;
+}
+
+.spec__row dd {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Кнопки действий. */
+.cta {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: background 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+}
+
+.cta:active {
+  transform: translateY(1px);
+}
+
+.cta--approve {
+  margin-top: auto;
+  padding: 18px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--brand);
+  border: none;
+  box-shadow: 0 10px 26px rgba(232, 41, 12, 0.32);
+}
+
+.cta--approve:hover {
+  background: var(--brand-strong);
+}
+
+.approve-panel__secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cta--ghost {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border: 1.5px solid rgba(0, 0, 0, 0.14);
+}
+
+.cta--ghost:hover {
+  border-color: rgba(0, 0, 0, 0.3);
+  background: #fafafa;
+}
+
+.approve-panel__note {
+  margin-top: 16px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #9a9ba0;
+}
+
+/* ── Нижний степпер ────────────────────────────────────────────────────── */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  list-style: none;
+}
+
+.steps__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.steps__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: #c4c4c4;
+  border-radius: 50%;
+}
+
+.steps__num--done {
+  background: var(--done);
+}
+
+.steps__num--current {
+  background: var(--brand);
+}
+
+.steps__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.steps__sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── Адаптив: на узких экранах колонки складываются (близко к блоку 2b) ─── */
+@media (max-width: 900px) {
+  .approve-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .stage {
+    height: 62vh;
+    min-height: 420px;
+  }
+
+  .order-head,
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .order-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .order-head__manager {
+    text-align: left;
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .approve-panel__title {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 560px) {
+  .page {
+    padding: 12px;
+  }
+
+  .stage-tabs {
+    left: 12px;
+    top: 12px;
+    padding: 4px;
+  }
+
+  .stage-tab {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .stage-swatches {
+    top: 14px;
+    right: 14px;
+  }
+}

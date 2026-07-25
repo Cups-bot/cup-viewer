@@ -3,58 +3,164 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>3D Cups</title>
+    <title>Согласование · Заказ № 2431 · Кофейня «Пар»</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/responsive.css" />
+    <link rel="stylesheet" href="css/approve.css" />
   </head>
-  <body>
-    <div id="canvas-container"></div>
+  <body class="approve">
+    <main class="page">
+      <!-- ── Шапка ──────────────────────────────────────────────────── -->
+      <header class="order-head">
+        <div class="order-head__id">
+          <span class="logo-box" aria-hidden="true">logo mycups</span>
+          <div class="order-head__titles">
+            <p class="order-head__title">Заказ № 2431 · Кофейня «Пар»</p>
+            <p class="order-head__sub">
+              Персональная ссылка · <span id="order-link">mycups.ru/o/2431-KF7</span> ·
+              ссылка активна до 3 августа
+            </p>
+          </div>
+        </div>
+        <div class="order-head__manager">
+          <p class="order-head__manager-name">Ваш менеджер · Ирина Соловьёва</p>
+          <a class="order-head__phone" href="tel:+78122705589">+7 (812) 270-55-89</a>
+        </div>
+      </header>
 
+      <!-- ── Основной блок: слева вьювер, справа согласование ──────────── -->
+      <section class="approve-grid">
+        <!-- Левая колонка — 3D-сцена -->
+        <div class="stage">
+          <div id="canvas-container"></div>
+
+          <!-- Переключатель режимов (верх-слева) -->
+          <div class="stage-tabs" role="tablist" aria-label="Режим просмотра">
+            <button class="stage-tab is-active" type="button" role="tab" aria-selected="true">
+              3D-визуализация
+            </button>
+            <button class="stage-tab" type="button" role="tab" aria-selected="false">Развёртка</button>
+            <button class="stage-tab" type="button" role="tab" aria-selected="false">Фото-сцена</button>
+          </div>
+
+          <!-- Кружочки фонов (верх-справа). UIManager наполняет #bg-swatches -->
+          <div class="stage-swatches">
+            <div id="bg-swatches" role="menu" aria-label="Выбор фона"></div>
+            <!-- Нужен UIManager; в этом макете скрыт, фон выбирается кружочками -->
+            <button class="btn" id="bg-btn" type="button" hidden aria-label="Сменить фон">
+              <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
+            </button>
+          </div>
+
+          <!-- Подпись под моделью -->
+          <p class="stage-caption">
+            3D-модель · двухслойный 300 мл · дизайн «Пар» нанесён на модель
+          </p>
+
+          <!-- Подсказка (низ-слева) -->
+          <p class="stage-hint" id="stage-hint">
+            Перетаскивание модели — облёт камерой · колесо мыши — зум
+          </p>
+
+          <!-- Плавающая панель управления (низ-центр) -->
+          <nav class="controls-panel stage-controls" aria-label="Управление просмотром">
+            <button class="btn" id="texture-btn" type="button" title="Заменить дизайн" aria-label="Заменить дизайн">
+              <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
+            </button>
+            <input type="file" id="texture-input" accept="image/*" hidden />
+
+            <div class="btn-wrap" id="rotate-wrap">
+              <div class="popover popover--slider">
+                <div class="popover__inner">
+                  <input class="rotate-slider" id="rotate-slider" type="range" min="0" max="360" step="1" value="0" aria-label="Повернуть модель вручную" />
+                </div>
+              </div>
+              <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
+                <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
+              </button>
+            </div>
+
+            <button class="btn" id="screenshot-btn" type="button" title="Скриншот (S)" aria-label="Сделать скриншот">
+              <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
+            </button>
+            <button class="btn" id="fullscreen-btn" type="button" title="Полный экран (F)" aria-label="Полноэкранный режим">
+              <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
+            </button>
+            <button class="btn stage-info" id="info-btn" type="button" title="Подсказка" aria-label="Подсказка">
+              <span aria-hidden="true">i</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Правая колонка — согласование -->
+        <aside class="approve-panel">
+          <span class="status-chip" id="status-chip">
+            <span class="status-chip__dot" aria-hidden="true"></span>
+            <span class="status-chip__text">Ожидает вашего согласования</span>
+          </span>
+
+          <h1 class="approve-panel__title">Посмотрите свой стакан вживую</h1>
+          <p class="approve-panel__lead">
+            Это ваш оплаченный дизайн на реальной геометрии стакана. Покрутите его,
+            приблизьте шов и борт — и согласуйте, если всё нравится.
+          </p>
+
+          <dl class="spec">
+            <div class="spec__row"><dt>Тип</dt><dd>Двухслойный, рифленый борт</dd></div>
+            <div class="spec__row"><dt>Объём</dt><dd>300 мл (до 430 мл)</dd></div>
+            <div class="spec__row"><dt>Печать</dt><dd>4+0, флексо, вылеты 2 мм</dd></div>
+            <div class="spec__row"><dt>Тираж</dt><dd>5 000 шт.</dd></div>
+            <div class="spec__row"><dt>Крышка</dt><dd>Чёрная, D80, 5 000 шт.</dd></div>
+            <div class="spec__row"><dt>В печать</dt><dd>после согласования, 5 рабочих дней</dd></div>
+          </dl>
+
+          <button class="cta cta--approve" id="approve-btn" type="button">
+            Согласовать и запустить в печать
+          </button>
+          <div class="approve-panel__secondary">
+            <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
+            <button class="cta cta--ghost" id="share-btn" type="button">Поделиться ссылкой</button>
+          </div>
+          <p class="approve-panel__note">
+            Согласование фиксирует макет: после запуска в печать правки невозможны.
+          </p>
+        </aside>
+      </section>
+
+      <!-- ── Нижний степпер ────────────────────────────────────────────── -->
+      <ol class="steps">
+        <li class="steps__item">
+          <span class="steps__num steps__num--done">1</span>
+          <div class="steps__body">
+            <p class="steps__title">Дизайн отрисован</p>
+            <p class="steps__sub">макет готов и оплачен</p>
+          </div>
+        </li>
+        <li class="steps__item">
+          <span class="steps__num steps__num--current">2</span>
+          <div class="steps__body">
+            <p class="steps__title">Ваше согласование</p>
+            <p class="steps__sub">на этой странице</p>
+          </div>
+        </li>
+        <li class="steps__item">
+          <span class="steps__num">3</span>
+          <div class="steps__body">
+            <p class="steps__title">Печать и доставка</p>
+            <p class="steps__sub">5 рабочих дней + курьер</p>
+          </div>
+        </li>
+      </ol>
+    </main>
+
+    <!-- Индикатор загрузки и оверлей перетаскивания (нужны UIManager) -->
     <div class="loader" id="loader" role="status" aria-live="polite" hidden>
       <span class="spinner" aria-hidden="true"></span>
       <span class="loader-text" id="loader-text">Загрузка…</span>
     </div>
-
     <div class="drop-overlay" id="drop-overlay" hidden>
       <div class="drop-overlay__message">Перетащите изображение или .glb-модель</div>
     </div>
-
-    <nav class="controls-panel" aria-label="Управление просмотром">
-      <div class="btn-wrap">
-        <!-- Кружочки фонов строит UIManager из config.backgrounds -->
-        <div class="popover popover--swatches">
-          <div class="popover__inner" id="bg-swatches" role="menu" aria-label="Выбор фона"></div>
-        </div>
-        <button class="btn" id="bg-btn" type="button" title="Сменить фон (B)" aria-label="Сменить фон">
-          <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
-        </button>
-      </div>
-      <div class="btn-wrap" id="rotate-wrap">
-        <!-- Слайдер ручного поворота модели -->
-        <div class="popover popover--slider">
-          <div class="popover__inner">
-            <input class="rotate-slider" id="rotate-slider" type="range" min="0" max="360" step="1" value="0" aria-label="Повернуть модель вручную" />
-          </div>
-        </div>
-        <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
-          <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
-        </button>
-      </div>
-      <button class="btn" id="screenshot-btn" type="button" title="Скриншот (S)" aria-label="Сделать скриншот">
-        <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
-      </button>
-      <button class="btn" id="fullscreen-btn" type="button" title="Полный экран (F)" aria-label="Полноэкранный режим">
-        <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
-      </button>
-
-      <span class="divider" aria-hidden="true"></span>
-
-      <button class="btn btn--texture" id="texture-btn" type="button" title="Заменить дизайн">
-        <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
-        <span class="btn__label">Заменить дизайн</span>
-      </button>
-      <input type="file" id="texture-input" accept="image/*" hidden />
-    </nav>
 
     <script type="importmap">
       {
@@ -65,5 +171,6 @@
       }
     </script>
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/ui/approval.js"></script>
   </body>
 </html>
