@@ -123,53 +123,8 @@ body.approve {
   box-shadow: 0 0 0 2px var(--brand);
 }
 
-/* ── Поворотный круг под моделью ───────────────────────────────────────── */
-.turntable {
-  position: absolute;
-  inset: 0;
-  /* Явные размеры обязательны: у абсолютно спозиционированного SVG без них
-     ширина берётся из внутреннего размера (300×150), и круг обрезается. */
-  width: 100%;
-  height: 100%;
-  z-index: 5;
-  opacity: 0;
-  /* Ловим события только бегунком — вращение камеры мышью не перехватываем. */
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.turntable.is-visible {
-  opacity: 1;
-}
-
-.turntable__ring {
-  fill: none;
-  stroke: rgba(28, 28, 30, 0.16);
-  stroke-width: 1.5;
-}
-
-.turntable__ticks circle {
-  fill: rgba(28, 28, 30, 0.28);
-}
-
-.turntable__knob {
-  fill: var(--brand);
-  stroke: #fff;
-  stroke-width: 3;
-  cursor: grab;
-  pointer-events: auto;
-  filter: drop-shadow(0 4px 10px rgba(232, 41, 12, 0.45));
-  transition: r 0.15s ease;
-}
-
-.turntable__knob:hover {
-  r: 15;
-}
-
-.turntable.is-dragging .turntable__knob {
-  cursor: grabbing;
-  r: 15;
-}
+/* Поворотный круг рисуется внутри 3D-сцены (js/core/turntable.js) — так его
+   дальняя дуга уходит за стакан по буферу глубины. Стилей здесь нет. */
 
 /* ── Плавающая панель управления ───────────────────────────────────────── */
 .stage-controls {
@@ -582,6 +537,12 @@ body.approve {
 }
 
 /* ── Адаптив ───────────────────────────────────────────────────────────── */
+
+/* Короткие подписи вкладок — только на узких экранах. */
+.stage-tab__short {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .approve-grid {
     grid-template-columns: 1fr;
@@ -602,24 +563,119 @@ body.approve {
   }
 }
 
-@media (max-width: 560px) {
+/* Телефоны: панель управления встаёт колонкой у правого края — снизу она
+   перекрывала бы стакан и поворотный круг. */
+@media (max-width: 640px) {
   .page {
     padding: 12px;
   }
 
+  .approve-grid {
+    gap: 12px;
+  }
+
+  .stage {
+    height: min(66vh, 560px);
+  }
+
+  .stage-tab__full {
+    display: none;
+  }
+
+  .stage-tab__short {
+    display: inline;
+  }
+
+  /* Вкладки и кружочки фонов делят одну строку — обе группы поджаты, чтобы
+     не наезжать друг на друга на 390px. */
   .stage-tabs {
-    left: 12px;
     top: 12px;
-    padding: 4px;
+    left: 10px;
+    padding: 3px;
+    gap: 2px;
   }
 
   .stage-tab {
-    padding: 7px 12px;
-    font-size: 13px;
+    padding: 7px 10px;
+    font-size: 12px;
   }
 
   .stage-swatches {
-    top: 14px;
+    top: 15px;
+    right: 10px;
+  }
+
+  .stage-swatches #bg-swatches {
+    gap: 7px;
+  }
+
+  .stage-swatches .swatch {
+    width: 22px;
+    height: 22px;
+    border-width: 1px;
+  }
+
+  /* Колонка отдельных белых кружков вместо горизонтальной «таблетки». */
+  .stage-controls {
+    left: auto;
     right: 14px;
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .stage-controls .btn {
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  }
+
+  .stage-controls .btn:hover {
+    background: #fff;
+  }
+
+  /* Подсказка раскрывается влево от кнопки, а не вверх. */
+  .help-popover {
+    right: calc(100% + 12px);
+    bottom: auto;
+    top: 50%;
+    width: min(300px, calc(100vw - 90px));
+    margin-bottom: 0;
+    transform: translateY(-50%) translateX(8px);
+  }
+
+  .help-wrap:hover .help-popover,
+  .help-wrap:focus-within .help-popover {
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .approve-panel {
+    padding: 22px 20px;
+  }
+
+  .approve-panel__title {
+    font-size: 24px;
+  }
+
+  /* Кнопки в столбик — в две колонки подписи не помещаются. */
+  .approve-panel__secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .cta--approve {
+    padding: 16px 18px;
+    font-size: 14px;
+  }
+
+  .edits__actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

@@ -2,8 +2,6 @@
 // согласование с чек-листом, форма правок и подсказка по управлению.
 // Логики рендера не касается — только страница вокруг вьювера.
 
-import { Turntable } from './turntable.js';
-
 // Тосты берём у вьювера, если он уже поднялся.
 function toast(message, type = 'success') {
   window.cupViewer?.ui?.showToast?.(message, type);
@@ -25,28 +23,40 @@ function initTabs() {
         t.classList.toggle('is-active', active);
         t.setAttribute('aria-selected', String(active));
       });
-      if (tab.textContent.trim() !== '3D-визуализация') {
+      if (tab.dataset.tab !== '3d') {
         toast('Этот режим появится позже', 'error');
       }
     });
   });
 }
 
-// Поворотный круг под моделью + двойной клик по сцене возвращает исходный вид.
+// Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
+// наведению, закрепление кнопкой и сброс вида двойным кликом.
 function initStage() {
   const stage = document.getElementById('stage');
   const button = document.getElementById('turntable-btn');
   if (!stage) return;
 
   whenViewerReady((viewer) => {
-    const turntable = new Turntable({ stage, viewer });
-    window.cupTurntable = turntable;
+    const turntable = viewer.turntable;
+    if (!turntable) return;
 
-    button?.addEventListener('click', () => {
-      const pinned = turntable.togglePinned();
-      button.classList.toggle('is-active', pinned);
-      button.setAttribute('aria-pressed', String(pinned));
-    });
+    stage.addEventListener('pointerenter', () => turntable.show());
+    stage.addEventListener('pointerleave', () => turntable.hide());
+
+    const setPinned = (pinned) => {
+      button?.classList.toggle('is-active', pinned);
+      button?.setAttribute('aria-pressed', String(pinned));
+    };
+
+    button?.addEventListener('click', () => setPinned(turntable.togglePinned()));
+
+    // На тач-устройствах наведения нет — круг закрепляем сразу, иначе до него
+    // не добраться. Кнопку при этом не подсвечиваем: это состояние по
+    // умолчанию, а не выбор пользователя (первое нажатие круг спрячет).
+    if (window.matchMedia('(hover: none)').matches) {
+      turntable.togglePinned();
+    }
 
     stage.addEventListener('dblclick', () => viewer.resetView());
   });

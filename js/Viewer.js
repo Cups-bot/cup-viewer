@@ -6,6 +6,7 @@ import { createRenderer } from './core/renderer.js';
 import { createLighting, aimLightAtSun } from './core/lighting.js';
 import { createControls } from './core/controls.js';
 import { createContactShadow } from './core/contactShadow.js';
+import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
@@ -55,6 +56,19 @@ export class Viewer {
     if (this.config.contactShadow.enabled) {
       this.contactShadow = createContactShadow(this.config);
       this.scene.add(this.contactShadow.group);
+    }
+
+    if (this.config.turntable.enabled) {
+      this.turntable = createTurntable({
+        scene: this.scene,
+        camera: this.camera,
+        controls: this.controls,
+        domElement: this.renderer.domElement,
+        config: this.config,
+        onRotate: (degrees) => this.rotateModelTo(degrees),
+        onDragStart: () => this.setManualRotate(true),
+        onDragEnd: () => this.setManualRotate(false),
+      });
     }
   }
 
@@ -115,6 +129,7 @@ export class Viewer {
       }
 
       this.controls.update(delta);
+      this.turntable?.update(this.getModelRotation(), delta);
       // Тень перерисовывается каждый кадр (модель под ней крутится) и до
       // основного рендера — она сначала рисует сцену в свой таргет.
       this.contactShadow?.update(this.renderer, this.scene);
@@ -208,6 +223,7 @@ export class Viewer {
         this.config.lighting.environmentIntensity,
       );
       this.#placeGround();
+      this.#measureTurntable();
     } catch (error) {
       console.error(error);
       this.ui.showToast('Не удалось загрузить модель', 'error');
@@ -309,45 +325,33 @@ export class Viewer {
     this.modelLoader.frameCurrentModel();
   }
 
-  // Геометрия поворотного круга под моделью в координатах холста: центр
-  // основания и два базисных вектора (проекции осей X и Z пола). Точка круга
-  // под углом a — это center + cos(a)·ex + sin(a)·ez, поэтому круг ложится в
-  // перспективу и наклоняется вместе с камерой. null, если модели нет.
-  getTurntableGeometry() {
+  // Меряет след модели для поворотного круга — один раз на загрузку. Замер
+  // делается при нулевом угле: axis-aligned box вращающейся модели меняет
+  // размер, и круг, посчитанный покадрово, пульсировал бы.
+  #measureTurntable() {
+    if (!this.turntable) return;
     const model = this.modelLoader.currentModel;
-    const canvas = this.renderer.domElement;
-    if (!model || !canvas.clientWidth || !canvas.clientHeight) return null;
+    if (!model) {
+      this.turntable.setMetrics(null);
+      return;
+    }
 
+    const rotation = model.rotation.y;
+    model.rotation.y = 0;
+    model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
-    if (box.isEmpty()) return null;
+    model.rotation.y = rotation;
+    model.updateMatrixWorld(true);
+
+    if (box.isEmpty()) {
+      this.turntable.setMetrics(null);
+      return;
+    }
 
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    // С запасом вокруг следа модели, чтобы круг был чуть шире стакана.
-    const radius = (Math.max(size.x, size.z) / 2) * 1.35;
-    const base = new THREE.Vector3(center.x, box.min.y, center.z);
-
-    const project = (point) => {
-      const v = point.clone().project(this.camera);
-      return {
-        x: (v.x * 0.5 + 0.5) * canvas.clientWidth,
-        y: (-v.y * 0.5 + 0.5) * canvas.clientHeight,
-      };
-    };
-
-    const origin = project(base);
-    const alongX = project(base.clone().add(new THREE.Vector3(radius, 0, 0)));
-    const alongZ = project(base.clone().add(new THREE.Vector3(0, 0, radius)));
-
-    const ex = { x: alongX.x - origin.x, y: alongX.y - origin.y };
-    const ez = { x: alongZ.x - origin.x, y: alongZ.y - origin.y };
-
-    // Вырожденный базис (взгляд строго вдоль пола) развернуть в угол нельзя.
-    const det = ex.x * ez.y - ez.x * ex.y;
-    const finite = [origin.x, origin.y, ex.x, ex.y, ez.x, ez.y].every(Number.isFinite);
-    if (!finite || Math.abs(det) < 1) return null;
-
-    return { cx: origin.x, cy: origin.y, ex, ez };
+    const radius = (Math.max(size.x, size.z) / 2) * this.config.turntable.radiusScale;
+    this.turntable.setMetrics({ center, baseY: box.min.y, radius });
   }
 
   // Синхронизирует бегунок слайдера с текущим углом модели (0–360°).
@@ -382,6 +386,7 @@ export class Viewer {
     this.resizeObserver?.disconnect();
     this.modelLoader.dispose();
     this.textureManager.dispose();
+    this.turntable?.dispose();
     this.scene.environment?.dispose();
     this.contactShadow?.dispose();
     this.controls.dispose();

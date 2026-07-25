@@ -142,9 +142,20 @@ class ContactShadow {
     scene.background = null;
     scene.overrideMaterial = this.depthMaterial;
 
+    // Элементы интерфейса внутри сцены (поворотный круг) тень отбрасывать не
+    // должны — прячем их только на время depth-прохода.
+    const hidden = [];
+    scene.traverse((node) => {
+      if (node.visible && node.userData.excludeFromShadow) {
+        node.visible = false;
+        hidden.push(node);
+      }
+    });
+
     renderer.setRenderTarget(this.target);
     renderer.render(scene, this.camera);
 
+    for (const node of hidden) node.visible = true;
     scene.overrideMaterial = null;
 
     // Два прохода разной ширины: широкий несёт полутень, узкий убирает бандинг
