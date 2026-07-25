@@ -95,7 +95,7 @@
           </p>
 
           <dl class="spec">
-            <div class="spec__row"><dt>Тип</dt><dd>Двухслойный, рифленый борт</dd></div>
+            <div class="spec__row"><dt>Тип</dt><dd>Двухслойный</dd></div>
             <div class="spec__row"><dt>Объём</dt><dd>250 мл (до 280 мл)</dd></div>
             <div class="spec__row"><dt>Печать</dt><dd>Офсет</dd></div>
           </dl>
@@ -125,8 +125,10 @@
               </label>
             </div>
 
+            <!-- На телефоне остаётся только короткая подпись (см. approve.css) -->
             <button class="cta cta--approve" id="approve-btn" type="button">
-              Согласовать и запустить в печать
+              <span class="cta__full">Согласовать и запустить в печать</span>
+              <span class="cta__short">Согласовать</span>
             </button>
             <div class="approve-panel__secondary">
               <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
@@ -147,7 +149,10 @@
               placeholder="Например: логотип поднять на 3 мм, красный сделать теплее — как в вывеске"
             ></textarea>
             <div class="edits__actions">
-              <button class="cta cta--dark" type="submit">Отправить правки</button>
+              <button class="cta cta--dark" type="submit">
+                <span class="cta__full">Отправить правки</span>
+                <span class="cta__short">Отправить</span>
+              </button>
               <button class="cta cta--ghost" type="button" id="edits-cancel">Отмена</button>
             </div>
           </form>

@@ -13,9 +13,20 @@ import * as THREE from 'three';
 const TICKS = 24;
 const RING_SEGMENTS = 128;
 
-// Цвета совпадают с макетом страницы согласования.
+// Цвета совпадают с макетом страницы согласования. На тёмном фоне тёмный круг
+// пропадает, поэтому держим вторую, светлую пару (см. setBackground).
 const INK = 0x1c1c1e;
+const PAPER = 0xffffff;
 const BRAND = 0xe8290c;
+
+// Насколько прозрачны контур и засечки на светлом и на тёмном фоне.
+const THEMES = {
+  light: { color: INK, ring: 0.18, ticks: 0.3 },
+  dark: { color: PAPER, ring: 0.32, ticks: 0.55 },
+};
+
+// Доворот до точки — за это время (сек).
+const SNAP_DURATION = 0.45;
 
 class Turntable {
   constructor({ scene, camera, controls, domElement, config, onRotate, onDragStart, onDragEnd }) {
@@ -33,6 +44,9 @@ class Turntable {
     this.dragging = false;
     // Плавное появление: 0 — скрыт, 1 — виден.
     this.fade = 0;
+    this.theme = THEMES.light;
+    // Доворот до нажатой засечки: { from, to, time } в градусах и секундах.
+    this.snap = null;
 
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -65,20 +79,34 @@ class Turntable {
     );
     this.group.add(ring);
 
-    // Засечки — один InstancedMesh вместо два десятка мешей.
-    const dots = new THREE.InstancedMesh(
-      new THREE.SphereGeometry(0.018, 8, 6),
-      this.materials.ticks,
-      TICKS,
-    );
+    // Засечки — один InstancedMesh вместо двух десятков мешей. Рядом — второй,
+    // невидимый и заметно крупнее: по видимой точке в 2 мм не попасть ни мышью,
+    // ни пальцем, а луч ловит именно его.
+    const tickMatrices = [];
     const matrix = new THREE.Matrix4();
     for (let i = 0; i < TICKS; i++) {
       const angle = (i / TICKS) * Math.PI * 2;
       matrix.setPosition(Math.cos(angle), 0, Math.sin(angle));
-      dots.setMatrixAt(i, matrix);
+      tickMatrices.push(matrix.clone());
     }
-    dots.instanceMatrix.needsUpdate = true;
-    this.group.add(dots);
+
+    const fill = (mesh) => {
+      tickMatrices.forEach((m, i) => mesh.setMatrixAt(i, m));
+      mesh.instanceMatrix.needsUpdate = true;
+      this.group.add(mesh);
+      return mesh;
+    };
+
+    this.dots = fill(
+      new THREE.InstancedMesh(new THREE.SphereGeometry(0.018, 8, 6), this.materials.ticks, TICKS),
+    );
+    this.tickTargets = fill(
+      new THREE.InstancedMesh(
+        new THREE.SphereGeometry(0.075, 6, 4),
+        new THREE.MeshBasicMaterial({ visible: false }),
+        TICKS,
+      ),
+    );
 
     // Бегунок: белая подложка и красный кружок поверх. Диски развёрнуты к
     // камере (см. update) — иначе лёжа на полу они читались бы как сплюснутые
@@ -106,6 +134,17 @@ class Turntable {
       // Цвета интерфейса не должны уезжать в тонмаппинге сцены.
       toneMapped: false,
     });
+  }
+
+  // Подстраивает круг под фон сцены: на тёмном тёмный контур не виден.
+  // Порог — по воспринимаемой яркости фона.
+  setBackground(color) {
+    const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+    this.theme = luminance < 0.4 ? THEMES.dark : THEMES.light;
+    this.materials.ring.color.setHex(this.theme.color);
+    this.materials.ticks.color.setHex(this.theme.color);
+    // Прозрачность пересчитается в ближайшем update по текущему fade.
+    this.#applyFade();
   }
 
   // Радиус и высота основания приходят от Viewer один раз на модель.
@@ -143,15 +182,41 @@ class Turntable {
     return this.raycaster.intersectObject(this.knobTarget, false).length > 0;
   }
 
+  // Индекс засечки под курсором или null.
+  #hitTick(event) {
+    if (!this.visible || !this.metrics) return null;
+    this.#updatePointer(event);
+    const [hit] = this.raycaster.intersectObject(this.tickTargets, false);
+    return hit ? hit.instanceId ?? null : null;
+  }
+
   #onPointerDown(event) {
-    if (!this.#hitsKnob(event)) return;
+    if (this.#hitsKnob(event)) {
+      event.preventDefault();
+      this.dragging = true;
+      this.snap = null;
+      this.domElement.setPointerCapture?.(event.pointerId);
+      // Пока тянем бегунок, орбита камеры не должна перехватывать тот же жест.
+      this.controls.enabled = false;
+      this.onDragStart?.();
+      this.#rotateToPointer(event);
+      return;
+    }
+
+    // Нажатие по засечке — доворот модели ровно к этой точке.
+    const tick = this.#hitTick(event);
+    if (tick === null) return;
     event.preventDefault();
-    this.dragging = true;
-    this.domElement.setPointerCapture?.(event.pointerId);
-    // Пока тянем бегунок, орбита камеры не должна перехватывать тот же жест.
-    this.controls.enabled = false;
+    this.#snapTo((tick / TICKS) * 360);
+  }
+
+  // Плавный доворот по кратчайшей дуге.
+  #snapTo(targetDegrees) {
+    const from = this.currentRotation ?? 0;
+    let delta = ((targetDegrees - from) % 360 + 540) % 360 - 180;
+    if (Math.abs(delta) < 0.1) return;
+    this.snap = { from, to: from + delta, time: 0 };
     this.onDragStart?.();
-    this.#rotateToPointer(event);
   }
 
   #onPointerMove(event) {
@@ -159,9 +224,10 @@ class Turntable {
       this.#rotateToPointer(event);
       return;
     }
-    // Курсор-«рука» подсказывает, что за кружок можно взяться.
+    // Курсор подсказывает, что бегунок можно взять, а засечку — нажать.
     if (this.visible) {
-      this.domElement.style.cursor = this.#hitsKnob(event) ? 'grab' : '';
+      if (this.#hitsKnob(event)) this.domElement.style.cursor = 'grab';
+      else this.domElement.style.cursor = this.#hitTick(event) !== null ? 'pointer' : '';
     }
   }
 
@@ -203,21 +269,39 @@ class Turntable {
     this.domElement.style.cursor = '';
   }
 
-  // Вызывается каждый кадр: бегунок следует за углом модели, круг плавно
-  // появляется и исчезает.
+  // Раскладывает текущий fade по материалам с учётом темы.
+  #applyFade() {
+    const { ring, ticks, knob, knobRing } = this.materials;
+    ring.opacity = this.theme.ring * this.fade;
+    ticks.opacity = this.theme.ticks * this.fade;
+    knob.opacity = this.fade;
+    knobRing.opacity = this.fade;
+  }
+
+  // Вызывается каждый кадр: бегунок следует за углом модели, идёт доворот до
+  // нажатой засечки, круг плавно появляется и исчезает.
   update(rotationDegrees, delta = 0.016) {
+    this.currentRotation = rotationDegrees;
+
     const target = this.visible ? 1 : 0;
     if (this.fade !== target) {
       const step = delta / 0.2; // ~200 мс на переход
       this.fade = target > this.fade
         ? Math.min(this.fade + step, 1)
         : Math.max(this.fade - step, 0);
+      this.#applyFade();
+    }
 
-      const { ring, ticks, knob, knobRing } = this.materials;
-      ring.opacity = 0.18 * this.fade;
-      ticks.opacity = 0.3 * this.fade;
-      knob.opacity = this.fade;
-      knobRing.opacity = this.fade;
+    if (this.snap) {
+      this.snap.time += delta;
+      const t = Math.min(this.snap.time / SNAP_DURATION, 1);
+      // easeOutCubic — быстрый старт, мягкая остановка.
+      const eased = 1 - (1 - t) ** 3;
+      this.onRotate?.(this.snap.from + (this.snap.to - this.snap.from) * eased);
+      if (t >= 1) {
+        this.snap = null;
+        this.onDragEnd?.();
+      }
     }
 
     this.group.visible = this.fade > 0.001 && !!this.metrics;
@@ -237,6 +321,7 @@ class Turntable {
     });
     for (const material of Object.values(this.materials)) material.dispose();
     this.knobTarget.material.dispose();
+    this.tickTargets.material.dispose();
     this.group.removeFromParent();
   }
 }

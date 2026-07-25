@@ -41,22 +41,14 @@ function initStage() {
     const turntable = viewer.turntable;
     if (!turntable) return;
 
-    stage.addEventListener('pointerenter', () => turntable.show());
-    stage.addEventListener('pointerleave', () => turntable.hide());
-
-    const setPinned = (pinned) => {
-      button?.classList.toggle('is-active', pinned);
-      button?.setAttribute('aria-pressed', String(pinned));
-    };
-
-    button?.addEventListener('click', () => setPinned(turntable.togglePinned()));
-
-    // На тач-устройствах наведения нет — круг закрепляем сразу, иначе до него
-    // не добраться. Кнопку при этом не подсвечиваем: это состояние по
-    // умолчанию, а не выбор пользователя (первое нажатие круг спрячет).
-    if (window.matchMedia('(hover: none)').matches) {
-      turntable.togglePinned();
-    }
+    // Круг показывается ТОЛЬКО этой кнопкой — по наведению на сцену он больше
+    // не появляется. Совсем выключить его можно флагом turntable.enabled
+    // в js/config.js, там же radiusScale задаёт его размер.
+    button?.addEventListener('click', () => {
+      const pinned = turntable.togglePinned();
+      button.classList.toggle('is-active', pinned);
+      button.setAttribute('aria-pressed', String(pinned));
+    });
 
     stage.addEventListener('dblclick', () => viewer.resetView());
   });
@@ -72,11 +64,20 @@ function initApproveFlow() {
 
   let confirming = false;
 
+  // Подписи меняем по частям: у кнопки две — полная и короткая для телефона.
+  const setLabel = (full, short) => {
+    const fullEl = approveBtn.querySelector('.cta__full');
+    const shortEl = approveBtn.querySelector('.cta__short');
+    if (fullEl) fullEl.textContent = full;
+    if (shortEl) shortEl.textContent = short;
+    if (!fullEl && !shortEl) approveBtn.textContent = full;
+  };
+
   approveBtn.addEventListener('click', () => {
     if (!confirming) {
       confirming = true;
       checklist.hidden = false;
-      approveBtn.textContent = 'Подтвердить и отправить в печать';
+      setLabel('Подтвердить и отправить в печать', 'Подтвердить');
       return;
     }
 
@@ -93,7 +94,7 @@ function initApproveFlow() {
     }
     checklist.hidden = true;
     approveBtn.disabled = true;
-    approveBtn.textContent = 'Согласовано ✓';
+    setLabel('Согласовано ✓', 'Согласовано ✓');
     document.getElementById('edits-btn')?.setAttribute('disabled', '');
     toast('Заказ согласован и отправлен в печать');
   });

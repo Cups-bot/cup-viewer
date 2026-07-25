@@ -14,6 +14,9 @@
   --page-bg: var(--sky);
   --card: #ffffff;
   --done: #16a34a;
+  /* Высота сцены. Панель согласования равна ей по минимуму, но может стать
+     выше — сцену это не двигает. */
+  --stage-h: min(760px, calc(100vh - 44px));
 }
 
 body.approve {
@@ -31,17 +34,22 @@ body.approve {
 }
 
 /* ── Основной блок ─────────────────────────────────────────────────────── */
+/* Сцена имеет собственную фиксированную высоту, а колонки выровнены по верху.
+   Иначе панель справа, вырастая (чек-лист, форма правок), растягивала бы строку
+   сетки — холст менял бы размер, и стакан на вид «увеличивался». Правое меню
+   ничего в сцене менять не должно. */
 .approve-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 14px;
-  align-items: stretch;
-  min-height: min(760px, calc(100vh - 44px));
+  align-items: start;
 }
 
-/* Левая колонка: сцена вьювера. */
+/* Левая колонка: сцена вьювера. Высота своя и постоянная — от содержимого
+   правой панели она не зависит. */
 .stage {
   position: relative;
+  height: var(--stage-h);
   overflow: hidden;
   background: var(--sky);
   border-radius: 18px;
@@ -82,8 +90,10 @@ body.approve {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-.stage-tab:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .stage-tab:hover {
+    color: var(--ink);
+  }
 }
 
 .stage-tab.is-active {
@@ -123,6 +133,14 @@ body.approve {
   box-shadow: 0 0 0 2px var(--brand);
 }
 
+/* На тач-экранах :hover залипает после нажатия — кружок оставался бы
+   увеличенным (style.css масштабирует его при наведении). */
+@media (hover: none) {
+  .stage-swatches .swatch:hover {
+    transform: none;
+  }
+}
+
 /* Поворотный круг рисуется внутри 3D-сцены (js/core/turntable.js) — так его
    дальняя дуга уходит за стакан по буферу глубины. Стилей здесь нет. */
 
@@ -152,9 +170,14 @@ body.approve {
   backdrop-filter: none;
 }
 
-.stage-controls .btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  transform: none;
+/* Только для устройств с настоящим курсором. На тач-экранах :hover «залипает»
+   после нажатия, и подсветка перебивала бы активное состояние: кнопка
+   оставалась белой, а иконка в ней — тоже белой, то есть невидимой. */
+@media (hover: hover) {
+  .stage-controls .btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: none;
+  }
 }
 
 /* Иконки в комплекте залиты белым — на белой панели делаем их тёмными. */
@@ -234,6 +257,9 @@ body.approve {
   background: var(--card);
   border-radius: 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  /* По умолчанию вровень со сценой; чек-лист и форма правок могут сделать
+     панель выше — прокручивается вся страница, сцена остаётся на месте. */
+  min-height: var(--stage-h);
 }
 
 .status-chip {
@@ -428,8 +454,10 @@ body.approve {
   box-shadow: 0 10px 26px rgba(232, 41, 12, 0.32);
 }
 
-.cta--approve:hover {
-  background: var(--brand-strong);
+@media (hover: hover) {
+  .cta--approve:hover {
+    background: var(--brand-strong);
+  }
 }
 
 .cta--approve:disabled {
@@ -454,9 +482,11 @@ body.approve {
   border: 1.5px solid rgba(0, 0, 0, 0.14);
 }
 
-.cta--ghost:hover {
-  border-color: rgba(0, 0, 0, 0.3);
-  background: #fafafa;
+@media (hover: hover) {
+  .cta--ghost:hover {
+    border-color: rgba(0, 0, 0, 0.3);
+    background: #fafafa;
+  }
 }
 
 .cta--ghost:disabled {
@@ -527,8 +557,10 @@ body.approve {
   border-radius: 999px;
 }
 
-.cta--dark:hover {
-  background: #000;
+@media (hover: hover) {
+  .cta--dark:hover {
+    background: #000;
+  }
 }
 
 .edits__actions .cta--ghost {
@@ -538,14 +570,18 @@ body.approve {
 
 /* ── Адаптив ───────────────────────────────────────────────────────────── */
 
-/* Короткие подписи вкладок — только на узких экранах. */
-.stage-tab__short {
+/* Короткие подписи вкладок и кнопок — только на узких экранах. */
+.stage-tab__short,
+.cta__short {
   display: none;
 }
 
 @media (max-width: 900px) {
   .approve-grid {
     grid-template-columns: 1fr;
+  }
+
+  .approve-panel {
     min-height: 0;
   }
 
@@ -578,11 +614,13 @@ body.approve {
     height: min(66vh, 560px);
   }
 
-  .stage-tab__full {
+  .stage-tab__full,
+  .cta__full {
     display: none;
   }
 
-  .stage-tab__short {
+  .stage-tab__short,
+  .cta__short {
     display: inline;
   }
 
@@ -635,10 +673,6 @@ body.approve {
     height: 44px;
     background: #fff;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
-  }
-
-  .stage-controls .btn:hover {
-    background: #fff;
   }
 
   /* Подсказка раскрывается влево от кнопки, а не вверх. */

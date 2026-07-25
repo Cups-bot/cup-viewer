@@ -103,7 +103,9 @@ export class Viewer {
       onModelFile: (file) => this.loadModelFromFile(file),
     });
 
-    this.ui.setActiveBackground(this.backgroundIndex);
+    // Через selectBackground, а не setActiveBackground: заодно задаёт тему
+    // поворотного круга под стартовый фон.
+    this.selectBackground(this.backgroundIndex);
   }
 
   // Загрузка ассетов, запуск наблюдателей и цикла отрисовки.
@@ -290,7 +292,10 @@ export class Viewer {
   // Ставит конкретный фон по индексу (выбор кружочком).
   selectBackground(index) {
     this.backgroundIndex = index;
-    this.scene.background = new THREE.Color(this.config.backgrounds[index]);
+    const color = new THREE.Color(this.config.backgrounds[index]);
+    this.scene.background = color;
+    // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
+    this.turntable?.setBackground(color);
     this.ui.setActiveBackground(index);
   }
 
