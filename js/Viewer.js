@@ -6,6 +6,7 @@ import { createRenderer } from './core/renderer.js';
 import { createLighting, aimLightAtSun } from './core/lighting.js';
 import { createControls } from './core/controls.js';
 import { createContactShadow } from './core/contactShadow.js';
+import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
@@ -56,6 +57,19 @@ export class Viewer {
       this.contactShadow = createContactShadow(this.config);
       this.scene.add(this.contactShadow.group);
     }
+
+    if (this.config.turntable.enabled) {
+      this.turntable = createTurntable({
+        scene: this.scene,
+        camera: this.camera,
+        controls: this.controls,
+        domElement: this.renderer.domElement,
+        config: this.config,
+        onRotate: (degrees) => this.rotateModelTo(degrees),
+        onDragStart: () => this.setManualRotate(true),
+        onDragEnd: () => this.setManualRotate(false),
+      });
+    }
   }
 
   #initModules() {
@@ -89,17 +103,37 @@ export class Viewer {
       onModelFile: (file) => this.loadModelFromFile(file),
     });
 
-    this.ui.setActiveBackground(this.backgroundIndex);
+    // Через selectBackground, а не setActiveBackground: заодно задаёт тему
+    // поворотного круга под стартовый фон.
+    this.selectBackground(this.backgroundIndex);
   }
 
-  // Загрузка ассетов, запуск наблюдателей и цикла отрисовки.
-  async start() {
+  // Поднимает сцену: наблюдатели, цикл отрисовки и освещение. Модель и дизайн
+  // сюда не входят — они приходят из данных заказа (см. js/main.js).
+  async startEnvironment() {
     this.#observeResize();
     this.#handleContextLoss();
     this.#startRenderLoop();
     await this.loadHDRI();
+  }
+
+  // Полный запуск на ассетах из конфига — когда данных заказа нет.
+  async start() {
+    await this.startEnvironment();
     await this.loadModel(this.config.assets.model);
-    await this.#loadDefaultTexture();
+    await this.applyTexture(this.config.assets.texture);
+  }
+
+  // Кладёт дизайн на модель. Отсутствие файла не должно ронять страницу:
+  // модель останется с исходным материалом.
+  async applyTexture(url) {
+    if (!url) return 0;
+    try {
+      return await this.textureManager.replaceTexture(url);
+    } catch (error) {
+      console.warn(`Дизайн не загружен: ${error.message}`);
+      return 0;
+    }
   }
 
   #startRenderLoop() {
@@ -115,6 +149,7 @@ export class Viewer {
       }
 
       this.controls.update(delta);
+      this.turntable?.update(this.getModelRotation(), delta);
       // Тень перерисовывается каждый кадр (модель под ней крутится) и до
       // основного рендера — она сначала рисует сцену в свой таргет.
       this.contactShadow?.update(this.renderer, this.scene);
@@ -208,6 +243,7 @@ export class Viewer {
         this.config.lighting.environmentIntensity,
       );
       this.#placeGround();
+      this.#measureTurntable();
     } catch (error) {
       console.error(error);
       this.ui.showToast('Не удалось загрузить модель', 'error');
@@ -223,30 +259,26 @@ export class Viewer {
     this.contactShadow.group.position.y = box.min.y;
   }
 
+  // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
   async loadModelFromFile(file) {
     const url = URL.createObjectURL(file);
+    const order = window.cupOrder;
     try {
       await this.loadModel(url);
-      await this.#loadDefaultTexture();
+      if (order?.roughness != null) this.setSurfaceFinish({ roughness: order.roughness });
+      await this.applyTexture(order?.texture ?? this.config.assets.texture);
       this.ui.showToast(`Модель загружена: ${file.name}`);
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
-  // Применяем текстуру по умолчанию, молча игнорируя её отсутствие.
-  async #loadDefaultTexture() {
-    try {
-      await this.textureManager.replaceTexture(this.config.assets.texture);
-    } catch {
-      // Текстуры по умолчанию нет — оставляем исходные материалы модели.
-    }
-  }
-
+  // Перетаскивание картинки: дизайн меняется и на модели, и в развёртке.
   async replaceTextureFromFile(file) {
     try {
       const texture = await this.textureManager.loadFromFile(file);
       const updated = this.textureManager.applyTexture(texture);
+      window.cupUnwrap?.setSource(URL.createObjectURL(file));
       this.ui.showToast(
         updated > 0 ? `Дизайн применён: ${file.name}` : 'В модели нет поверхности для дизайна',
         updated > 0 ? 'success' : 'error',
@@ -274,7 +306,10 @@ export class Viewer {
   // Ставит конкретный фон по индексу (выбор кружочком).
   selectBackground(index) {
     this.backgroundIndex = index;
-    this.scene.background = new THREE.Color(this.config.backgrounds[index]);
+    const color = new THREE.Color(this.config.backgrounds[index]);
+    this.scene.background = color;
+    // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
+    this.turntable?.setBackground(color);
     this.ui.setActiveBackground(index);
   }
 
@@ -296,12 +331,53 @@ export class Viewer {
     if (model) model.rotation.y = THREE.MathUtils.degToRad(degrees);
   }
 
+  // Текущий угол поворота модели в градусах (0–360).
+  getModelRotation() {
+    const model = this.modelLoader.currentModel;
+    if (!model) return 0;
+    const degrees = THREE.MathUtils.radToDeg(model.rotation.y);
+    return ((degrees % 360) + 360) % 360;
+  }
+
+  // Возвращает камеру в исходный кадр (двойной клик по сцене).
+  resetView() {
+    this.modelLoader.frameCurrentModel();
+  }
+
+  // Меряет след модели для поворотного круга — один раз на загрузку. Замер
+  // делается при нулевом угле: axis-aligned box вращающейся модели меняет
+  // размер, и круг, посчитанный покадрово, пульсировал бы.
+  #measureTurntable() {
+    if (!this.turntable) return;
+    const model = this.modelLoader.currentModel;
+    if (!model) {
+      this.turntable.setMetrics(null);
+      return;
+    }
+
+    const rotation = model.rotation.y;
+    model.rotation.y = 0;
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    model.rotation.y = rotation;
+    model.updateMatrixWorld(true);
+
+    if (box.isEmpty()) {
+      this.turntable.setMetrics(null);
+      return;
+    }
+
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const radius = (Math.max(size.x, size.z) / 2) * this.config.turntable.radiusScale;
+    this.turntable.setMetrics({ center, baseY: box.min.y, radius });
+  }
+
   // Синхронизирует бегунок слайдера с текущим углом модели (0–360°).
   #syncRotationSlider() {
     const model = this.modelLoader.currentModel;
     if (!model) return;
-    const degrees = THREE.MathUtils.radToDeg(model.rotation.y);
-    this.ui.setRotationSlider(((degrees % 360) + 360) % 360);
+    this.ui.setRotationSlider(this.getModelRotation());
   }
 
   takeScreenshot() {
@@ -329,6 +405,7 @@ export class Viewer {
     this.resizeObserver?.disconnect();
     this.modelLoader.dispose();
     this.textureManager.dispose();
+    this.turntable?.dispose();
     this.scene.environment?.dispose();
     this.contactShadow?.dispose();
     this.controls.dispose();
