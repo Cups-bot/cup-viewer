@@ -11,7 +11,7 @@ export const PAPER_TYPES = {
   uncoated: { label: 'Немелованный', roughness: 0.8 },
 };
 
-export const DEFAULT_PAPER = 'coated';
+export const DEFAULT_PAPER = 'uncoated';
 
 // Синонимы: Битрикс может прислать что угодно из этого списка.
 const PAPER_ALIASES = {
@@ -30,15 +30,15 @@ const PAPER_ALIASES = {
 // Точное соответствие номенклатуры и файла модели. Ключ — как в 1С/Битриксе.
 export const MODELS = {
   'DW80-280': 'assets/models/8cups.glb',
-  'DW80-250': 'assets/models/8cups.glb',
-  'SW80-250': 'assets/models/8cups.glb',
+  'DW90-430': 'assets/models/8cups.glb',
+  'DW90-530': 'assets/models/8cups.glb',
 };
 
 // Если точного ключа нет, номенклатура разбирается по префиксу типа стакана.
 // Порядок важен: первое совпадение выигрывает.
 const MODEL_PATTERNS = [
   { test: /^DW/i, model: 'assets/models/8cups.glb' }, // double wall — двухслойный
-  { test: /^SW/i, model: 'assets/models/8cups.glb' }, // single wall — однослойный
+  { test: /^HB/i, model: 'assets/models/8cups.glb' }, // single wall — однослойный
 ];
 
 // Модель, которая грузится, если номенклатуру опознать не удалось.
