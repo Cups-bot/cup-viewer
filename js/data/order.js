@@ -11,6 +11,7 @@
 //       sku: 'DW80-280',
 //       paper: 'uncoated',
 //       texture: '/upload/orders/2431/design.png',
+//       unwrap:  '/upload/orders/2431/design-print.png',   // необязательно
 //       title: 'Посмотрите свой стакан вживую',
 //       spec: [
 //         { label: 'Тип',    value: 'Двухслойный' },
@@ -39,6 +40,10 @@ export const DEFAULT_ORDER = Object.freeze({
   model: null,
   // Дизайн (он же развёртка). Показывается и на модели, и во вкладке «Развёртка».
   texture: 'assets/textures/design.png',
+  // Отдельный файл развёртки — крупнее того, что ложится на модель. Для 3D
+  // текстуру ужимают (видеопамять), а во вкладке «Развёртка» мелкий текст на
+  // ужатом файле не проверить. Не задан — берётся texture.
+  unwrap: null,
   // 'coated' | 'uncoated' — задаёт шероховатость поверхности.
   paper: 'coated',
   // Явная шероховатость 0…1. Задана — важнее типа картона.
@@ -66,7 +71,7 @@ export const DEFAULT_ORDER = Object.freeze({
 });
 
 // Ключи, которые разрешено передавать через адресную строку.
-const QUERY_KEYS = ['sku', 'model', 'texture', 'paper', 'roughness', 'title', 'status'];
+const QUERY_KEYS = ['sku', 'model', 'texture', 'unwrap', 'paper', 'roughness', 'title', 'status'];
 
 function fromQuery() {
   const params = new URLSearchParams(window.location.search);

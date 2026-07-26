@@ -40,6 +40,8 @@ Three.js подключается с CDN через import map в `index.html`.
   [`docs/integration.md`](docs/integration.md)
 - Справочники правятся в [`js/data/catalog.js`](js/data/catalog.js), значения по
   умолчанию — в [`js/data/order.js`](js/data/order.js)
+- Вкладка «Развёртка» показывает `texture`, но если на модель кладётся ужатый
+  файл — крупный исходник отдаётся полем `unwrap` (от 2000 px по ширине)
 
 Быстрая проверка без бэкенда — параметрами адреса:
 
@@ -231,7 +233,7 @@ js/loaders/                загрузка модели и текстур
 js/ui/UIManager.js         кнопки, горячие клавиши, drag & drop
 js/ui/approval.js          страница согласования: вкладки, чек-лист, правки
 js/ui/orderPanel.js        отрисовка правой панели из данных заказа
-js/ui/unwrap.js            вкладка «Развёртка»: просмотр макета с зумом
+js/ui/unwrap.js            вкладка «Развёртка»: макет в canvas, зум до пикселей файла
 js/utils/                  общие вспомогательные функции
 docs/integration.md        подключение к Битриксу
 docs/icons-prompt.md       задание на иконки нижней панели

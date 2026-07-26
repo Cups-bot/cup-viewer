@@ -18,8 +18,9 @@
           <!-- Развёртка: тот же макет, что лежит на модели, плоско и с зумом.
                Картинку подставляет js/ui/unwrap.js из данных заказа. -->
           <div class="unwrap" id="unwrap" hidden>
-            <img class="unwrap__image" alt="" draggable="false" />
+            <canvas class="unwrap__canvas" role="img" aria-label="Развёртка дизайна"></canvas>
             <p class="unwrap__hint">Колесо мыши — приблизить, перетаскивание — сдвинуть, двойной клик — исходный вид</p>
+            <p class="unwrap__meta" aria-live="polite"></p>
           </div>
 
           <!-- Переключатель режимов -->

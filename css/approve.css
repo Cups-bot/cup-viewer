@@ -87,18 +87,16 @@ body.approve {
   display: none;
 }
 
-.unwrap__image {
-  max-width: 82%;
-  max-height: 78%;
-  /* Пиксели макета не сглаживаем «в кашу»: важно разглядеть шов и мелкий текст. */
-  object-fit: contain;
+/* Макет рисует js/ui/unwrap.js — в физических пикселях экрана и заново на
+   каждом шаге зума. Лист, тень и поля вокруг макета тоже рисуются там. */
+.unwrap__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   user-select: none;
   -webkit-user-drag: none;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-  transform-origin: center center;
-  will-change: transform;
 }
 
 .unwrap.is-zoomed {
@@ -118,6 +116,26 @@ body.approve {
   line-height: 1.4;
   color: #98a0aa;
   pointer-events: none;
+}
+
+/* Размер файла и текущий масштаб: по ним видно, упёрлись мы в разрешение
+   макета или ещё нет. */
+.unwrap__meta {
+  position: absolute;
+  right: 26px;
+  bottom: 26px;
+  max-width: 300px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: right;
+  color: #98a0aa;
+  pointer-events: none;
+}
+
+/* Макет, которого не хватает для проверки мелкого текста, отмечаем цветом
+   предупреждения — иначе «мыло» спишут на просмотрщик. */
+.unwrap.is-lowres .unwrap__meta {
+  color: #c98a2e;
 }
 
 /* Переключатели режимов. */
@@ -699,6 +717,24 @@ body.approve {
   .stage-swatches {
     top: 15px;
     right: 10px;
+  }
+
+  /* Подсказка и строка с размером макета встают друг над другом: по краям
+     экрана они наезжали бы одна на другую. */
+  .unwrap__hint {
+    left: 14px;
+    bottom: 44px;
+    max-width: calc(100% - 28px);
+    font-size: 11.5px;
+  }
+
+  .unwrap__meta {
+    left: 14px;
+    right: auto;
+    bottom: 14px;
+    max-width: calc(100% - 28px);
+    text-align: left;
+    font-size: 11.5px;
   }
 
   .stage-swatches #bg-swatches {

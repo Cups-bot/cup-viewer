@@ -62,7 +62,9 @@ function initUnwrap() {
   const view = new UnwrapView(root);
   window.cupUnwrap = view;
 
-  const apply = (order) => view.setSource(order?.texture);
+  // Крупный файл развёртки, если он пришёл: на модель ложится ужатая текстура,
+  // а здесь смотрят мелкий текст.
+  const apply = (order) => view.setSource(order?.unwrap || order?.texture);
   if (window.cupOrder) apply(window.cupOrder);
   window.addEventListener('cup:order', (event) => apply(event.detail));
 }
