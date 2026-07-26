@@ -305,11 +305,11 @@ export class UnwrapView {
 
     const { naturalWidth: iw, naturalHeight: ih } = this.image;
     const percent = Math.round((this.zoom / this.#nativeZoom()) * 100);
-    const parts = [`${iw}×${ih} px`, `${percent}% от пикселей макета`];
+
     if (iw < LOW_RES_WIDTH) {
       parts.push('для проверки мелкого текста нужен файл от 2000 px по ширине');
     }
-    this.meta.textContent = parts.join(' · ');
+
     this.root.classList.toggle('is-lowres', iw < LOW_RES_WIDTH);
   }
 }
