@@ -33,8 +33,10 @@ export class UIManager {
       dropOverlay: byId('drop-overlay'),
       textureInput: byId('texture-input'),
       bgSwatches: byId('bg-swatches'),
-      rotateWrap: byId('rotate-wrap'),
-      rotateSlider: byId('rotate-slider'),
+      // Слайдера может не быть: на странице согласования поворотом управляет
+      // круг под моделью (js/ui/turntable.js).
+      rotateWrap: document.getElementById('rotate-wrap'),
+      rotateSlider: document.getElementById('rotate-slider'),
       buttons: {
         background: byId('bg-btn'),
         autorotate: byId('autorotate-btn'),
@@ -77,11 +79,13 @@ export class UIManager {
 
     // Слайдер поворота: пока курсор над панелькой — автоповорот на паузе, чтобы
     // не спорить с ручным вращением.
-    rotateWrap.addEventListener('mouseenter', () => this.#call('onManualRotateStart'));
-    rotateWrap.addEventListener('mouseleave', () => this.#call('onManualRotateEnd'));
-    rotateSlider.addEventListener('input', () =>
-      this.#call('onManualRotate', Number(rotateSlider.value)),
-    );
+    if (rotateWrap && rotateSlider) {
+      rotateWrap.addEventListener('mouseenter', () => this.#call('onManualRotateStart'));
+      rotateWrap.addEventListener('mouseleave', () => this.#call('onManualRotateEnd'));
+      rotateSlider.addEventListener('input', () =>
+        this.#call('onManualRotate', Number(rotateSlider.value)),
+      );
+    }
 
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
     this.#bindDragAndDrop();
@@ -180,6 +184,6 @@ export class UIManager {
 
   // Ставит бегунок слайдера на текущий угол поворота (в градусах).
   setRotationSlider(degrees) {
-    this.dom.rotateSlider.value = String(Math.round(degrees));
+    if (this.dom.rotateSlider) this.dom.rotateSlider.value = String(Math.round(degrees));
   }
 }
