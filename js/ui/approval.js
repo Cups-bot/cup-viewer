@@ -2,6 +2,8 @@
 // согласование с чек-листом, форма правок и подсказка по управлению.
 // Логики рендера не касается — только страница вокруг вьювера.
 
+import { UnwrapView } from './unwrap.js';
+
 // Тосты берём у вьювера, если он уже поднялся.
 function toast(message, type = 'success') {
   window.cupViewer?.ui?.showToast?.(message, type);
@@ -14,20 +16,55 @@ function whenViewerReady(callback, attempts = 120) {
   return requestAnimationFrame(() => whenViewerReady(callback, attempts - 1));
 }
 
+// Переключение режимов сцены: 3D и развёртка живут в одном контейнере, поэтому
+// показываем нужный слой и прячем лишние элементы управления.
 function initTabs() {
   const tabs = Array.from(document.querySelectorAll('.stage-tab'));
+  const unwrapEl = document.getElementById('unwrap');
+  const controls = document.querySelector('.stage-controls');
+  const swatches = document.querySelector('.stage-swatches');
+
+  const show = (mode) => {
+    if (unwrapEl) unwrapEl.hidden = mode !== 'unwrap';
+    // В развёртке вращать и менять фон нечего.
+    if (controls) controls.hidden = mode === 'unwrap';
+    if (swatches) swatches.hidden = mode === 'unwrap';
+    // Автоповорот в фоне только жрёт кадры, пока смотрят картинку.
+    const viewer = window.cupViewer;
+    if (viewer) viewer.setManualRotate(mode !== '3d');
+  };
+
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
+      const mode = tab.dataset.tab;
+      // Нереализованный режим не должен «съедать» текущую вкладку.
+      if (mode === 'scene') {
+        toast('Этот режим появится позже', 'error');
+        return;
+      }
+
       tabs.forEach((t) => {
         const active = t === tab;
         t.classList.toggle('is-active', active);
         t.setAttribute('aria-selected', String(active));
       });
-      if (tab.dataset.tab !== '3d') {
-        toast('Этот режим появится позже', 'error');
-      }
+      show(mode);
     });
   });
+}
+
+// Просмотр развёртки. Картинку берём из данных заказа — они могут прийти позже
+// самого интерфейса, поэтому слушаем событие загрузки.
+function initUnwrap() {
+  const root = document.getElementById('unwrap');
+  if (!root) return;
+
+  const view = new UnwrapView(root);
+  window.cupUnwrap = view;
+
+  const apply = (order) => view.setSource(order?.texture);
+  if (window.cupOrder) apply(window.cupOrder);
+  window.addEventListener('cup:order', (event) => apply(event.detail));
 }
 
 // Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
@@ -149,6 +186,7 @@ function initShare() {
 
 function init() {
   initTabs();
+  initUnwrap();
   initStage();
   initApproveFlow();
   initEditsFlow();

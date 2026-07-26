@@ -29,6 +29,24 @@ Three.js подключается с CDN через import map в `index.html`.
 | Полноэкранный режим         | `fullscreen` |   `F`   |
 | Заменить дизайн             |  `texture`   |    —    |
 
+## Данные заказа (Битрикс)
+
+Страница собирается под конкретный заказ: модель, дизайн, тип картона и все
+тексты правой панели приходят снаружи, в коде лежат только значения по
+умолчанию. Модель подбирается по номенклатуре (`DW80-280` → нужный `.glb`), тип
+картона задаёт шероховатость (мелованный `0.2`, немелованный `0.8`).
+
+- **Как передать данные, что можно передать, номенклатура и картон** —
+  [`docs/integration.md`](docs/integration.md)
+- Справочники правятся в [`js/data/catalog.js`](js/data/catalog.js), значения по
+  умолчанию — в [`js/data/order.js`](js/data/order.js)
+
+Быстрая проверка без бэкенда — параметрами адреса:
+
+```
+?sku=DW80-280&paper=uncoated&texture=/upload/design.png
+```
+
 ## Настройка
 
 Почти всё, что обычно нужно менять, лежит в `js/config.js` — логику трогать не
@@ -36,12 +54,13 @@ Three.js подключается с CDN через import map в `index.html`.
 
 ### Своя модель
 
-Перетащите `.glb`/`.gltf` на страницу или пропишите путь в конфиге:
+Перетащите `.glb`/`.gltf` на страницу или пропишите путь в конфиге (обычно
+модель приходит из данных заказа, см. выше):
 
 ```js
 assets: {
   model: 'assets/models/8cups.glb',
-  texture: 'assets/textures/img_mokup.jpg',
+  texture: 'assets/textures/design.png',
 }
 ```
 
@@ -205,9 +224,17 @@ js/core/lighting.js        источники света (опциональны
 js/core/environment.js     загрузка HDRI, предфильтрация (IBL), поиск солнца
 js/core/contactShadow.js   мягкая тень: рендер в текстуру + размытие
 js/core/controls.js        OrbitControls
+js/core/turntable.js       поворотный круг под моделью (объект сцены)
+js/data/catalog.js         номенклатура → модель, картон → шероховатость
+js/data/order.js           данные заказа: Битрикс, endpoint, умолчания
 js/loaders/                загрузка модели и текстур
-js/ui/                     кнопки, горячие клавиши, drag & drop
+js/ui/UIManager.js         кнопки, горячие клавиши, drag & drop
+js/ui/approval.js          страница согласования: вкладки, чек-лист, правки
+js/ui/orderPanel.js        отрисовка правой панели из данных заказа
+js/ui/unwrap.js            вкладка «Развёртка»: просмотр макета с зумом
 js/utils/                  общие вспомогательные функции
+docs/integration.md        подключение к Битриксу
+docs/icons-prompt.md       задание на иконки нижней панели
 assets/hdri/               карта освещения (main.hdr)
 assets/icons/              svg-иконки панели
 assets/models/             модели

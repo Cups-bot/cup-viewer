@@ -1,12 +1,20 @@
 // Настройки просмотрщика. Всё, что обычно нужно менять, собрано здесь —
 // логику трогать не требуется: заменить модель, свет, камеру и т.д.
 export const CONFIG = Object.freeze({
-  // Ассеты, загружаемые при старте.
+  // Ассеты. Модель и дизайн обычно приходят из данных заказа (js/data/order.js);
+  // здесь — запасные значения, если заказа нет.
   assets: {
     model: 'assets/models/8cups.glb',
-    texture: 'assets/textures/img_mokup.jpg',
+    texture: 'assets/textures/design.png',
     hdri: 'assets/hdri/main.hdr',
     icons: 'assets/icons/',
+  },
+
+  // Откуда брать заказ, если страница открыта по ссылке вида ?order=2431.
+  // '{id}' заменяется номером. null — запрос не делается: данные ждём в
+  // window.ORDER_DATA (его печатает шаблон Битрикса) или берём умолчания.
+  order: {
+    endpoint: null, // например: '/local/api/viewer-order.php?id={id}'
   },
 
   // Рендерер и цветовой конвейер.

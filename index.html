@@ -15,6 +15,13 @@
         <div class="stage" id="stage">
           <div id="canvas-container"></div>
 
+          <!-- Развёртка: тот же макет, что лежит на модели, плоско и с зумом.
+               Картинку подставляет js/ui/unwrap.js из данных заказа. -->
+          <div class="unwrap" id="unwrap" hidden>
+            <img class="unwrap__image" alt="" draggable="false" />
+            <p class="unwrap__hint">Колесо мыши — приблизить, перетаскивание — сдвинуть, двойной клик — исходный вид</p>
+          </div>
+
           <!-- Переключатель режимов -->
           <div class="stage-tabs" role="tablist" aria-label="Режим просмотра">
             <!-- Короткие подписи включаются на узких экранах (см. approve.css) -->
@@ -22,11 +29,11 @@
               <span class="stage-tab__full">3D-визуализация</span>
               <span class="stage-tab__short">3D</span>
             </button>
-            <button class="stage-tab" type="button" role="tab" aria-selected="false">
+            <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">
               <span class="stage-tab__full">Развёртка</span>
               <span class="stage-tab__short">Развёртка</span>
             </button>
-            <button class="stage-tab" type="button" role="tab" aria-selected="false">
+            <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">
               <span class="stage-tab__full">Фото-сцена</span>
               <span class="stage-tab__short">Сцена</span>
             </button>

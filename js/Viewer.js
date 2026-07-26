@@ -108,14 +108,32 @@ export class Viewer {
     this.selectBackground(this.backgroundIndex);
   }
 
-  // Загрузка ассетов, запуск наблюдателей и цикла отрисовки.
-  async start() {
+  // Поднимает сцену: наблюдатели, цикл отрисовки и освещение. Модель и дизайн
+  // сюда не входят — они приходят из данных заказа (см. js/main.js).
+  async startEnvironment() {
     this.#observeResize();
     this.#handleContextLoss();
     this.#startRenderLoop();
     await this.loadHDRI();
+  }
+
+  // Полный запуск на ассетах из конфига — когда данных заказа нет.
+  async start() {
+    await this.startEnvironment();
     await this.loadModel(this.config.assets.model);
-    await this.#loadDefaultTexture();
+    await this.applyTexture(this.config.assets.texture);
+  }
+
+  // Кладёт дизайн на модель. Отсутствие файла не должно ронять страницу:
+  // модель останется с исходным материалом.
+  async applyTexture(url) {
+    if (!url) return 0;
+    try {
+      return await this.textureManager.replaceTexture(url);
+    } catch (error) {
+      console.warn(`Дизайн не загружен: ${error.message}`);
+      return 0;
+    }
   }
 
   #startRenderLoop() {
@@ -241,30 +259,26 @@ export class Viewer {
     this.contactShadow.group.position.y = box.min.y;
   }
 
+  // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
   async loadModelFromFile(file) {
     const url = URL.createObjectURL(file);
+    const order = window.cupOrder;
     try {
       await this.loadModel(url);
-      await this.#loadDefaultTexture();
+      if (order?.roughness != null) this.setSurfaceFinish({ roughness: order.roughness });
+      await this.applyTexture(order?.texture ?? this.config.assets.texture);
       this.ui.showToast(`Модель загружена: ${file.name}`);
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
-  // Применяем текстуру по умолчанию, молча игнорируя её отсутствие.
-  async #loadDefaultTexture() {
-    try {
-      await this.textureManager.replaceTexture(this.config.assets.texture);
-    } catch {
-      // Текстуры по умолчанию нет — оставляем исходные материалы модели.
-    }
-  }
-
+  // Перетаскивание картинки: дизайн меняется и на модели, и в развёртке.
   async replaceTextureFromFile(file) {
     try {
       const texture = await this.textureManager.loadFromFile(file);
       const updated = this.textureManager.applyTexture(texture);
+      window.cupUnwrap?.setSource(URL.createObjectURL(file));
       this.ui.showToast(
         updated > 0 ? `Дизайн применён: ${file.name}` : 'В модели нет поверхности для дизайна',
         updated > 0 ? 'success' : 'error',

@@ -62,6 +62,64 @@ body.approve {
   inset: 0;
 }
 
+/* ── Вкладка «Развёртка» ───────────────────────────────────────────────── */
+.unwrap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--sky);
+  /* Жесты забирает сама область: страница под пальцем не должна ездить. */
+  touch-action: none;
+}
+
+.unwrap[hidden] {
+  display: none;
+}
+
+/* В развёртке панель управления и кружочки фонов не нужны. Атрибут hidden сам
+   по себе их не спрячет: display:flex из style.css сильнее. */
+.stage-controls[hidden],
+.stage-swatches[hidden] {
+  display: none;
+}
+
+.unwrap__image {
+  max-width: 82%;
+  max-height: 78%;
+  /* Пиксели макета не сглаживаем «в кашу»: важно разглядеть шов и мелкий текст. */
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.unwrap.is-zoomed {
+  cursor: grab;
+}
+
+.unwrap.is-dragging {
+  cursor: grabbing;
+}
+
+.unwrap__hint {
+  position: absolute;
+  bottom: 26px;
+  left: 26px;
+  max-width: 280px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #98a0aa;
+  pointer-events: none;
+}
+
 /* Переключатели режимов. */
 .stage-tabs {
   position: absolute;
