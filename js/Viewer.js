@@ -112,6 +112,7 @@ export class Viewer {
   // сюда не входят — они приходят из данных заказа (см. js/main.js).
   async startEnvironment() {
     this.#observeResize();
+    this.#watchFullscreen();
     this.#handleContextLoss();
     this.#startRenderLoop();
     await this.loadHDRI();
@@ -158,17 +159,44 @@ export class Viewer {
     tick();
   }
 
+  // Подгоняет холст под контейнер. Публичный: полноэкранный режим меняет
+  // раскладку сам и должен уметь подтолкнуть пересчёт.
+  resize() {
+    const { clientWidth: w, clientHeight: h } = this.container;
+    if (w === 0 || h === 0) return;
+    this.camera.aspect = aspectOf(w, h);
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+  }
+
   // Держим рендерер и камеру в согласии с реальным размером контейнера.
   #observeResize() {
-    const onResize = () => {
-      const { clientWidth: w, clientHeight: h } = this.container;
-      if (w === 0 || h === 0) return;
-      this.camera.aspect = aspectOf(w, h);
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(w, h);
-    };
-    this.resizeObserver = new ResizeObserver(onResize);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
+  }
+
+  // Кнопка полного экрана должна показывать правду и тогда, когда режим
+  // выключили мимо неё: клавишей Escape или системным жестом.
+  #watchFullscreen() {
+    const target = () => this.container.closest('.stage') ?? this.container;
+
+    // Выход мимо кнопки — Escape в браузере или системный жест — должен снимать
+    // и класс, и подсветку кнопки.
+    const sync = () => {
+      const native = document.fullscreenElement || document.webkitFullscreenElement;
+      if (!native) this.#setStageFullscreen(target(), false);
+      else requestAnimationFrame(() => this.resize());
+    };
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+
+    // Там, где режим держится на одном CSS, Escape тоже должен работать.
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (document.fullscreenElement || document.webkitFullscreenElement) return;
+      const stage = target();
+      if (stage.classList.contains('is-fullscreen')) this.#setStageFullscreen(stage, false);
+    });
   }
 
   // Восстановление при потере контекста WebGL.
@@ -380,23 +408,88 @@ export class Viewer {
     this.ui.setRotationSlider(this.getModelRotation());
   }
 
-  takeScreenshot() {
+  // Снимок сцены. На телефоне ссылка с download не срабатывает: Safari игнорирует
+  // атрибут и просто открывает data-URL, а сам URL на большом холсте выходит
+  // огромным. Поэтому кадр отдаётся файлом: сначала системным «Поделиться»
+  // (там же «Сохранить в фото»), и только потом обычной ссылкой.
+  async takeScreenshot() {
     this.renderer.render(this.scene, this.camera);
+    const name = this.config.ui.screenshotName;
+
+    const blob = await this.#canvasBlob();
+    if (!blob) {
+      this.ui.showToast('Не удалось сделать снимок', 'error');
+      return;
+    }
+
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        return; // системное окно само отчитается перед пользователем
+      } catch (error) {
+        // Отмену в системном окне за ошибку не считаем.
+        if (error?.name === 'AbortError') return;
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.download = this.config.ui.screenshotName;
-    link.href = this.renderer.domElement.toDataURL('image/png');
+    const canDownload = 'download' in link;
+    link.href = url;
+    link.download = name;
+    link.rel = 'noopener';
+    if (!canDownload) link.target = '_blank';
+    document.body.appendChild(link);
     link.click();
-    this.ui.showToast('Скриншот сохранён');
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    this.ui.showToast(canDownload ? 'Снимок сохранён' : 'Снимок открыт в новой вкладке');
   }
 
+  #canvasBlob() {
+    return new Promise((resolve) => {
+      try {
+        this.renderer.domElement.toBlob((blob) => resolve(blob), 'image/png');
+      } catch (error) {
+        console.error(error);
+        resolve(null);
+      }
+    });
+  }
+
+  // Полный экран. Настоящий Fullscreen API есть не везде: на iPhone его нет
+  // совсем, поэтому запасной вариант — растянуть сцену на всё окно средствами
+  // CSS. Снаружи разницы нет, кнопка работает на любом устройстве.
   toggleFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      this.container.requestFullscreen?.().catch(() => {
-        this.ui.showToast('Полноэкранный режим недоступен', 'error');
-      });
+    const target = this.container.closest('.stage') ?? this.container;
+
+    if (target.classList.contains('is-fullscreen')) {
+      (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.());
+      this.#setStageFullscreen(target, false);
+      return;
     }
+
+    // Класс вешаем в любом случае: он и растягивает сцену там, где настоящего
+    // полного экрана нет, и задаёт размеры там, где он есть — иначе браузер
+    // разворачивает элемент, а он остаётся прежней высоты посреди чёрного поля.
+    this.#setStageFullscreen(target, true);
+
+    const request = target.requestFullscreen?.bind(target) ??
+                    target.webkitRequestFullscreen?.bind(target);
+    // Без Fullscreen API (так на iPhone) остаёмся на одном CSS — снаружи
+    // поведение то же, только браузерная обвязка не прячется.
+    if (request) Promise.resolve(request()).catch(() => {});
+  }
+
+  #setStageFullscreen(target, on) {
+    target.classList.toggle('is-fullscreen', on);
+    document.body.classList.toggle('has-fullscreen-stage', on);
+    this.ui.setToggleState('fullscreen', on);
+    // Холст слушает размер контейнера сам (ResizeObserver), но на iOS смена
+    // раскладки приходит с задержкой — подталкиваем следующим кадром.
+    requestAnimationFrame(() => this.resize());
   }
 
   // Освобождает все ресурсы GPU и наблюдателей.

@@ -48,43 +48,36 @@
             </button>
           </div>
 
-          <!-- Плавающая панель управления -->
+          <!-- Плавающая панель управления. Подпись у каждой кнопки — в
+               data-tip: всплывает над панелью и объясняет, что она делает. -->
           <nav class="controls-panel stage-controls" aria-label="Управление просмотром">
-            <button class="btn" id="turntable-btn" type="button" title="Поворотный круг" aria-label="Поворотный круг" aria-pressed="false">
+            <button class="btn" id="turntable-btn" type="button" data-tip="Повернуть стакан" aria-label="Поворотный круг" aria-pressed="false">
               <img class="btn__icon" src="assets/icons/manualrotate.svg" alt="" aria-hidden="true" />
             </button>
 
-            <button class="btn is-active" id="autorotate-btn" type="button" title="Автоповорот (A)" aria-label="Автоповорот" aria-pressed="true">
+            <button class="btn is-active" id="autorotate-btn" type="button" data-tip="Автоповорот" data-key="A" aria-label="Автоповорот" aria-pressed="true">
               <img class="btn__icon" src="assets/icons/autorotate.svg" alt="" aria-hidden="true" />
             </button>
 
-            <button class="btn" id="screenshot-btn" type="button" title="Скриншот (S)" aria-label="Сделать скриншот">
+            <span class="stage-controls__divider" aria-hidden="true"></span>
+
+            <button class="btn" id="screenshot-btn" type="button" data-tip="Снимок сцены" data-key="S" aria-label="Сделать снимок сцены">
               <img class="btn__icon" src="assets/icons/screenshot.svg" alt="" aria-hidden="true" />
             </button>
-            <button class="btn" id="fullscreen-btn" type="button" title="Полный экран (F)" aria-label="Полноэкранный режим">
+            <button class="btn" id="fullscreen-btn" type="button" data-tip="Во весь экран" data-key="F" aria-label="Полноэкранный режим" aria-pressed="false">
               <img class="btn__icon" src="assets/icons/fullscreen.svg" alt="" aria-hidden="true" />
             </button>
 
-            <!-- Подсказка «как управлять» — раскрывается при наведении -->
-            <div class="btn-wrap help-wrap">
-              <div class="help-popover" role="tooltip" id="help-popover">
-                <p class="help-popover__title">Управление</p>
-                <p><b>Поворотный круг под стаканом</b> — вращает только стакан, свет остаётся на месте</p>
-                <p><b>Перетаскивание модели</b> — облёт камерой вокруг сцены</p>
-                <p><b>Колесо мыши</b> — приблизить и отдалить</p>
-                <p><b>Двойной клик</b> — вернуть исходный вид</p>
-                <p><b>На телефоне</b>: круг — пальцем, облёт — свайп по стакану, зум — щипок</p>
-              </div>
-              <button class="btn stage-info" id="info-btn" type="button" title="Как управлять" aria-label="Как управлять" aria-describedby="help-popover">
-                  <img class="btn__icon" src="assets/icons/info.svg" alt="" aria-hidden="true" />
-              </button>
-            </div>
+            <span class="stage-controls__divider" aria-hidden="true"></span>
+
+            <button class="btn stage-info" id="info-btn" type="button" data-tip="Как управлять" aria-label="Как управлять" aria-expanded="false" aria-controls="help-popover">
+              <img class="btn__icon" src="assets/icons/info.svg" alt="" aria-hidden="true" />
+            </button>
 
             <!-- Замена дизайна остаётся доступной перетаскиванием файла на
-                 страницу; кнопка скрыта, но нужна UIManager. -->
-            <button class="btn" id="texture-btn" type="button" hidden aria-label="Заменить дизайн">
-              <img class="btn__icon" src="assets/icons/texture.svg" alt="" aria-hidden="true" />
-            </button>
+                 страницу (см. ui.dragAndDrop в js/config.js); кнопка скрыта,
+                 но нужна UIManager. -->
+            <button class="btn" id="texture-btn" type="button" hidden aria-label="Заменить дизайн"></button>
             <input type="file" id="texture-input" accept="image/*" hidden />
           </nav>
         </div>
@@ -166,6 +159,38 @@
         </aside>
       </section>
     </main>
+
+    <!-- Подсказка «как управлять». Лежит вне сцены намеренно: у сцены
+         overflow: hidden, и внутри неё карточка обрезалась краем — на телефоне
+         из-под панели было видно меньше половины. Положение считает
+         js/ui/approval.js. -->
+    <div class="help-popover" id="help-popover" role="dialog" aria-modal="false" aria-labelledby="help-popover-title" hidden>
+      <div class="help-popover__head">
+        <p class="help-popover__title" id="help-popover-title">Как управлять</p>
+        <button class="help-popover__close" type="button" id="help-close" aria-label="Закрыть подсказку">×</button>
+      </div>
+
+      <ul class="help-list">
+        <li><b>Круг под стаканом</b><span>вращает сам стакан — свет и тени остаются на месте</span></li>
+        <li class="help-list__pointer"><b>Перетаскивание мышью</b><span>облёт камерой вокруг сцены</span></li>
+        <li class="help-list__pointer"><b>Колесо мыши</b><span>приблизить и отдалить</span></li>
+        <li class="help-list__pointer"><b>Двойной клик</b><span>вернуть исходный вид</span></li>
+        <li class="help-list__touch"><b>Свайп по стакану</b><span>облёт камерой вокруг сцены</span></li>
+        <li class="help-list__touch"><b>Щипок двумя пальцами</b><span>приблизить и отдалить</span></li>
+        <li class="help-list__touch"><b>Двойное касание</b><span>вернуть исходный вид</span></li>
+      </ul>
+
+      <p class="help-popover__section">Кнопки панели</p>
+      <ul class="help-list help-list--tight">
+        <li><b>Круг</b><span>повернуть стакан вручную</span></li>
+        <li><b>Стрелки по кругу</b><span>автоповорот: включить и остановить</span></li>
+        <li><b>Камера</b><span>сохранить кадр сцены картинкой</span></li>
+        <li><b>Рамка</b><span>развернуть сцену на весь экран</span></li>
+      </ul>
+
+      <p class="help-popover__foot">Вкладка «Развёртка» показывает макет плоско — там удобно проверять мелкий текст.</p>
+    </div>
+    <div class="help-backdrop" id="help-backdrop" hidden></div>
 
     <div class="loader" id="loader" role="status" aria-live="polite" hidden>
       <span class="spinner" aria-hidden="true"></span>
