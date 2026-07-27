@@ -63,7 +63,10 @@
          '\n\nОткрой «Настройки…» и выбери профиль из списка установленных.');
     return;
   }
-  note('Профиль: ' + resolved.name + ' [' + resolved.note + ']');
+  // Длину пишем не для красоты: по ней видно, не затёк ли в описание мусор из
+  // тега профиля.
+  note('Профиль: «' + resolved.name + '» (' + resolved.name.length + ' симв.) [' +
+       resolved.note + ']');
 
   var target = BridgeTalk.getSpecifier('photoshop');
   if (!target) {
@@ -396,7 +399,7 @@
     if (type === 'desc') {
       var len = u32(tag, 8);
       if (len <= 0 || len > tag.length) len = tag.length - 12;
-      return clean(tag.substr(12, len));
+      return orNull(clean(tag.substr(12, len)));
     }
     if (type === 'mluc') {
       if (tag.length < 28) return null;
@@ -404,7 +407,7 @@
       var strLen = u32(tag, 20);
       var strOff = u32(tag, 24);
       if (strOff + strLen > tag.length) return null;
-      return clean(utf16be(tag.substr(strOff, strLen)));
+      return orNull(clean(utf16be(tag.substr(strOff, strLen))));
     }
     return null;
   }
@@ -568,17 +571,49 @@
 
   // --- Вспомогательное -------------------------------------------------------
 
-  // Экранирует строку для вставки внутрь исходника Photoshop.
+  // Экранирует строку для вставки внутрь исходника Photoshop. Всё, кроме
+  // печатной латиницы, уходит в \uXXXX: в описаниях профилей попадаются перевод
+  // строки и остатки двоичного хвоста тега — от них строковая константа в коде
+  // для Photoshop обрывалась прямо посередине («незавершённая строковая
+  // константа»). Заодно кириллица переживает переезд между процессами.
   function q(s) {
-    return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    var text = String(s);
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      var code = text.charCodeAt(i);
+      if (ch === '\\') out += '\\\\';
+      else if (ch === '"') out += '\\"';
+      else if (code >= 32 && code <= 126) out += ch;
+      else {
+        var hex = code.toString(16);
+        while (hex.length < 4) hex = '0' + hex;
+        out += '\\u' + hex;
+      }
+    }
+    return '"' + out + '"';
   }
 
   function trim(s) {
     return String(s).replace(/^\s+|\s+$/g, '');
   }
 
+  // Пустое описание — это «не прочиталось», а не «профиль без имени».
+  function orNull(s) {
+    return s ? s : null;
+  }
+
+  // Приводит прочитанное из ICC к пригодному для Photoshop виду. ASCII-часть
+  // тега desc заканчивается нулевым байтом, а следом в том же теге лежат
+  // Unicode- и ScriptCode-версии названия: если счётчик длины соврал, в строку
+  // затекает двоичный хвост. Режем по первому нулю и выкидываем управляющие
+  // символы.
   function clean(s) {
-    return trim(String(s).replace(/\0+$/g, ''));
+    var text = String(s);
+    var nul = text.indexOf('\0');
+    if (nul >= 0) text = text.substring(0, nul);
+    text = text.replace(/[\x00-\x1f\x7f]+/g, ' ');
+    return trim(text);
   }
 
   function note(message) {
