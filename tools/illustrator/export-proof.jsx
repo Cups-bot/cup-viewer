@@ -17,6 +17,13 @@
 // Правило: строка coating:… или CT / ST в названии — мелованная с лаком;
 // иначе берётся строка coated / uncoated.
 //
+// Перед экспортом документ приводится к тому же виду, что и мокап в
+// 1_DW_Export.jsx: видимым остаётся только слой Conus, а под всей иерархией
+// заводится временный слой с белой заливкой по артборду. Оба вмешательства
+// живут ровно до конца экспорта PSD и откатываются — на диск они не попадают.
+// Результат ложится рядом с макетом в папку Mockup под именем
+// img_mokup_<суффикс бумаги>.
+//
 // Установка: File > Scripts > Other Script...  (или положить в папку
 // Illustrator/Presets/<lang>/Scripts, чтобы появился в File > Scripts).
 //
@@ -42,6 +49,24 @@
     ]
   };
 
+  // Куда и под каким именем ложится готовая картинка. Совпадает с мокапом из
+  // 1_DW_Export.jsx: подпапка Mockup рядом с макетом, имя img_mokup + суффикс
+  // бумаги. Пустая строка в SUBFOLDER — класть прямо в папку вывода.
+  var OUT_SUBFOLDER = 'Mockup';
+  var OUT_BASENAME  = 'img_mokup';
+  var OUT_FORMAT    = 'png';   // 'png' или 'jpg'
+  var JPG_QUALITY   = 12;      // 0–12, только для 'jpg'
+
+  // Слои макета — те же имена, что и в 1_DW_Export.jsx. В прооф уходит только
+  // Conus: Info и Masks (и всё прочее) гасятся на время экспорта.
+  var LAYERS = { info: 'Info', conus: 'Conus', masks: 'Masks' };
+
+  // Временный слой с белой подложкой. Имя со служебным префиксом: по нему же
+  // подчищаются хвосты, если прошлый прогон оборвался на середине.
+  var BG_LAYER_NAME = '__proof_white_bg';
+  var BG_BLEED_PT   = 1;   // на сколько пунктов вылезти за артборд, чтобы по
+                           // краю не осталось полупрозрачной каймы
+
   // Показывать окно, если прогон сорвался. Успех проходит молча в любом случае.
   var SHOW_ERRORS = true;
 
@@ -57,6 +82,7 @@
   var settings = loadSettings();
   var profileCache = null;   // список установленных профилей, читается один раз
   var log = [];
+  var undoStack = [];        // что тронули в документе — чтобы вернуть как было
 
   // --- Ход дела --------------------------------------------------------------
 
@@ -66,7 +92,6 @@
   }
 
   var doc = app.activeDocument;
-  var base = doc.name.replace(/\.[^.]+$/, '');
   note('Документ: ' + doc.name);
 
   var srcDir = null;
@@ -117,9 +142,34 @@
     return;
   }
   // Длину пишем не для красоты: по ней видно, не затёк ли в описание мусор из
-  // тега профиля.
+  // тега профиля. Класс и пространство — чтобы не гадать над немой ошибкой
+  // «Параметры команды Назначить профиль недействительны».
   note('Профиль: «' + resolved.name + '» (' + resolved.name.length + ' симв.) [' +
-       resolved.note + ']');
+       resolved.note + ']' +
+       (resolved.cls ? ', класс ' + resolved.cls : '') +
+       (resolved.space ? ', пространство ' + resolved.space : ''));
+
+  // Назначить документу можно только обычный профиль устройства. DeviceLink,
+  // abstract и named color описывают преобразование, а не пространство — Assign
+  // Profile их не принимает.
+  if (resolved.cls === 'link' || resolved.cls === 'abst' || resolved.cls === 'nmcl') {
+    fail('Профиль «' + resolved.name + '» — это ' +
+         (resolved.cls === 'link' ? 'DeviceLink' : resolved.cls === 'abst' ? 'abstract' : 'named color') +
+         '-профиль (класс ' + resolved.cls + ').\n\n' +
+         'Такой нельзя назначить документу: он описывает преобразование, а не ' +
+         'цветовое пространство. Нужен обычный профиль печати (класс prtr).\n\n' +
+         'Профили задаются в файле настроек:\n' + SETTINGS_FILE.fsName);
+    return;
+  }
+
+  // PSD уходит в CMYK — профиль обязан быть того же пространства.
+  if (resolved.space && resolved.space !== 'CMYK') {
+    fail('Профиль «' + resolved.name + '» описывает пространство ' + resolved.space +
+         ', а макет уходит в Photoshop как CMYK.\n\n' +
+         'Assign Profile такое сочетание не принимает. Проверь, тот ли файл ' +
+         'прописан для «' + paper.label + '»:\n' + SETTINGS_FILE.fsName);
+    return;
+  }
 
   var target = BridgeTalk.getSpecifier('photoshop');
   if (!target) {
@@ -128,9 +178,12 @@
   }
   note('Photoshop: ' + target + (BridgeTalk.isRunning(target) ? ' (запущен)' : ' (не запущен, будет поднят)'));
 
-  var outDir = settings.out ? new Folder(settings.out) : srcDir;
+  var baseOutDir = settings.out ? new Folder(settings.out) : srcDir;
+  var outDir = OUT_SUBFOLDER
+    ? new Folder(baseOutDir.fsName + '/' + OUT_SUBFOLDER)
+    : baseOutDir;
   if (!outDir.exists && !outDir.create()) {
-    fail('Не удалось создать папку для PNG:\n' + outDir.fsName +
+    fail('Не удалось создать папку для картинки:\n' + outDir.fsName +
          '\n\nПоправь строку out= в файле настроек:\n' + SETTINGS_FILE.fsName);
     return;
   }
@@ -140,16 +193,30 @@
   // переносим на место уже средствами Illustrator. Имя документа и путь к папке
   // бывают кириллическими, и в чужом процессе такой путь до файла не доводит.
   var stamp = new Date().getTime();
+  var ext = (String(OUT_FORMAT).toLowerCase() === 'jpg') ? 'jpg' : 'png';
   var psd = new File(Folder.temp.fsName + '/export-proof-' + stamp + '.psd');
-  var pngTemp = new File(Folder.temp.fsName + '/export-proof-' + stamp + '.png');
-  var pngFinal = new File(outDir.fsName + '/' + base + '_' + paper.suffix + '.png');
+  var pngTemp = new File(Folder.temp.fsName + '/export-proof-' + stamp + '.' + ext);
+  var pngFinal = new File(outDir.fsName + '/' + OUT_BASENAME + '_' + paper.suffix + '.' + ext);
+  note('Файл вывода: ' + pngFinal.fsName);
 
   // 1) Illustrator -> плоский CMYK PSD. Профиль печати назначим уже в Photoshop,
   //    поэтому здесь важен только режим CMYK и сохранность чисел. Профиль НЕ
   //    вкладываем: с вложенным Photoshop по умолчанию спрашивает про несовпадение
   //    профилей и останавливается на модальном окне, а нетегированный CMYK
   //    открывается молча — и мы всё равно назначаем свой профиль следующим шагом.
+  //
+  //    Перед экспортом документ приводится к виду мокапа: гасим всё, кроме
+  //    Conus, и подкладываем белый прямоугольник в самый низ. Обе правки
+  //    откатываются в finally — что бы ни случилось внутри, документ на экране
+  //    остаётся таким же, каким его открыли.
+  dropStaleBackground();
+
+  var bgLayer = null;
+  var exportError = null;
   try {
+    isolateConus();
+    bgLayer = addWhiteBackground();
+
     var opt = new ExportOptionsPhotoshop();
     opt.imageColorSpace = ImageColorSpace.CMYK;
     opt.resolution      = settings.dpi;
@@ -158,7 +225,15 @@
     opt.writeLayers     = false; // flatten
     doc.exportFile(psd, ExportType.PHOTOSHOP, opt);
   } catch (e) {
-    fail('Illustrator не смог экспортировать PSD:\n\n' + (e && e.message ? e.message : e));
+    exportError = e;
+  } finally {
+    removeLayer(bgLayer);
+    undoAll();
+  }
+
+  if (exportError) {
+    fail('Illustrator не смог экспортировать PSD:\n\n' +
+         (exportError && exportError.message ? exportError.message : exportError));
     return;
   }
 
@@ -190,10 +265,23 @@
     // BridgeTalk, и кириллица по дороге превращается в кашу.
     '  if (!f.exists) throw new Error("PSD not found: " + f.fsName);',
     '  var d = app.open(f);',
-    // Присваивание colorProfileName и есть Assign Profile; colorProfileType
-    // трогать не нужно — он сам станет CUSTOM.
-    '  d.colorProfileName = profile;',
-    '  var got = String(d.colorProfileName);',
+    '  if (d.mode !== DocumentMode.CMYK) throw new Error("PSD opened as " + d.mode + ", expected CMYK");',
+    // Присваивание colorProfileName — это и есть Assign Profile, но у документа
+    // без тега (мы экспортируем PSD без вложенного профиля) DOM-свойство
+    // валидно только при colorProfileType = CUSTOM, и Photoshop отвечает
+    // «параметры команды недействительны». Поэтому сначала переводим документ
+    // в CUSTOM, а если и это не проходит — назначаем той же командой меню
+    // через Action Manager: она работает в любой версии и на любом теге.
+    '  var assigned = false;',
+    '  var why = [];',
+    '  try { d.colorProfileType = DocumentColorProfileType.CUSTOM; } catch (eT) { why.push("type: " + eT.message); }',
+    '  try { d.colorProfileName = profile; assigned = true; } catch (e1) { why.push("dom: " + e1.message); }',
+    '  if (!assigned) {',
+    '    try { assignByAction(profile); assigned = true; } catch (e2) { why.push("action: " + e2.message); }',
+    '  }',
+    '  if (!assigned) throw new Error("Assign rejected [" + why.join(" | ") + "] for: " + profile);',
+    '  var got = "";',
+    '  try { got = String(d.colorProfileName); } catch (e3) { got = "<unreadable>"; }',
     '  if (norm(got) !== norm(profile)) {',
     '    throw new Error("Assign failed. Asked: " + profile + " / document has: " + got);',
     '  }',
@@ -202,7 +290,9 @@
     '  d.flatten();',
     '  if (d.bitsPerChannel !== BitsPerChannelType.EIGHT) d.bitsPerChannel = BitsPerChannelType.EIGHT;',
     '  var out = new File(decodeURIComponent(' + enc(pngTemp.fsName) + '));',
-    '  d.saveAs(out, new PNGSaveOptions(), true);',
+    (ext === 'jpg'
+      ? '  var so = new JPEGSaveOptions(); so.quality = ' + JPG_QUALITY + '; d.saveAs(out, so, true);'
+      : '  d.saveAs(out, new PNGSaveOptions(), true);'),
     '  d.close(SaveOptions.DONOTSAVECHANGES);',
     '  out = new File(out.fsName);',
     '  if (!out.exists) throw new Error("PNG was not saved: " + out.fsName);',
@@ -212,6 +302,11 @@
     '  res = "ERR|" + (e && e.message ? e.message : String(e));',
     '}',
     'function norm(s) { return String(s).replace(/\\s+/g, " ").replace(/^ | $/g, "").toLowerCase(); }',
+    'function assignByAction(name) {',
+    '  var desc = new ActionDescriptor();',
+    '  desc.putString(app.charIDToTypeID("Prfl"), name);',
+    '  app.executeAction(app.charIDToTypeID("AssgP"), desc, DialogModes.NO);',
+    '}',
     'res;'
   ].join('\n');
 
@@ -264,6 +359,143 @@
   writeLog();
   try { psd.remove(); } catch (e) {}
   try { pngTemp.remove(); } catch (e) {}
+
+  // --- Слои и подложка -------------------------------------------------------
+
+  // Правки в документе делаются только через setProp: в стек ложится прежнее
+  // значение, и после экспорта откатывается ровно тронутое. Снимок всего
+  // документа тут не годится — у слоёв бывают вложенные слои и поштучно скрытые
+  // объекты, а вернуть надо всё до последней галочки.
+  function setProp(obj, prop, value) {
+    try {
+      if (obj[prop] === value) return;
+      undoStack.push({ obj: obj, prop: prop, value: obj[prop] });
+      obj[prop] = value;
+    } catch (e) {
+      note('Не удалось выставить ' + prop + ': ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  // В обратном порядке: сначала возвращаем видимость, потом замок — иначе
+  // запертый слой не примет правку.
+  function undoAll() {
+    for (var i = undoStack.length - 1; i >= 0; i--) {
+      try { undoStack[i].obj[undoStack[i].prop] = undoStack[i].value; } catch (e) {}
+    }
+    undoStack = [];
+  }
+
+  function findLayer(name) {
+    try { return doc.layers.getByName(name); } catch (e) { return null; }
+  }
+
+  // Оставляет видимым только Conus — то же состояние, из которого 1_DW_Export.jsx
+  // печёт мокап. Если слоя нет, документ уходит как есть: прооф важнее, чем
+  // соответствие структуре, а расхождение видно в логе.
+  function isolateConus() {
+    var conus = findLayer(LAYERS.conus);
+    if (!conus) {
+      note('Слой «' + LAYERS.conus + '» не найден — экспортирую документ как есть.');
+      return;
+    }
+
+    var hidden = [];
+    for (var i = 0; i < doc.layers.length; i++) {
+      var layer = doc.layers[i];
+      if (layer.name === LAYERS.conus) continue;
+      if (layer.visible) hidden.push(layer.name);
+      setProp(layer, 'locked', false);
+      setProp(layer, 'visible', false);
+    }
+
+    setProp(conus, 'locked', false);
+    setProp(conus, 'visible', true);
+    showEverythingInside(conus);
+
+    note('Виден только «' + LAYERS.conus + '»' +
+         (hidden.length ? ', погашено: ' + hidden.join(', ') : ''));
+  }
+
+  // Внутри слоя прячут и объекты (hidden), и вложенные слои (visible). Замок
+  // снимаем до того, как трогать содержимое: в запертом слое правка не пройдёт.
+  function showEverythingInside(layer) {
+    var i;
+    for (i = 0; i < layer.layers.length; i++) {
+      var sub = layer.layers[i];
+      setProp(sub, 'locked', false);
+      setProp(sub, 'visible', true);
+      showEverythingInside(sub);
+    }
+    for (i = 0; i < layer.pageItems.length; i++) {
+      setProp(layer.pageItems[i], 'hidden', false);
+    }
+  }
+
+  // Белая подложка под всем содержимым. Нужна только PSD: Illustrator отдаёт
+  // плоский растр с прозрачным фоном, а после Assign + Convert to Profile
+  // прозрачность в вьювере оборачивается чем угодно, только не бумагой.
+  // В макете слой не остаётся — уходит сразу после экспорта.
+  function addWhiteBackground() {
+    var layer = doc.layers.add();
+    layer.name = BG_LAYER_NAME;
+
+    // Самый низ иерархии: под всеми слоями и объектами.
+    try { layer.zOrder(ZOrderMethod.SENDTOBACK); }
+    catch (e) { layer.move(doc, ElementPlacement.PLACEATEND); }
+
+    // artboardRect: [left, top, right, bottom], ось Y смотрит вверх.
+    var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+    var b = BG_BLEED_PT;
+    var rect = layer.pathItems.rectangle(
+      ab[1] + b,                 // top
+      ab[0] - b,                 // left
+      (ab[2] - ab[0]) + b * 2,   // width
+      (ab[1] - ab[3]) + b * 2    // height
+    );
+
+    rect.name      = 'white background';
+    rect.stroked   = false;
+    rect.filled    = true;
+    rect.fillColor = whiteColor();
+
+    layer.locked  = false;
+    layer.visible = true;
+
+    note('Подложка: белый прямоугольник ' + Math.round(rect.width) + '×' +
+         Math.round(rect.height) + ' pt в самом низу.');
+    return layer;
+  }
+
+  function whiteColor() {
+    if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+      var cmyk = new CMYKColor();
+      cmyk.cyan = 0; cmyk.magenta = 0; cmyk.yellow = 0; cmyk.black = 0;
+      return cmyk;
+    }
+    var rgb = new RGBColor();
+    rgb.red = 255; rgb.green = 255; rgb.blue = 255;
+    return rgb;
+  }
+
+  function removeLayer(layer) {
+    if (!layer) return;
+    try {
+      layer.locked = false;
+      layer.visible = true;
+      layer.remove();
+    } catch (e) {
+      note('Временный слой подложки убрать не вышло: ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  // Хвост от прогона, который оборвался на экспорте: слой мог остаться в файле.
+  function dropStaleBackground() {
+    var stale = findLayer(BG_LAYER_NAME);
+    if (stale) {
+      note('Нашёл подложку от прошлого прогона — убираю.');
+      removeLayer(stale);
+    }
+  }
 
   // --- Задание ---------------------------------------------------------------
 
@@ -457,7 +689,10 @@
       var direct = new File(value);
       if (direct.exists) {
         var info = readProfileInfo(direct);
-        if (info && info.name) return { name: info.name, note: 'Файл: ' + direct.fsName };
+        if (info && info.name) {
+          return { name: info.name, space: info.space, cls: info.cls,
+                   note: 'Файл: ' + direct.fsName };
+        }
         return { name: null, note: 'Файл найден (' + direct.fsName +
                  '), но описание внутри прочитать не удалось.' };
       }
@@ -469,7 +704,10 @@
     // 2) Совпадение по имени файла.
     for (var i = 0; i < profiles.length; i++) {
       if (profiles[i].fileName.toLowerCase() === lower) {
-        if (profiles[i].name) return { name: profiles[i].name, note: 'Файл: ' + profiles[i].path };
+        if (profiles[i].name) {
+          return { name: profiles[i].name, space: profiles[i].space, cls: profiles[i].cls,
+                   note: 'Файл: ' + profiles[i].path };
+        }
         return { name: null, note: 'Файл найден (' + profiles[i].path +
                  '), но описание внутри прочитать не удалось.' };
       }
@@ -478,7 +716,8 @@
     // 3) Совпадение по описанию внутри профиля.
     for (var j = 0; j < profiles.length; j++) {
       if (profiles[j].name && profiles[j].name.toLowerCase() === lower) {
-        return { name: profiles[j].name, note: 'Файл: ' + profiles[j].path };
+        return { name: profiles[j].name, space: profiles[j].space, cls: profiles[j].cls,
+                 note: 'Файл: ' + profiles[j].path };
       }
     }
 
@@ -521,7 +760,8 @@
           path: files[j].fsName,
           fileName: decodeURI(files[j].name),
           name: info ? info.name : null,
-          space: info ? info.space : ''
+          space: info ? info.space : '',
+          cls: info ? info.cls : ''
         });
       }
     }
@@ -541,6 +781,7 @@
       var head = file.read(132);
       if (!head || head.length < 132) { file.close(); return null; }
 
+      var cls = trim(head.substr(12, 4));            // 'prtr', 'mntr', 'link', 'abst'…
       var space = trim(head.substr(16, 4));          // 'CMYK', 'RGB ', 'GRAY'…
       var tagCount = u32(head, 128);
       if (tagCount <= 0 || tagCount > 1000) { file.close(); return null; }
@@ -562,7 +803,7 @@
         name = parseDescTag(file.read(size));
       }
       file.close();
-      return { name: name, space: space };
+      return { name: name, space: space, cls: cls };
     } catch (e) {
       try { file.close(); } catch (e2) {}
       return null;
