@@ -91,8 +91,13 @@
   }
   note('Папка вывода: ' + outDir.fsName);
 
-  var psd = new File(Folder.temp.fsName + '/' + base + '_cmyk.psd');
-  var png = new File(outDir.fsName + '/' + base + '_' + paper.suffix + '.png');
+  // Через Photoshop гоняем только ASCII-имена во временной папке, а готовый PNG
+  // переносим на место уже средствами Illustrator. Имя документа и путь к папке
+  // бывают кириллическими, и в чужом процессе такой путь до файла не доводит.
+  var stamp = new Date().getTime();
+  var psd = new File(Folder.temp.fsName + '/export-proof-' + stamp + '.psd');
+  var pngTemp = new File(Folder.temp.fsName + '/export-proof-' + stamp + '.png');
+  var pngFinal = new File(outDir.fsName + '/' + base + '_' + paper.suffix + '.png');
 
   // 1) Illustrator -> плоский CMYK PSD. Профиль печати назначим уже в Photoshop,
   //    поэтому здесь важен только режим CMYK и сохранность чисел. Профиль НЕ
@@ -126,33 +131,38 @@
   //    Код обёрнут в try/catch и возвращает строку «OK|…» либо «ERR|…»: без
   //    этого ошибка внутри Photoshop гасится молча, и со стороны выглядит так,
   //    будто скрипт просто открыл PSD и остановился.
+  //    Все строки едут в процентной кодировке и разворачиваются на той стороне
+  //    через decodeURIComponent: тело сообщения остаётся чистым ASCII, а
+  //    кириллица в пути или в названии профиля доезжает целой. Экранирование
+  //    \uXXXX для этого не годится — Photoshop оставил escape-последовательности
+  //    в пути как есть, и файл, разумеется, не нашёлся.
   var ps = [
     'var res;',
     'try {',
     '  app.displayDialogs = DialogModes.NO;',
-    '  var f = new File(' + q(psd.fsName) + ');',
+    '  var profile = decodeURIComponent(' + enc(resolved.name) + ');',
+    '  var f = new File(decodeURIComponent(' + enc(psd.fsName) + '));',
     // Текст ошибок с этой стороны — латиницей: он едет между процессами через
     // BridgeTalk, и кириллица по дороге превращается в кашу.
     '  if (!f.exists) throw new Error("PSD not found: " + f.fsName);',
     '  var d = app.open(f);',
     // Присваивание colorProfileName и есть Assign Profile; colorProfileType
     // трогать не нужно — он сам станет CUSTOM.
-    '  d.colorProfileName = ' + q(resolved.name) + ';',
+    '  d.colorProfileName = profile;',
     '  var got = String(d.colorProfileName);',
-    '  if (norm(got) !== norm(' + q(resolved.name) + ')) {',
-    '    throw new Error("Assign failed. Asked: " + ' + q(resolved.name) +
-      ' + " / document has: " + got);',
+    '  if (norm(got) !== norm(profile)) {',
+    '    throw new Error("Assign failed. Asked: " + profile + " / document has: " + got);',
     '  }',
-    '  d.convertProfile(' + q(settings.dest) + ', Intent.ABSOLUTECOLORIMETRIC, false, false);',
+    '  d.convertProfile(decodeURIComponent(' + enc(settings.dest) + '), Intent.ABSOLUTECOLORIMETRIC, false, false);',
     '  if (d.mode !== DocumentMode.RGB) throw new Error("Document is not RGB after convert");',
     '  d.flatten();',
     '  if (d.bitsPerChannel !== BitsPerChannelType.EIGHT) d.bitsPerChannel = BitsPerChannelType.EIGHT;',
-    '  var out = new File(' + q(png.fsName) + ');',
+    '  var out = new File(decodeURIComponent(' + enc(pngTemp.fsName) + '));',
     '  d.saveAs(out, new PNGSaveOptions(), true);',
     '  d.close(SaveOptions.DONOTSAVECHANGES);',
     '  out = new File(out.fsName);',
     '  if (!out.exists) throw new Error("PNG was not saved: " + out.fsName);',
-    '  res = "OK|" + out.fsName;',
+    '  res = "OK|" + out.length;',
     '} catch (e) {',
     '  try { while (app.documents.length) app.activeDocument.close(SaveOptions.DONOTSAVECHANGES); } catch (e2) {}',
     '  res = "ERR|" + (e && e.message ? e.message : String(e));',
@@ -184,16 +194,34 @@
   }
 
   if (answer.indexOf('OK|') === 0) {
-    var savedTo = answer.substring(3);
-    note('Готово: ' + savedTo);
+    note('Photoshop отдал PNG: ' + pngTemp.fsName + ' (' + answer.substring(3) + ' Б)');
+
+    // Перенос делаем здесь: имя документа и папка бывают кириллическими, и
+    // работать с таким путём должен тот процесс, который его и составил.
+    pngTemp = new File(pngTemp.fsName);
+    if (!pngTemp.exists) {
+      fail('Photoshop отчитался об успехе, но файла нет:\n' + pngTemp.fsName);
+      return;
+    }
+    try { if (pngFinal.exists) pngFinal.remove(); } catch (e) {}
+    if (!pngTemp.copy(pngFinal.fsName)) {
+      fail('PNG готов, но перенести его не удалось.\n\nЛежит здесь:\n' + pngTemp.fsName +
+           '\n\nНе получилось положить сюда:\n' + pngFinal.fsName);
+      return;
+    }
+
+    note('Готово: ' + pngFinal.fsName);
     writeLog();
     try { psd.remove(); } catch (e) {}
-    var openFolder = confirm('Готово (' + paper.label + '):\n' + savedTo +
+    try { pngTemp.remove(); } catch (e) {}
+
+    var openFolder = confirm('Готово (' + paper.label + '):\n' + pngFinal.fsName +
                              '\n\nОткрыть папку?');
-    if (openFolder) { try { new File(savedTo).parent.execute(); } catch (e) {} }
+    if (openFolder) { try { pngFinal.parent.execute(); } catch (e) {} }
     return;
   }
 
+  try { psd.remove(); } catch (e) {}
   fail('Photoshop не смог доделать:\n\n' +
        (answer.indexOf('ERR|') === 0 ? answer.substring(4) : answer));
 
@@ -571,11 +599,19 @@
 
   // --- Вспомогательное -------------------------------------------------------
 
+  // Готовит строку к переезду в Photoshop: проценты + кавычки. На той стороне
+  // её разворачивает decodeURIComponent. Так в теле сообщения не остаётся ни
+  // одного небезопасного символа — ни перевода строки из описания профиля, ни
+  // кириллицы из пути.
+  function enc(s) {
+    return q(encodeURIComponent(String(s)));
+  }
+
   // Экранирует строку для вставки внутрь исходника Photoshop. Всё, кроме
   // печатной латиницы, уходит в \uXXXX: в описаниях профилей попадаются перевод
   // строки и остатки двоичного хвоста тега — от них строковая константа в коде
   // для Photoshop обрывалась прямо посередине («незавершённая строковая
-  // константа»). Заодно кириллица переживает переезд между процессами.
+  // константа»).
   function q(s) {
     var text = String(s);
     var out = '';
