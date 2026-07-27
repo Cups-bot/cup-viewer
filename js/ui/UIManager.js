@@ -88,7 +88,8 @@ export class UIManager {
     }
 
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
-    this.#bindDragAndDrop();
+    // Приём файлов выключается флагом ui.dragAndDrop в js/config.js.
+    if (this.config.ui.dragAndDrop !== false) this.#bindDragAndDrop();
   }
 
   #call(action, ...args) {
@@ -165,7 +166,15 @@ export class UIManager {
     toast.setAttribute('role', 'status');
     toast.textContent = message;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), this.config.ui.toastDuration);
+
+    // Видимость держится классом, а не анимацией. Раньше сообщение жило только
+    // внутри keyframes с fill-mode: forwards, и при «уменьшить движение»
+    // (на телефонах это включено сплошь и рядом) анимация схлопывалась в
+    // 0.01 мс — тост мгновенно долетал до финального кадра с opacity: 0 и
+    // оставался невидимым.
+    const duration = this.config.ui.toastDuration;
+    setTimeout(() => toast.classList.add('is-leaving'), Math.max(duration - 300, 0));
+    setTimeout(() => toast.remove(), duration);
   }
 
   // Отражает состояние переключателя на кнопке (вид + ARIA).

@@ -288,31 +288,42 @@ body {
 }
 
 /* ---- Всплывающее сообщение --------------------------------------------- */
+/* Видимость держится самими свойствами, а не анимацией. Раньше тост жил только
+   внутри keyframes с fill-mode: forwards, и при системной настройке «уменьшить
+   движение» анимация схлопывалась в 0.01 мс: сообщение мгновенно долетало до
+   финального кадра с opacity: 0 и не показывалось вовсе. На телефонах эта
+   настройка включена часто — там тостов не было видно никогда. */
 .toast {
   position: fixed;
-  bottom: 100px;
+  bottom: max(100px, calc(24px + env(safe-area-inset-bottom, 0px)));
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
   padding: 10px 20px;
   font-size: 14px;
+  text-align: center;
   color: var(--color-text);
   background: var(--color-success);
   border-radius: 20px;
   backdrop-filter: blur(10px);
   z-index: var(--z-toast);
   pointer-events: none;
-  animation: toast-in-out 2.5s ease forwards;
+  opacity: 1;
+  animation: toast-in 0.2s ease;
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .toast--error {
   background: var(--color-error);
 }
 
-@keyframes toast-in-out {
-  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
-  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ---- Оверлей перетаскивания -------------------------------------------- */

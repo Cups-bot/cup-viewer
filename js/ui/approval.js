@@ -4,9 +4,24 @@
 
 import { UnwrapView } from './unwrap.js';
 
-// Тосты берём у вьювера, если он уже поднялся.
+// Тосты берём у вьювера, но не зависим от него: сцена может ещё грузиться или
+// вовсе не подняться, а сообщение «этот режим появится позже» нужно показать в
+// любом случае.
 function toast(message, type = 'success') {
-  window.cupViewer?.ui?.showToast?.(message, type);
+  const viewerToast = window.cupViewer?.ui?.showToast;
+  if (viewerToast) {
+    viewerToast.call(window.cupViewer.ui, message, type);
+    return;
+  }
+
+  document.querySelector('.toast')?.remove();
+  const el = document.createElement('div');
+  el.className = type === 'error' ? 'toast toast--error' : 'toast';
+  el.setAttribute('role', 'status');
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.classList.add('is-leaving'), 2200);
+  setTimeout(() => el.remove(), 2500);
 }
 
 // Вьювер создаётся в js/main.js; ждём, пока он появится в window.
@@ -91,6 +106,85 @@ function initStage() {
 
     stage.addEventListener('dblclick', () => viewer.resetView());
   });
+}
+
+// Подсказка «как управлять». Карточка лежит вне сцены — у сцены overflow:
+// hidden, и внутри неё подсказка обрезалась краем. Значит, позицию под кнопкой
+// считаем сами; на телефоне она разворачивается снизу во всю ширину, и считать
+// нечего (см. approve.css).
+function initHelp() {
+  const button = document.getElementById('info-btn');
+  const popover = document.getElementById('help-popover');
+  const backdrop = document.getElementById('help-backdrop');
+  const closeBtn = document.getElementById('help-close');
+  if (!button || !popover) return;
+
+  const isPhone = () => window.matchMedia('(max-width: 640px)').matches;
+
+  // Карточка над кнопкой, прижата к правому краю, но не вылезает за окно.
+  const place = () => {
+    if (isPhone()) return;
+    const anchor = button.getBoundingClientRect();
+    const card = popover.getBoundingClientRect();
+    const margin = 12;
+
+    let left = anchor.right - card.width;
+    left = Math.min(Math.max(left, margin), window.innerWidth - card.width - margin);
+
+    // Не хватает места сверху — показываем под кнопкой.
+    const above = anchor.top - card.height - margin;
+    const top = above >= margin ? above : Math.min(anchor.bottom + margin, window.innerHeight - card.height - margin);
+
+    popover.style.left = `${Math.round(left)}px`;
+    popover.style.top = `${Math.round(top)}px`;
+  };
+
+  const open = () => {
+    popover.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    // Размеры карточки известны только после показа — позицию считаем следом.
+    place();
+    requestAnimationFrame(() => {
+      popover.classList.add('is-open');
+      place();
+    });
+    button.setAttribute('aria-expanded', 'true');
+  };
+
+  const close = () => {
+    popover.classList.remove('is-open');
+    button.setAttribute('aria-expanded', 'false');
+    if (backdrop) backdrop.hidden = true;
+    setTimeout(() => {
+      if (!popover.classList.contains('is-open')) popover.hidden = true;
+    }, 180);
+  };
+
+  const toggle = () => (popover.hidden ? open() : close());
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggle();
+  });
+  closeBtn?.addEventListener('click', close);
+  backdrop?.addEventListener('click', close);
+
+  document.addEventListener('click', (event) => {
+    if (popover.hidden) return;
+    if (popover.contains(event.target) || button.contains(event.target)) return;
+    close();
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !popover.hidden) close();
+  });
+
+  window.addEventListener('resize', () => {
+    if (!popover.hidden) place();
+  });
+  window.addEventListener('scroll', () => {
+    if (!popover.hidden) place();
+  }, { passive: true });
 }
 
 // Согласование в два шага: первый клик раскрывает чек-лист, второй —
@@ -190,6 +284,7 @@ function init() {
   initTabs();
   initUnwrap();
   initStage();
+  initHelp();
   initApproveFlow();
   initEditsFlow();
   initShare();
