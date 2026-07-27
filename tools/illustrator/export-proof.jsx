@@ -1,37 +1,53 @@
 // export-proof.jsx
 // -----------------------------------------------------------------------------
-// Illustrator -> Photoshop, в один клик: растрирует активный документ в CMYK,
-// назначает выбранный профиль бумаги (числа CMYK сохраняются) и печёт
-// имитацию цвета бумаги в sRGB PNG (Convert to Profile, Absolute Colorimetric,
-// без Black Point Compensation). Готовый PNG идёт в текстуры вьювера.
+// Illustrator -> Photoshop, без единого вопроса: растрирует активный документ в
+// CMYK, назначает профиль бумаги (числа CMYK сохраняются) и печёт имитацию цвета
+// бумаги в sRGB PNG (Convert to Profile, Absolute Colorimetric, без Black Point
+// Compensation). Готовый PNG идёт в текстуры вьювера.
+//
+// Тип бумаги берётся из задания, а не спрашивается: рядом с макетом лежит папка
+// In с файлом args.txt, например
+//
+//   132576 браславские озера CT DW80-280
+//   DW80-280
+//   offset
+//   coated
+//   coating:color_touch
+//
+// Правило: строка coating:… или CT / ST в названии — мелованная с лаком;
+// иначе берётся строка coated / uncoated.
 //
 // Установка: File > Scripts > Other Script...  (или положить в папку
 // Illustrator/Presets/<lang>/Scripts, чтобы появился в File > Scripts).
 //
-// Настройки (профили бумаги, папка, DPI) задаются кнопкой «Настройки…» в окне
-// запуска и хранятся отдельно от скрипта, в файле настроек пользователя —
-// обновление скрипта их не затирает, заново вписывать ничего не нужно.
-//
-// Требуется: открытый документ Illustrator и установленный Photoshop.
+// Требуется: сохранённый документ Illustrator и установленный Photoshop.
 // -----------------------------------------------------------------------------
 
 #target illustrator
 
 (function () {
-  // --- Значения по умолчанию -------------------------------------------------
-  // Используются, пока в настройках не сохранено своё. Профиль можно задавать
-  // именем файла, полным путём или описанием из списка Photoshop.
+  // --- Настройки -------------------------------------------------------------
+  // Профили можно задавать именем файла, полным путём или описанием из списка
+  // Photoshop. При первом запуске эти значения записываются в файл настроек
+  // (путь — в логе), дальше правятся там: обновление скрипта их не тронет.
 
   var DEFAULTS = {
     dpi: 300,
     dest: 'sRGB IEC61966-2.1',   // целевой профиль (как его видит Photoshop)
-    out: '',                     // пусто => рядом с исходным .ai
+    out: '',                     // пусто => рядом с макетом
     papers: [
       { key: 'coated',   label: 'Мелованная',       profile: 'glossy_curve+blended.icm',   suffix: 'coated'   },
       { key: 'uncoated', label: 'Немелованная',     profile: 'novd_backside_blended7.icm', suffix: 'uncoated' },
       { key: 'varnish',  label: 'Мелованная + лак', profile: 'matte_forged_6.icm',         suffix: 'varnish'  }
     ]
   };
+
+  // Показывать окно, если прогон сорвался. Успех проходит молча в любом случае.
+  var SHOW_ERRORS = true;
+
+  // Где искать задание относительно папки макета и насколько высоко подниматься.
+  var ARGS_PATH = 'In/args.txt';
+  var ARGS_LOOKUP_DEPTH = 4;
 
   var SETTINGS_FILE = new File(Folder.userData.fsName + '/cup-viewer-export-proof.txt');
   var LOG_FILE = new File(Folder.temp.fsName + '/export-proof.log');
@@ -45,22 +61,59 @@
   // --- Ход дела --------------------------------------------------------------
 
   if (app.documents.length === 0) {
-    alert('Открой документ Illustrator и запусти скрипт снова.');
+    fail('Нет открытого документа Illustrator.');
     return;
   }
 
-  var paper = choosePaper();
-  if (!paper) return; // отмена
+  var doc = app.activeDocument;
+  var base = doc.name.replace(/\.[^.]+$/, '');
+  note('Документ: ' + doc.name);
 
-  note('Бумага: ' + paper.label + ' (задано: ' + paper.profile + ')');
+  var srcDir = null;
+  try { srcDir = doc.path; } catch (e) { srcDir = null; }
+  if (!srcDir || !srcDir.exists) {
+    fail('Документ не сохранён на диск — рядом с ним нечего искать.\n' +
+         'Сохрани макет и запусти снова.');
+    return;
+  }
+  note('Папка макета: ' + srcDir.fsName);
+
+  var argsFile = findArgsFile(srcDir);
+  if (!argsFile) {
+    fail('Не найден файл задания «' + ARGS_PATH + '».\n\n' +
+         'Искал рядом с макетом и на ' + ARGS_LOOKUP_DEPTH + ' уровня выше:\n' +
+         srcDir.fsName);
+    return;
+  }
+  note('Задание: ' + argsFile.fsName);
+
+  var job = readArgs(argsFile);
+  if (!job) {
+    fail('Не удалось прочитать задание:\n' + argsFile.fsName);
+    return;
+  }
+  note('Название: ' + job.name);
+  note('Артикул: ' + (job.sku || '—') + ', печать: ' + (job.method || '—') +
+       ', бумага: ' + (job.paper || '—') + ', лак: ' + (job.coating || '—'));
+
+  var choice = pickPaper(job);
+  if (!choice.paper) {
+    fail('В задании не сказано, какая бумага.\n\n' + argsFile.fsName +
+         '\n\nЖду строку coated или uncoated.');
+    return;
+  }
+  note('Бумага: ' + choice.paper.label + ' (' + choice.reason + ')');
+
+  var paper = choice.paper;
 
   // Photoshop понимает только ОПИСАНИЕ профиля («Profile» в Convert to Profile),
   // а не имя .icm-файла. Разбираемся здесь, чтобы не ловить немую ошибку внутри
   // BridgeTalk.
   var resolved = resolveProfile(paper.profile);
   if (!resolved.name) {
-    fail('Профиль не найден: ' + paper.profile + '\n\n' + resolved.note +
-         '\n\nОткрой «Настройки…» и выбери профиль из списка установленных.');
+    fail('Профиль для «' + paper.label + '» не найден: ' + paper.profile +
+         '\n\n' + resolved.note + '\n\nПрофили задаются в файле настроек:\n' +
+         SETTINGS_FILE.fsName);
     return;
   }
   // Длину пишем не для красоты: по ней видно, не затёк ли в описание мусор из
@@ -70,23 +123,15 @@
 
   var target = BridgeTalk.getSpecifier('photoshop');
   if (!target) {
-    fail('Photoshop не найден. BridgeTalk не видит установленную копию — ' +
-         'запусти Photoshop вручную и повтори.');
+    fail('Photoshop не найден. BridgeTalk не видит установленную копию.');
     return;
   }
   note('Photoshop: ' + target + (BridgeTalk.isRunning(target) ? ' (запущен)' : ' (не запущен, будет поднят)'));
 
-  var doc  = app.activeDocument;
-  var base = doc.name.replace(/\.[^.]+$/, '');
-
-  var srcDir;
-  try { srcDir = doc.path; } catch (e) { srcDir = null; }
-  var outDir = settings.out ? new Folder(settings.out)
-                            : (srcDir && srcDir.exists ? srcDir : Folder.temp);
+  var outDir = settings.out ? new Folder(settings.out) : srcDir;
   if (!outDir.exists && !outDir.create()) {
     fail('Не удалось создать папку для PNG:\n' + outDir.fsName +
-         '\n\nОткрой «Настройки…» и укажи существующий путь с правом на запись ' +
-         '(корень диска, например «/Mockup», не подходит).');
+         '\n\nПоправь строку out= в файле настроек:\n' + SETTINGS_FILE.fsName);
     return;
   }
   note('Папка вывода: ' + outDir.fsName);
@@ -131,11 +176,10 @@
   //    Код обёрнут в try/catch и возвращает строку «OK|…» либо «ERR|…»: без
   //    этого ошибка внутри Photoshop гасится молча, и со стороны выглядит так,
   //    будто скрипт просто открыл PSD и остановился.
+  //
   //    Все строки едут в процентной кодировке и разворачиваются на той стороне
   //    через decodeURIComponent: тело сообщения остаётся чистым ASCII, а
-  //    кириллица в пути или в названии профиля доезжает целой. Экранирование
-  //    \uXXXX для этого не годится — Photoshop оставил escape-последовательности
-  //    в пути как есть, и файл, разумеется, не нашёлся.
+  //    кириллица в пути или в названии профиля доезжает целой.
   var ps = [
     'var res;',
     'try {',
@@ -188,48 +232,149 @@
   var delivered = bt.send(600); // секунд: растр 300 dpi конвертируется небыстро
 
   if (!delivered || answer === null) {
-    fail('Photoshop не ответил.\n\nПереключись в него: скорее всего на экране ' +
-         'висит модальное окно (профили, шрифты, обновление), которое ждёт ответа.');
+    fail('Photoshop не ответил.\n\nСкорее всего в нём висит модальное окно ' +
+         '(профили, шрифты, обновление), которое ждёт ответа.');
     return;
   }
 
-  if (answer.indexOf('OK|') === 0) {
-    note('Photoshop отдал PNG: ' + pngTemp.fsName + ' (' + answer.substring(3) + ' Б)');
-
-    // Перенос делаем здесь: имя документа и папка бывают кириллическими, и
-    // работать с таким путём должен тот процесс, который его и составил.
-    pngTemp = new File(pngTemp.fsName);
-    if (!pngTemp.exists) {
-      fail('Photoshop отчитался об успехе, но файла нет:\n' + pngTemp.fsName);
-      return;
-    }
-    try { if (pngFinal.exists) pngFinal.remove(); } catch (e) {}
-    if (!pngTemp.copy(pngFinal.fsName)) {
-      fail('PNG готов, но перенести его не удалось.\n\nЛежит здесь:\n' + pngTemp.fsName +
-           '\n\nНе получилось положить сюда:\n' + pngFinal.fsName);
-      return;
-    }
-
-    note('Готово: ' + pngFinal.fsName);
-    writeLog();
+  if (answer.indexOf('OK|') !== 0) {
     try { psd.remove(); } catch (e) {}
-    try { pngTemp.remove(); } catch (e) {}
-
-    var openFolder = confirm('Готово (' + paper.label + '):\n' + pngFinal.fsName +
-                             '\n\nОткрыть папку?');
-    if (openFolder) { try { pngFinal.parent.execute(); } catch (e) {} }
+    fail('Photoshop не смог доделать:\n\n' +
+         (answer.indexOf('ERR|') === 0 ? answer.substring(4) : answer));
     return;
   }
 
+  note('Photoshop отдал PNG: ' + pngTemp.fsName + ' (' + answer.substring(3) + ' Б)');
+
+  // Перенос делаем здесь: имя документа и папка бывают кириллическими, и
+  // работать с таким путём должен тот процесс, который его и составил.
+  pngTemp = new File(pngTemp.fsName);
+  if (!pngTemp.exists) {
+    fail('Photoshop отчитался об успехе, но файла нет:\n' + pngTemp.fsName);
+    return;
+  }
+  try { if (pngFinal.exists) pngFinal.remove(); } catch (e) {}
+  if (!pngTemp.copy(pngFinal.fsName)) {
+    fail('PNG готов, но перенести его не удалось.\n\nЛежит здесь:\n' + pngTemp.fsName +
+         '\n\nНе получилось положить сюда:\n' + pngFinal.fsName);
+    return;
+  }
+
+  note('Готово: ' + pngFinal.fsName);
+  writeLog();
   try { psd.remove(); } catch (e) {}
-  fail('Photoshop не смог доделать:\n\n' +
-       (answer.indexOf('ERR|') === 0 ? answer.substring(4) : answer));
+  try { pngTemp.remove(); } catch (e) {}
+
+  // --- Задание ---------------------------------------------------------------
+
+  // Ищет In/args.txt рядом с макетом и выше по дереву: макет может лежать в
+  // подпапке заказа, а задание — в корне.
+  function findArgsFile(startDir) {
+    var dir = startDir;
+    for (var level = 0; level <= ARGS_LOOKUP_DEPTH && dir; level++) {
+      var candidate = new File(dir.fsName + '/' + ARGS_PATH);
+      if (candidate.exists) return candidate;
+      dir = dir.parent;
+    }
+    return null;
+  }
+
+  // Разбирает args.txt. Порядок строк не важен: ищем осмысленные, остальные
+  // складываем в «прочее» — задание может обрасти полями, ломаться от этого
+  // скрипт не должен.
+  function readArgs(file) {
+    var text = readText(file);
+    if (text === null) return null;
+
+    var lines = String(text).split(/\r\n|\r|\n/);
+    var job = { name: '', sku: '', method: '', paper: '', coating: '', lines: [] };
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = trim(lines[i]);
+      if (!line) continue;
+      job.lines.push(line);
+
+      var lower = line.toLowerCase();
+      var colon = line.indexOf(':');
+      if (colon > 0) {
+        var key = trim(line.substring(0, colon)).toLowerCase();
+        var value = trim(line.substring(colon + 1));
+        if (key === 'coating') job.coating = value;
+        continue;
+      }
+
+      if (lower === 'coated' || lower === 'uncoated') { job.paper = lower; continue; }
+      if (lower === 'offset' || lower === 'digital' || lower === 'flexo') { job.method = lower; continue; }
+      if (!job.name) { job.name = line; continue; }
+      if (!job.sku) { job.sku = line; continue; }
+    }
+
+    note('Строк в задании: ' + job.lines.length);
+    return job;
+  }
+
+  // Читает текст, подбирая кодировку: задание пишется на разных машинах, а
+  // ключевые слова в нём латиницей — по ним и понятно, угадали мы или нет.
+  function readText(file) {
+    var encodings = ['UTF-8', 'windows-1251', 'ASCII'];
+    var fallback = null;
+
+    for (var i = 0; i < encodings.length; i++) {
+      var text = null;
+      try {
+        file.encoding = encodings[i];
+        if (!file.open('r')) continue;
+        text = file.read();
+        file.close();
+      } catch (e) {
+        try { file.close(); } catch (e2) {}
+        continue;
+      }
+      if (text === null) continue;
+      if (fallback === null) fallback = text;
+
+      // Кодировка угадана, если ключевые слова читаются и нет мусорных символов.
+      if (text.toLowerCase().match(/(^|\n)\s*(coated|uncoated)\s*(\r|\n|$)/) &&
+          text.indexOf('\uFFFD') < 0) {
+        note('Кодировка задания: ' + encodings[i]);
+        return text;
+      }
+    }
+    return fallback;
+  }
+
+  // Тип бумаги по заданию. Лак — либо строкой coating:…, либо метками CT / ST
+  // в названии (в том числе кириллическими двойниками этих букв).
+  function pickPaper(job) {
+    if (job.coating) {
+      return { paper: paperByKey('varnish'), reason: 'coating:' + job.coating };
+    }
+
+    // Метка стоит отдельным словом: «СМУ-88 ST DW80-280» — лак, «ПОСТ» или
+    // «СТАКАН» — нет. C и T принимаем и латиницей, и кириллическими двойниками:
+    // в названиях заказов они перемешаны.
+    var mark = String(job.name).match(/(?:^|[\s_\-.])((?:[CС]|S)[TТ])(?=[\s_\-.]|$)/i);
+    if (mark) {
+      return { paper: paperByKey('varnish'), reason: 'метка ' + mark[1] + ' в названии' };
+    }
+
+    if (job.paper === 'coated')   return { paper: paperByKey('coated'),   reason: 'строка coated' };
+    if (job.paper === 'uncoated') return { paper: paperByKey('uncoated'), reason: 'строка uncoated' };
+    return { paper: null, reason: 'в задании нет типа бумаги' };
+  }
+
+  function paperByKey(key) {
+    for (var i = 0; i < settings.papers.length; i++) {
+      if (settings.papers[i].key === key) return settings.papers[i];
+    }
+    return null;
+  }
 
   // --- Настройки -------------------------------------------------------------
 
   // Читает сохранённые настройки; чего нет — берётся из DEFAULTS. Формат простой,
   // «ключ=значение» построчно: JSON в ExtendScript нет, а тащить парсер ради
-  // пяти строк незачем.
+  // пяти строк незачем. Файла нет — создаём, чтобы было что править.
   function loadSettings() {
     var s = {
       dpi: DEFAULTS.dpi,
@@ -242,7 +387,10 @@
       s.papers.push({ key: p.key, label: p.label, profile: p.profile, suffix: p.suffix });
     }
 
-    if (!SETTINGS_FILE.exists) return s;
+    if (!SETTINGS_FILE.exists) {
+      saveSettings(s);
+      return s;
+    }
 
     var text = '';
     try {
@@ -274,14 +422,16 @@
     return s;
   }
 
-  function saveSettings() {
+  function saveSettings(s) {
     try {
-      var lines = ['# Настройки export-proof.jsx. Правится кнопкой «Настройки…» в скрипте.',
-                   'dpi=' + settings.dpi,
-                   'dest=' + settings.dest,
-                   'out=' + settings.out];
-      for (var i = 0; i < settings.papers.length; i++) {
-        lines.push(settings.papers[i].key + '=' + settings.papers[i].profile);
+      var lines = ['# Настройки export-proof.jsx.',
+                   '# profile: имя .icm, полный путь или описание из списка Photoshop.',
+                   '# out: куда класть PNG; пусто — рядом с макетом.',
+                   'dpi=' + s.dpi,
+                   'dest=' + s.dest,
+                   'out=' + s.out];
+      for (var i = 0; i < s.papers.length; i++) {
+        lines.push(s.papers[i].key + '=' + s.papers[i].profile);
       }
       SETTINGS_FILE.encoding = 'UTF-8';
       if (!SETTINGS_FILE.open('w')) return false;
@@ -302,7 +452,7 @@
     var value = trim(String(wanted));
     if (!value) return { name: null, note: 'Профиль не задан.' };
 
-    // 1) Полный путь — самый однозначный случай, он же приходит из «Настроек».
+    // 1) Полный путь — самый однозначный случай.
     if (value.indexOf('/') >= 0 || value.indexOf('\\') >= 0) {
       var direct = new File(value);
       if (direct.exists) {
@@ -455,148 +605,6 @@
     return out;
   }
 
-  // --- Окна ------------------------------------------------------------------
-
-  // Окно запуска: выбор бумаги, состояние профиля, вход в настройки.
-  function choosePaper() {
-    var dlg = new Window('dialog', 'Цветопроба — тип бумаги');
-    dlg.orientation = 'column';
-    dlg.alignChildren = 'fill';
-    dlg.margins = 16;
-    dlg.spacing = 10;
-
-    dlg.add('statictext', undefined, 'Какую бумагу имитировать:');
-
-    var dd = dlg.add('dropdownlist', undefined, []);
-    for (var i = 0; i < settings.papers.length; i++) dd.add('item', settings.papers[i].label);
-    dd.selection = 0;
-
-    var status = dlg.add('statictext', undefined, '', { multiline: true });
-    status.preferredSize = [420, 46];
-
-    var where = dlg.add('statictext', undefined, '');
-    where.preferredSize.width = 420;
-
-    var row = dlg.add('group');
-    row.alignment = 'right';
-    var setup = row.add('button', undefined, 'Настройки…');
-    row.add('button', undefined, 'Отмена', { name: 'cancel' });
-    var okBtn = row.add('button', undefined, 'OK', { name: 'ok' });
-
-    // Показывает, что скрипт нашёл по выбранной бумаге: без этого единственным
-    // симптомом неверного имени была тишина со стороны Photoshop.
-    function refresh() {
-      var paper = settings.papers[dd.selection.index];
-      var r = resolveProfile(paper.profile);
-      status.text = r.name
-        ? 'Профиль: ' + r.name + '\n' + r.note
-        : 'Профиль не найден.\n' + r.note;
-      okBtn.enabled = !!r.name;
-      where.text = 'Куда: ' + (settings.out ? settings.out : 'рядом с исходным .ai') +
-                   '   ·   ' + settings.dpi + ' dpi';
-      dlg.layout.layout(true);
-    }
-
-    dd.onChange = refresh;
-    setup.onClick = function () { if (showSettings(dlg)) refresh(); };
-    refresh();
-
-    if (dlg.show() !== 1) return null;
-    return settings.papers[dd.selection.index];
-  }
-
-  // Настройки: профиль под каждую бумагу выбирается из установленных в системе,
-  // выбор сохраняется в файл настроек и переживает обновление скрипта.
-  function showSettings(parent) {
-    var profiles = listProfiles();
-
-    // Для бумаги осмысленны только CMYK-профили; если таких нет (профили не
-    // установлены) — показываем все, чтобы окно не было пустым.
-    var usable = [];
-    for (var i = 0; i < profiles.length; i++) {
-      if (profiles[i].name && profiles[i].space === 'CMYK') usable.push(profiles[i]);
-    }
-    if (!usable.length) {
-      for (var j = 0; j < profiles.length; j++) if (profiles[j].name) usable.push(profiles[j]);
-    }
-    usable.sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
-
-    var dlg = new Window('dialog', 'Настройки цветопробы');
-    dlg.orientation = 'column';
-    dlg.alignChildren = 'fill';
-    dlg.margins = 16;
-    dlg.spacing = 10;
-
-    dlg.add('statictext', undefined,
-            'Профили бумаги (' + usable.length + ' подходящих установлено в системе):');
-
-    var pickers = [];
-    for (var k = 0; k < settings.papers.length; k++) {
-      var paper = settings.papers[k];
-      var row = dlg.add('group');
-      row.alignChildren = 'center';
-
-      var label = row.add('statictext', undefined, paper.label + ':');
-      label.preferredSize.width = 130;
-
-      var list = row.add('dropdownlist', undefined, []);
-      list.preferredSize.width = 380;
-      list.add('item', '— не выбран —');
-
-      var current = resolveProfile(paper.profile);
-      for (var m = 0; m < usable.length; m++) {
-        list.add('item', usable[m].name + '   ·   ' + usable[m].fileName);
-        if (current.name && usable[m].name === current.name) list.selection = m + 1;
-      }
-      if (!list.selection) list.selection = 0;
-      pickers.push(list);
-    }
-
-    dlg.add('panel').preferredSize.height = 1;
-
-    var outRow = dlg.add('group');
-    var outLabel = outRow.add('statictext', undefined, 'Папка для PNG:');
-    outLabel.preferredSize.width = 130;
-    var outField = outRow.add('edittext', undefined, settings.out);
-    outField.preferredSize.width = 300;
-    var browse = outRow.add('button', undefined, 'Выбрать…');
-    browse.onClick = function () {
-      var picked = Folder.selectDialog('Куда класть готовые PNG');
-      if (picked) outField.text = picked.fsName;
-    };
-
-    var hint = dlg.add('statictext', undefined, 'Пусто — класть рядом с исходным .ai');
-    hint.preferredSize.width = 420;
-
-    var dpiRow = dlg.add('group');
-    var dpiLabel = dpiRow.add('statictext', undefined, 'Разрешение, dpi:');
-    dpiLabel.preferredSize.width = 130;
-    var dpiField = dpiRow.add('edittext', undefined, String(settings.dpi));
-    dpiField.preferredSize.width = 80;
-
-    var buttons = dlg.add('group');
-    buttons.alignment = 'right';
-    buttons.add('button', undefined, 'Отмена', { name: 'cancel' });
-    buttons.add('button', undefined, 'Сохранить', { name: 'ok' });
-
-    if (dlg.show() !== 1) return false;
-
-    for (var n = 0; n < pickers.length; n++) {
-      var index = pickers[n].selection ? pickers[n].selection.index : 0;
-      // Храним путь к файлу: он однозначен и не зависит от языка описания.
-      if (index > 0) settings.papers[n].profile = usable[index - 1].path;
-    }
-    settings.out = trim(outField.text);
-    var dpi = parseInt(dpiField.text, 10);
-    if (dpi > 0) settings.dpi = dpi;
-
-    if (!saveSettings()) {
-      alert('Настройки применены, но записать файл не удалось:\n' + SETTINGS_FILE.fsName +
-            '\n\nВ следующий раз их придётся задать заново.');
-    }
-    return true;
-  }
-
   // --- Вспомогательное -------------------------------------------------------
 
   // Готовит строку к переезду в Photoshop: проценты + кавычки. На той стороне
@@ -607,11 +615,7 @@
     return q(encodeURIComponent(String(s)));
   }
 
-  // Экранирует строку для вставки внутрь исходника Photoshop. Всё, кроме
-  // печатной латиницы, уходит в \uXXXX: в описаниях профилей попадаются перевод
-  // строки и остатки двоичного хвоста тега — от них строковая константа в коде
-  // для Photoshop обрывалась прямо посередине («незавершённая строковая
-  // константа»).
+  // Экранирует строку для вставки внутрь исходника Photoshop.
   function q(s) {
     var text = String(s);
     var out = '';
@@ -656,11 +660,12 @@
     log.push(message);
   }
 
-  // Сообщение об ошибке + лог рядом: по нему видно, на каком шаге всё встало.
+  // Прогон молчит, пока всё идёт по плану: лог пишется всегда, окно — только на
+  // сорванном прогоне и только если SHOW_ERRORS.
   function fail(message) {
     note('ОШИБКА: ' + message);
     writeLog();
-    alert(message + '\n\nЛог: ' + LOG_FILE.fsName);
+    if (SHOW_ERRORS) alert(message + '\n\nЛог: ' + LOG_FILE.fsName);
   }
 
   function writeLog() {
