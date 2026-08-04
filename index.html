@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>Согласование · Заказ № 2431 · Кофейня «Пар»</title>
-    <link rel="stylesheet" href="css/style.css" />
-    <link rel="stylesheet" href="css/responsive.css" />
-    <link rel="stylesheet" href="css/approve.css" />
+    <!-- Заголовок вкладки браузера. Правится здесь или подставляется шаблоном
+         Битрикса; JS его не трогает. Номер заказа и имя клиента в репозитории
+         не храним. -->
+    <title>Согласование макета</title>
+    <link rel="stylesheet" href="css/style.css?v=6748e202" />
+    <link rel="stylesheet" href="css/approve.css?v=c382f737" />
   </head>
   <body class="approve">
     <main class="page">
@@ -20,7 +22,6 @@
           <div class="unwrap" id="unwrap" hidden>
             <canvas class="unwrap__canvas" role="img" aria-label="Развёртка дизайна"></canvas>
             <p class="unwrap__hint">Колесо мыши — приблизить, перетаскивание — сдвинуть, двойной клик — исходный вид</p>
-            <p class="unwrap__meta" aria-live="polite"></p>
           </div>
 
           <!-- Переключатель режимов -->
@@ -82,51 +83,56 @@
           </nav>
         </div>
 
-        <!-- Правая колонка — согласование -->
+        <!-- Правая колонка — согласование.
+
+             ВНИМАНИЕ. Пустые элементы ниже заполняются из js/data/order.js —
+             править их текст здесь бесполезно, он будет перезаписан. Правило
+             простое:
+
+               • текст зависит от заказа (статус, заголовок, характеристики,
+                 пункты чек-листа) → js/data/order.js, блок DEFAULT_ORDER;
+               • текст одинаков всегда (подписи кнопок, вкладки, подсказки)
+                 → прямо здесь, в разметке.
+
+             Раньше эти строки были продублированы и тут, и в JS: правка в
+             разметке ничего не меняла, а при загрузке успевала мелькнуть
+             старая версия. -->
         <aside class="approve-panel">
-          <span class="status-chip" id="status-chip">
+          <!-- Начальный текст плашки — order.status; текст после согласования
+               одинаков всегда, поэтому лежит здесь. -->
+          <span class="status-chip" id="status-chip" data-label-done="Согласовано — макет отправлен в печать">
             <span class="status-chip__dot" aria-hidden="true"></span>
-            <span class="status-chip__text">Ожидает вашего согласования</span>
+            <span class="status-chip__text"><!-- order.status --></span>
           </span>
 
-          <h1 class="approve-panel__title">Оцените будущий стакан</h1>
-          <p class="approve-panel__lead">
-              Это финальный вид вашего стакана. Осмотрите его со всех сторон и согласуйте, если всё в порядке.
-          </p>
+          <h1 class="approve-panel__title"><!-- order.title --></h1>
+          <p class="approve-panel__lead"><!-- order.lead --></p>
 
-          <dl class="spec">
-            <div class="spec__row"><dt>Тип</dt><dd>Двухслойный</dd></div>
-            <div class="spec__row"><dt>Объём</dt><dd>250 мл (до 280 мл)</dd></div>
-            <div class="spec__row"><dt>Печать</dt><dd>Офсет</dd></div>
-          </dl>
+          <dl class="spec"><!-- order.spec --></dl>
 
           <!-- Действия согласования -->
           <div class="approve-actions" id="approve-actions">
-            <!-- Чек-лист: появляется после нажатия «Согласовать» -->
+            <!-- Чек-лист: появляется после нажатия «Согласовать».
+                 Заголовок и пояснение правятся здесь, сами пункты — order.checklist -->
             <div class="checklist" id="checklist" hidden>
               <p class="checklist__title">Подтвердите перед печатью</p>
               <p class="checklist__sub">
                   Убедитесь, что макет выглядит именно так, как вы ожидаете. Если заметите неточность — снимите соответствующую галочку.
               </p>
-              <label class="check">
-                <input type="checkbox" checked />
-                <span class="check__box" aria-hidden="true"></span>
-                <span class="check__text">Расположение элементов меня устраивает</span>
-              </label>
-              <label class="check">
-                <input type="checkbox" checked />
-                <span class="check__box" aria-hidden="true"></span>
-                <span class="check__text">Цветовое исполнение соответствует ожиданиям</span>
-              </label>
-              <label class="check">
-                <input type="checkbox" checked />
-                <span class="check__box" aria-hidden="true"></span>
-                <span class="check__text">Текст, контакты и другие данные указаны верно</span>
-              </label>
             </div>
 
-            <!-- На телефоне остаётся только короткая подпись (см. approve.css) -->
-            <button class="cta cta--approve" id="approve-btn" type="button">
+            <!-- Подписи всех трёх состояний кнопки лежат здесь, в data-атрибутах:
+                 согласование идёт в два шага, и JS только переключает состояние,
+                 а не придумывает текст. На телефоне показывается короткая
+                 подпись (см. approve.css). -->
+            <button
+              class="cta cta--approve"
+              id="approve-btn"
+              type="button"
+              data-label-confirm="Подтвердить и отправить в печать"
+              data-label-confirm-short="Подтвердить"
+              data-label-done="Согласовано ✓"
+            >
               <span class="cta__full">Согласовать и запустить в печать</span>
               <span class="cta__short">Согласовать</span>
             </button>
@@ -134,9 +140,7 @@
               <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
               <button class="cta cta--ghost" id="share-btn" type="button">Поделиться ссылкой</button>
             </div>
-            <p class="approve-panel__note">
-              Согласование фиксирует макет: после запуска в печать правки невозможны.
-            </p>
+            <p class="approve-panel__note"><!-- order.note --></p>
           </div>
 
           <!-- Форма правок -->
@@ -200,15 +204,11 @@
       <div class="drop-overlay__message">Перетащите изображение или .glb-модель</div>
     </div>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
-    <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/ui/approval.js"></script>
+    <!-- Собранный просмотрщик. Исходники в js/, сборка — npm run build.
+         Своя копия three.js внутри: раньше библиотека тянулась с unpkg.com, а
+         сторонний CDN на клиентской странице — и точка отказа, и канал подмены
+         кода. Заодно ушла карта импорта, которую не понимает Safari до 16.4:
+         на таких iPhone страница не показывала ничего. -->
+    <script type="module" src="dist/cup-viewer.js?v=0657e12f"></script>
   </body>
 </html>

@@ -16,11 +16,12 @@ export class ModelLoader {
     this.maxAnisotropy = maxAnisotropy;
 
     this.loader = new GLTFLoader();
-    // Прозрачная поддержка Draco-сжатия; декодер грузится с CDN лениво, только
-    // если модель действительно его требует.
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-    this.loader.setDRACOLoader(draco);
+    // Прозрачная поддержка Draco-сжатия. Декодер грузится лениво — только если
+    // модель действительно сжата, — и берётся со своего домена: сторонний CDN
+    // на клиентской странице это и точка отказа, и канал подмены кода.
+    this.draco = new DRACOLoader();
+    this.draco.setDecoderPath(config.assets.dracoDecoder);
+    this.loader.setDRACOLoader(this.draco);
 
     this.currentModel = null;
     // Меши, чей материал несёт base-color map, — цели для смены текстуры.
@@ -139,5 +140,12 @@ export class ModelLoader {
     disposeObject(this.currentModel);
     this.currentModel = null;
     this.texturableMeshes = [];
+  }
+
+  // Освобождает и загрузчики: DRACOLoader держит пул worker'ов, которые сами
+  // не умирают вместе со страницей-контейнером.
+  destroy() {
+    this.dispose();
+    this.draco.dispose();
   }
 }

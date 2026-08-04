@@ -3,14 +3,15 @@
 // Логики рендера не касается — только страница вокруг вьювера.
 
 import { UnwrapView } from './unwrap.js';
+import { getViewer, whenViewer, onOrder, setUnwrap } from '../appState.js';
 
 // Тосты берём у вьювера, но не зависим от него: сцена может ещё грузиться или
 // вовсе не подняться, а сообщение «этот режим появится позже» нужно показать в
 // любом случае.
 function toast(message, type = 'success') {
-  const viewerToast = window.cupViewer?.ui?.showToast;
-  if (viewerToast) {
-    viewerToast.call(window.cupViewer.ui, message, type);
+  const ui = getViewer()?.ui;
+  if (ui) {
+    ui.showToast(message, type);
     return;
   }
 
@@ -22,13 +23,6 @@ function toast(message, type = 'success') {
   document.body.appendChild(el);
   setTimeout(() => el.classList.add('is-leaving'), 2200);
   setTimeout(() => el.remove(), 2500);
-}
-
-// Вьювер создаётся в js/main.js; ждём, пока он появится в window.
-function whenViewerReady(callback, attempts = 120) {
-  if (window.cupViewer) return callback(window.cupViewer);
-  if (attempts <= 0) return undefined;
-  return requestAnimationFrame(() => whenViewerReady(callback, attempts - 1));
 }
 
 // Переключение режимов сцены: 3D и развёртка живут в одном контейнере, поэтому
@@ -45,8 +39,7 @@ function initTabs() {
     if (controls) controls.hidden = mode === 'unwrap';
     if (swatches) swatches.hidden = mode === 'unwrap';
     // Автоповорот в фоне только жрёт кадры, пока смотрят картинку.
-    const viewer = window.cupViewer;
-    if (viewer) viewer.setManualRotate(mode !== '3d');
+    getViewer()?.setManualRotate(mode !== '3d');
   };
 
   tabs.forEach((tab) => {
@@ -75,13 +68,12 @@ function initUnwrap() {
   if (!root) return;
 
   const view = new UnwrapView(root);
-  window.cupUnwrap = view;
+  setUnwrap(view);
 
   // Крупный файл развёртки, если он пришёл: на модель ложится ужатая текстура,
-  // а здесь смотрят мелкий текст.
-  const apply = (order) => view.setSource(order?.unwrap || order?.texture);
-  if (window.cupOrder) apply(window.cupOrder);
-  window.addEventListener('cup:order', (event) => apply(event.detail));
+  // а здесь смотрят мелкий текст. onOrder сам вызовет обработчик, если заказ
+  // уже применён, — порядок загрузки модулей на это влиять не должен.
+  onOrder((order) => view.setSource(order?.unwrap || order?.texture));
 }
 
 // Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
@@ -91,7 +83,7 @@ function initStage() {
   const button = document.getElementById('turntable-btn');
   if (!stage) return;
 
-  whenViewerReady((viewer) => {
+  whenViewer((viewer) => {
     const turntable = viewer.turntable;
     if (!turntable) return;
 
@@ -197,6 +189,10 @@ function initApproveFlow() {
 
   let confirming = false;
 
+  // Подписи всех состояний кнопки лежат в разметке (data-label-*), здесь только
+  // переключение — чтобы текст правился в index.html, а не в коде.
+  const label = (name, fallback) => approveBtn.dataset[name] ?? fallback;
+
   // Подписи меняем по частям: у кнопки две — полная и короткая для телефона.
   const setLabel = (full, short) => {
     const fullEl = approveBtn.querySelector('.cta__full');
@@ -210,7 +206,10 @@ function initApproveFlow() {
     if (!confirming) {
       confirming = true;
       checklist.hidden = false;
-      setLabel('Подтвердить и отправить в печать', 'Подтвердить');
+      setLabel(
+        label('labelConfirm', 'Подтвердить и отправить в печать'),
+        label('labelConfirmShort', 'Подтвердить'),
+      );
       return;
     }
 
@@ -223,11 +222,13 @@ function initApproveFlow() {
     if (chip) {
       chip.classList.add('is-done');
       const text = chip.querySelector('.status-chip__text');
-      if (text) text.textContent = 'Согласовано — макет отправлен в печать';
+      const done = chip.dataset.labelDone;
+      if (text && done) text.textContent = done;
     }
     checklist.hidden = true;
     approveBtn.disabled = true;
-    setLabel('Согласовано ✓', 'Согласовано ✓');
+    const done = label('labelDone', 'Согласовано ✓');
+    setLabel(done, done);
     document.getElementById('edits-btn')?.setAttribute('disabled', '');
     toast('Заказ согласован и отправлен в печать');
   });

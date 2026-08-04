@@ -1,6 +1,14 @@
-// Наполняет правую панель данными заказа: статус, заголовок, описание, таблицу
-// характеристик, чек-лист и текст-оговорку. Разметка в index.html — это только
-// каркас со значениями по умолчанию; здесь они заменяются пришедшими данными.
+// Заполняет правую панель данными заказа: статус, заголовок, описание, таблицу
+// характеристик, чек-лист и текст-оговорку.
+//
+// В index.html эти места оставлены ПУСТЫМИ намеренно. Текст, зависящий от
+// заказа, живёт в одном месте — DEFAULT_ORDER в js/data/order.js (и приходит
+// из Битрикса поверх умолчаний). Раньше он был продублирован в разметке:
+// правка в HTML ничего не давала, а при загрузке успевала мелькнуть строка от
+// прошлого заказа.
+//
+// Всё, что не зависит от заказа (подписи кнопок, вкладки, подсказки, заголовок
+// вкладки браузера), правится прямо в index.html и сюда не попадает.
 
 // Подставляет текст, если он задан и элемент существует.
 function setText(selector, value) {
@@ -30,12 +38,12 @@ function renderSpec(rows) {
   );
 }
 
-// Пересобирает чек-лист перед печатью, сохраняя разметку пункта.
+// Пересобирает чек-лист перед печатью. Заголовок и пояснение над пунктами
+// остаются из разметки — они от заказа не зависят.
 function renderChecklist(items) {
   const checklist = document.getElementById('checklist');
   if (!checklist || !Array.isArray(items)) return;
 
-  // Заголовок и подпись остаются, меняются только пункты.
   checklist.querySelectorAll('.check').forEach((el) => el.remove());
 
   for (const text of items.filter(Boolean)) {
@@ -59,6 +67,8 @@ function renderChecklist(items) {
   }
 }
 
+// Весь текст ставится через textContent, а не innerHTML: разметка из данных
+// заказа не исполняется, даже если в неё что-то подмешали.
 export function renderOrderPanel(order) {
   setText('.status-chip__text', order.status);
   setText('.approve-panel__title', order.title);
@@ -66,6 +76,4 @@ export function renderOrderPanel(order) {
   setText('.approve-panel__note', order.note);
   renderSpec(order.spec);
   renderChecklist(order.checklist);
-
-  if (order.title) document.title = order.title;
 }

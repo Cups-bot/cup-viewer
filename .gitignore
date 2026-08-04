@@ -1,0 +1,29 @@
+# Зависимости сборки. В репозиторий не попадают: собранный файл лежит в dist/
+# и коммитится, поэтому сайт работает и без установки Node.
+node_modules/
+
+# Служебные каталоги редакторов и IDE
+.vs/
+.vscode/
+.idea/
+.claude/
+*.suo
+*.user
+*.sln.docstates
+
+# Операционные системы
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Логи и временные файлы
+*.log
+npm-debug.log*
+*.tmp
+*.bak
+~$*
+
+# Локальные настройки окружения
+.env
+.env.local

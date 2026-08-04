@@ -33,6 +33,10 @@ export class Viewer {
     this.autoRotate = config.autoRotate.enabled;
     // Пока пользователь вручную крутит слайдером — автоповорот на паузе.
     this.manualRotate = false;
+    // Отрисовка по требованию: кадр рисуется, только когда что-то изменилось.
+    // Первый кадр нужен всегда, вместе с тенью.
+    this.needsRender = true;
+    this.modelDirty = true;
 
     this.#initCore();
     this.#initModules();
@@ -52,6 +56,9 @@ export class Viewer {
 
     this.lightingRig = createLighting(this.scene, this.config);
     this.controls = createControls(this.camera, this.renderer.domElement, this.config);
+    // Страховка к возвращаемому значению controls.update(): любое изменение
+    // камеры обязано приводить к новому кадру.
+    this.controls.addEventListener('change', () => this.invalidate());
 
     if (this.config.contactShadow.enabled) {
       this.contactShadow = createContactShadow(this.config);
@@ -73,8 +80,10 @@ export class Viewer {
   }
 
   #initModules() {
-    // Предел анизотропии — аппаратный, читается с живого рендерера.
+    // Аппаратные пределы читаются с живого рендерера: анизотропия и предельная
+    // сторона текстуры отличаются от устройства к устройству в разы.
     const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    const maxTextureSize = this.renderer.capabilities.maxTextureSize;
 
     this.modelLoader = new ModelLoader({
       scene: this.scene,
@@ -87,6 +96,7 @@ export class Viewer {
       modelLoader: this.modelLoader,
       config: this.config,
       maxAnisotropy,
+      maxTextureSize,
     });
     this.ui = new UIManager(this.config);
 
@@ -113,9 +123,11 @@ export class Viewer {
   async startEnvironment() {
     this.#observeResize();
     this.#watchFullscreen();
+    this.#watchVisibility();
     this.#handleContextLoss();
     this.#startRenderLoop();
     await this.loadHDRI();
+    this.invalidateModel();
   }
 
   // Полный запуск на ассетах из конфига — когда данных заказа нет.
@@ -130,15 +142,38 @@ export class Viewer {
   async applyTexture(url) {
     if (!url) return 0;
     try {
-      return await this.textureManager.replaceTexture(url);
+      const updated = await this.textureManager.replaceTexture(url);
+      this.invalidateModel();
+      return updated;
     } catch (error) {
       console.warn(`Дизайн не загружен: ${error.message}`);
       return 0;
     }
   }
 
+  // Помечает кадр устаревшим: в следующем тике сцена перерисуется.
+  invalidate() {
+    this.needsRender = true;
+  }
+
+  // То же плюс «модель сдвинулась»: значит, надо пересчитать и контактную тень.
+  // Тень стоит пяти полноэкранных проходов, поэтому её трогают только когда
+  // изменилось то, что она показывает.
+  invalidateModel() {
+    this.modelDirty = true;
+    this.needsRender = true;
+  }
+
+  // Цикл отрисовки. Кадр рисуется не всегда, а только когда в сцене что-то
+  // изменилось: пока клиент читает характеристики или смотрит развёртку,
+  // рисовать одну и ту же картинку 60 раз в секунду незачем — на телефоне это
+  // прямой расход батареи.
   #startRenderLoop() {
+    // Ссылку могли открыть в фоновой вкладке — тогда цикл поднимется по
+    // visibilitychange, когда до неё дойдут руки.
+    if (this.frameId || document.hidden) return;
     const clock = new THREE.Clock();
+
     const tick = () => {
       this.frameId = requestAnimationFrame(tick);
       // Ограничиваем: свёрнутая вкладка ставит rAF на паузу, и первый кадр
@@ -147,16 +182,48 @@ export class Viewer {
 
       if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
+        this.invalidateModel();
       }
 
-      this.controls.update(delta);
-      this.turntable?.update(this.getModelRotation(), delta);
-      // Тень перерисовывается каждый кадр (модель под ней крутится) и до
-      // основного рендера — она сначала рисует сцену в свой таргет.
-      this.contactShadow?.update(this.renderer, this.scene);
+      // Обе возвращают true, пока продолжают что-то двигать: controls —
+      // затухающую орбиту, turntable — появление круга и доворот до засечки.
+      const cameraMoving = this.controls.update(delta);
+      const turntableMoving = this.turntable?.update(this.getModelRotation(), delta);
+      if (cameraMoving || turntableMoving) this.invalidate();
+
+      if (!this.needsRender) return;
+
+      if (this.modelDirty) {
+        // Тень рисуется до основного кадра: она сначала рендерит сцену в свой
+        // собственный таргет.
+        this.contactShadow?.update(this.renderer, this.scene);
+        this.modelDirty = false;
+      }
       this.renderer.render(this.scene, this.camera);
+      this.needsRender = false;
     };
+
     tick();
+  }
+
+  #stopRenderLoop() {
+    if (!this.frameId) return;
+    cancelAnimationFrame(this.frameId);
+    this.frameId = null;
+  }
+
+  // Свёрнутая вкладка и так почти не получает кадров, но браузеры не обещают
+  // этого: явная остановка надёжнее. При возврате кадр рисуется заново.
+  #watchVisibility() {
+    this.onVisibilityChange = () => {
+      if (document.hidden) {
+        this.#stopRenderLoop();
+      } else {
+        this.invalidateModel();
+        this.#startRenderLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   // Подгоняет холст под контейнер. Публичный: полноэкранный режим меняет
@@ -167,6 +234,7 @@ export class Viewer {
     this.camera.aspect = aspectOf(w, h);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    this.invalidate();
   }
 
   // Держим рендерер и камеру в согласии с реальным размером контейнера.
@@ -182,21 +250,24 @@ export class Viewer {
 
     // Выход мимо кнопки — Escape в браузере или системный жест — должен снимать
     // и класс, и подсветку кнопки.
-    const sync = () => {
+    // Ссылки на обработчики держим в полях: без них слушателей не снять,
+    // и при повторной сборке страницы они копились бы на мёртвых объектах.
+    this.onFullscreenChange = () => {
       const native = document.fullscreenElement || document.webkitFullscreenElement;
       if (!native) this.#setStageFullscreen(target(), false);
       else requestAnimationFrame(() => this.resize());
     };
-    document.addEventListener('fullscreenchange', sync);
-    document.addEventListener('webkitfullscreenchange', sync);
+    document.addEventListener('fullscreenchange', this.onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', this.onFullscreenChange);
 
     // Там, где режим держится на одном CSS, Escape тоже должен работать.
-    window.addEventListener('keydown', (event) => {
+    this.onEscape = (event) => {
       if (event.key !== 'Escape') return;
       if (document.fullscreenElement || document.webkitFullscreenElement) return;
       const stage = target();
       if (stage.classList.contains('is-fullscreen')) this.#setStageFullscreen(stage, false);
-    });
+    };
+    window.addEventListener('keydown', this.onEscape);
   }
 
   // Восстановление при потере контекста WebGL.
@@ -204,10 +275,11 @@ export class Viewer {
     const canvas = this.renderer.domElement;
     canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
-      if (this.frameId) cancelAnimationFrame(this.frameId);
+      this.#stopRenderLoop();
       this.ui.showToast('Контекст WebGL потерян — восстановление…', 'error');
     });
     canvas.addEventListener('webglcontextrestored', () => {
+      this.invalidateModel();
       this.#startRenderLoop();
       this.ui.showToast('Контекст WebGL восстановлен');
     });
@@ -272,9 +344,11 @@ export class Viewer {
       );
       this.#placeGround();
       this.#measureTurntable();
+      this.invalidateModel();
     } catch (error) {
       console.error(error);
       this.ui.showToast('Не удалось загрузить модель', 'error');
+      throw error;
     } finally {
       this.ui.hideLoader();
     }
@@ -288,16 +362,23 @@ export class Viewer {
   }
 
   // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
+  // Работает только при включённом ui.dragAndDrop (по умолчанию выключен).
   async loadModelFromFile(file) {
     const url = URL.createObjectURL(file);
-    const order = window.cupOrder;
+    const order = this.order;
     try {
       await this.loadModel(url);
       if (order?.roughness != null) this.setSurfaceFinish({ roughness: order.roughness });
       await this.applyTexture(order?.texture ?? this.config.assets.texture);
       this.ui.showToast(`Модель загружена: ${file.name}`);
+    } catch (error) {
+      console.error(error);
     } finally {
-      URL.revokeObjectURL(url);
+      // Формат .gltf догружает .bin и текстуры ОТНОСИТЕЛЬНО этого адреса, причём
+      // уже после того, как разрешился основной промис. Отзыв откладываем на
+      // следующий тик после полной обработки, иначе догрузка упирается в
+      // отозванный URL.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     }
   }
 
@@ -306,7 +387,10 @@ export class Viewer {
     try {
       const texture = await this.textureManager.loadFromFile(file);
       const updated = this.textureManager.applyTexture(texture);
-      window.cupUnwrap?.setSource(URL.createObjectURL(file));
+      this.invalidateModel();
+      // Развёртка сама создаёт и отзывает свой blob-URL: раньше он создавался
+      // здесь и не отзывался никогда.
+      this.unwrap?.setSourceFromFile(file);
       this.ui.showToast(
         updated > 0 ? `Дизайн применён: ${file.name}` : 'В модели нет поверхности для дизайна',
         updated > 0 ? 'success' : 'error',
@@ -317,13 +401,26 @@ export class Viewer {
     }
   }
 
+  // Текущий заказ. Держим ссылкой на объект, а не читаем window.cupOrder:
+  // страница Битрикса — чужая территория, глобальное имя там могут занять.
+  setOrder(order) {
+    this.order = order;
+  }
+
+  // Подключает вкладку «Развёртка», чтобы перетащенный файл менял и её.
+  attachUnwrap(view) {
+    this.unwrap = view;
+  }
+
   // Меняет отделку поверхности с текстурой на лету. Возвращает число
   // обновлённых материалов.
   setSurfaceFinish(finish) {
-    return this.modelLoader.applySurfaceFinish({
+    const updated = this.modelLoader.applySurfaceFinish({
       ...this.config.texturedSurface,
       ...finish,
     });
+    if (updated > 0) this.invalidate();
+    return updated;
   }
 
   cycleBackground() {
@@ -339,11 +436,13 @@ export class Viewer {
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
     this.turntable?.setBackground(color);
     this.ui.setActiveBackground(index);
+    this.invalidate();
   }
 
   toggleAutoRotate() {
     this.autoRotate = !this.autoRotate;
     this.ui.setToggleState('autorotate', this.autoRotate);
+    this.invalidate();
   }
 
   // Наведение на слайдер приостанавливает автоповорот; при открытии бегунок
@@ -356,7 +455,9 @@ export class Viewer {
   // Поворачивает модель на заданный угол (градусы) вокруг вертикальной оси.
   rotateModelTo(degrees) {
     const model = this.modelLoader.currentModel;
-    if (model) model.rotation.y = THREE.MathUtils.degToRad(degrees);
+    if (!model) return;
+    model.rotation.y = THREE.MathUtils.degToRad(degrees);
+    this.invalidateModel();
   }
 
   // Текущий угол поворота модели в градусах (0–360).
@@ -370,6 +471,7 @@ export class Viewer {
   // Возвращает камеру в исходный кадр (двойной клик по сцене).
   resetView() {
     this.modelLoader.frameCurrentModel();
+    this.invalidate();
   }
 
   // Меряет след модели для поворотного круга — один раз на загрузку. Замер
@@ -408,10 +510,19 @@ export class Viewer {
     this.ui.setRotationSlider(this.getModelRotation());
   }
 
-  // Снимок сцены. На телефоне ссылка с download не срабатывает: Safari игнорирует
-  // атрибут и просто открывает data-URL, а сам URL на большом холсте выходит
-  // огромным. Поэтому кадр отдаётся файлом: сначала системным «Поделиться»
-  // (там же «Сохранить в фото»), и только потом обычной ссылкой.
+  // Снимок сцены.
+  //
+  // Обычный путь — скачать файл ссылкой с атрибутом download. Так ждёт человек
+  // за компьютером: нажал «снимок» — файл лежит в «Загрузках».
+  //
+  // Системное окно «Поделиться» остаётся только там, где скачать нельзя: на
+  // iPhone и iPad Safari игнорирует download и просто открывает картинку в
+  // соседней вкладке, откуда её ещё надо ухитриться сохранить. Там окно
+  // «Поделиться» — единственный способ положить кадр в «Фото».
+  //
+  // Раньше окно «Поделиться» вызывалось везде, где браузер его поддерживает,
+  // а Windows 11 и macOS его поддерживают — поэтому на компьютере вместо
+  // скачивания открывался системный диалог отправки.
   async takeScreenshot() {
     this.renderer.render(this.scene, this.camera);
     const name = this.config.ui.screenshotName;
@@ -422,14 +533,16 @@ export class Viewer {
       return;
     }
 
-    const file = new File([blob], name, { type: 'image/png' });
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: name });
-        return; // системное окно само отчитается перед пользователем
-      } catch (error) {
-        // Отмену в системном окне за ошибку не считаем.
-        if (error?.name === 'AbortError') return;
+    if (this.#shouldShareScreenshot()) {
+      const file = new File([blob], name, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: name });
+          return; // системное окно само отчитается перед пользователем
+        } catch (error) {
+          // Отмену в системном окне за ошибку не считаем.
+          if (error?.name === 'AbortError') return;
+        }
       }
     }
 
@@ -446,6 +559,23 @@ export class Viewer {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 
     this.ui.showToast(canDownload ? 'Снимок сохранён' : 'Снимок открыт в новой вкладке');
+  }
+
+  // Отдавать ли снимок через системное «Поделиться» вместо скачивания.
+  // Режим задаётся config.ui.screenshotShare: 'auto' | 'never' | 'always'.
+  #shouldShareScreenshot() {
+    const mode = this.config.ui.screenshotShare ?? 'auto';
+    if (mode === 'always') return true;
+    if (mode === 'never') return false;
+
+    // 'auto': только там, где скачивание не работает, — Safari на iOS.
+    // iPadOS с iOS 13 представляется как Mac, поэтому его ловим по тач-экрану:
+    // настольный Mac сенсорных точек не имеет.
+    const ua = navigator.userAgent;
+    const isIOS =
+      /iP(hone|ad|od)/.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    return isIOS;
   }
 
   #canvasBlob() {
@@ -492,11 +622,23 @@ export class Viewer {
     requestAnimationFrame(() => this.resize());
   }
 
-  // Освобождает все ресурсы GPU и наблюдателей.
+  // Освобождает все ресурсы GPU и снимает наблюдателей. Вызывать при удалении
+  // страницы со сцены — иначе на чужой странице (Битрикс умеет перерисовывать
+  // блоки) остаются жить слушатели, worker'ы Draco и память GPU.
   dispose() {
-    if (this.frameId) cancelAnimationFrame(this.frameId);
+    this.#stopRenderLoop();
     this.resizeObserver?.disconnect();
-    this.modelLoader.dispose();
+
+    if (this.onVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
+    if (this.onFullscreenChange) {
+      document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', this.onFullscreenChange);
+    }
+    if (this.onEscape) window.removeEventListener('keydown', this.onEscape);
+
+    this.modelLoader.destroy();
     this.textureManager.dispose();
     this.turntable?.dispose();
     this.scene.environment?.dispose();

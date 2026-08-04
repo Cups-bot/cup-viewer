@@ -13,6 +13,16 @@ const SHORTCUTS = {
   f: 'onToggleFullscreen',
 };
 
+// Поля ввода, внутри которых горячие клавиши обязаны молчать. Без этой проверки
+// клиент, печатающий в форме правок «сдвинуть логотип», буквой «s» запускал
+// скачивание скриншота, «f» — полный экран, «a» — остановку автоповорота.
+const TEXT_ENTRY = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
+
+function isTextEntry(target) {
+  if (!target || target.nodeType !== 1) return false;
+  return TEXT_ENTRY.has(target.tagName) || target.isContentEditable === true;
+}
+
 export class UIManager {
   constructor(config) {
     this.config = config;
@@ -34,7 +44,7 @@ export class UIManager {
       textureInput: byId('texture-input'),
       bgSwatches: byId('bg-swatches'),
       // Слайдера может не быть: на странице согласования поворотом управляет
-      // круг под моделью (js/ui/turntable.js).
+      // круг под моделью (js/core/turntable.js).
       rotateWrap: document.getElementById('rotate-wrap'),
       rotateSlider: document.getElementById('rotate-slider'),
       buttons: {
@@ -48,7 +58,9 @@ export class UIManager {
   }
 
   // Строит кружочки фонов из config.backgrounds. Клик по кружочку выбирает фон.
+  // Контейнер очищается: повторный bind() иначе удваивал бы ряд кружочков.
   #buildSwatches() {
+    this.dom.bgSwatches.replaceChildren();
     this.swatches = this.config.backgrounds.map((color, index) => {
       const swatch = document.createElement('button');
       swatch.type = 'button';
@@ -98,6 +110,12 @@ export class UIManager {
 
   #onKeyDown(event) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    // Пока фокус в поле ввода, клавиши принадлежат тексту, а не сцене.
+    if (isTextEntry(event.target)) return;
+    // Составляемый символ (китайский/японский ввод, некоторые Android-клавиатуры)
+    // приходит отдельным событием — оно не про управление сценой.
+    if (event.isComposing || event.keyCode === 229) return;
+
     const action = SHORTCUTS[event.key.toLowerCase()];
     if (action) this.#call(action);
   }

@@ -21,8 +21,6 @@ const WHEEL_SENSITIVITY = 0.0016;
 const FIT_WIDTH = 0.82;
 const FIT_HEIGHT = 0.78;
 const PAPER_RADIUS = 4;
-// Ниже этой ширины предупреждаем: мелкий текст на такой развёртке не проверить.
-const LOW_RES_WIDTH = 1500;
 
 export class UnwrapView {
   constructor(root) {
@@ -30,7 +28,6 @@ export class UnwrapView {
     this.canvas = root.querySelector('.unwrap__canvas');
     this.ctx = this.canvas?.getContext('2d') ?? null;
     this.hint = root.querySelector('.unwrap__hint');
-    this.meta = root.querySelector('.unwrap__meta');
     // Подсказку про жесты пишет разметка — запоминаем, чтобы вернуть её после
     // сообщения об ошибке.
     this.hintText = this.hint?.textContent ?? '';
@@ -58,8 +55,13 @@ export class UnwrapView {
   }
 
   // Показывает другой макет. Пустой src оставляет то, что уже показано.
-  setSource(src) {
-    if (!src) return;
+  // onSettled вызывается и при успехе, и при ошибке — по нему владелец
+  // blob-URL понимает, что его можно отзывать.
+  setSource(src, onSettled) {
+    if (!src) {
+      onSettled?.();
+      return;
+    }
 
     // crossOrigin не ставим: пиксели обратно не читаем, «грязный» канвас нам не
     // мешает, а лишний заголовок сломал бы загрузку с хранилища без CORS.
@@ -69,11 +71,20 @@ export class UnwrapView {
       this.image = image;
       if (this.hint) this.hint.textContent = this.hintText;
       this.reset();
+      onSettled?.();
     });
     image.addEventListener('error', () => {
       if (this.hint) this.hint.textContent = 'Развёртка не загрузилась';
+      onSettled?.();
     });
     image.src = src;
+  }
+
+  // Показывает макет из выбранного файла. blob-URL живёт ровно до окончания
+  // декодирования: раньше он создавался в Viewer и не отзывался никогда.
+  setSourceFromFile(file) {
+    const url = URL.createObjectURL(file);
+    this.setSource(url, () => URL.revokeObjectURL(url));
   }
 
   #bind() {
@@ -95,7 +106,9 @@ export class UnwrapView {
     }
     // Переезд окна на экран с другой плотностью пикселей ResizeObserver
     // не заметит: размеры в CSS-пикселях те же, а растр нужен другой.
-    window.addEventListener('resize', () => this.#resize());
+    // Ссылку держим в поле — иначе слушателя не снять в dispose().
+    this.onWindowResize = () => this.#resize();
+    window.addEventListener('resize', this.onWindowResize);
   }
 
   #onWheel(event) {
@@ -242,17 +255,13 @@ export class UnwrapView {
   #render() {
     const ctx = this.ctx;
     if (!ctx) return;
-    if (!this.width || !this.height) {
-      // Размеров ещё нет — рисовать нечего, вернёмся по ResizeObserver.
-      this.#updateMeta();
-      return;
-    }
+    // Размеров ещё нет — рисовать нечего, вернёмся по ResizeObserver.
+    if (!this.width || !this.height) return;
 
     // Дальше считаем в CSS-пикселях, растягивание до физических берёт на себя
     // матрица преобразования.
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, this.width, this.height);
-    this.#updateMeta();
     // На исходном масштабе таскать нечего — курсор не обещает лишнего.
     this.root.classList.toggle('is-zoomed', this.zoom > 1);
     if (!this.image) return;
@@ -294,24 +303,10 @@ export class UnwrapView {
     }
   }
 
-  // Строка под макетом: размер файла и текущий масштаб относительно 1:1.
-  // Заодно честно говорит, когда разрешения макета не хватает для проверки.
-  #updateMeta() {
-    if (!this.meta) return;
-    if (!this.image) {
-      this.meta.textContent = '';
-      return;
-    }
-
-    const { naturalWidth: iw, naturalHeight: ih } = this.image;
-    const percent = Math.round((this.zoom / this.#nativeZoom()) * 100);
-
-    if (iw < LOW_RES_WIDTH) {
-      parts.push('для проверки мелкого текста нужен файл от 2000 px по ширине');
-    }
-
-    this.root.classList.toggle('is-lowres', iw < LOW_RES_WIDTH);
+  // Снимает наблюдателей. Нужно при повторной сборке страницы: без этого
+  // слушатель resize остаётся жить на выброшенном объекте.
+  dispose() {
+    this.observer?.disconnect();
+    window.removeEventListener('resize', this.onWindowResize);
   }
 }
-
-const HINT_TEXT = 'Колесо мыши — приблизить, перетаскивание — сдвинуть, двойной клик — исходный вид';

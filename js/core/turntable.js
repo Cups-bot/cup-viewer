@@ -28,6 +28,19 @@ const THEMES = {
 // Доворот до точки — за это время (сек).
 const SNAP_DURATION = 0.45;
 
+// Перевод между углом поворота модели и углом точки на кольце — и обратно.
+//
+// Поворот вокруг +Y на угол θ переводит точку (1, 0, 0) в (cos θ, 0, −sin θ):
+// бок стакана уезжает в сторону −Z. А точка на кольце с углом φ лежит в
+// (cos φ, 0, +sin φ). То есть у одного и того же угла знаки противоположны, и
+// бегунок, поставленный «в лоб» на угол модели, ехал по кругу навстречу самому
+// стакану. Отсюда минус: угол на кольце — это минус угол поворота модели.
+//
+// Обе функции — одна и та же операция, но названы по направлению перевода:
+// у вызова должно быть видно, что во что переводится.
+const toRingAngle = (modelDegrees) => -modelDegrees;
+const toModelAngle = (ringDegrees) => -ringDegrees;
+
 class Turntable {
   constructor({ scene, camera, controls, domElement, config, onRotate, onDragStart, onDragEnd }) {
     this.camera = camera;
@@ -207,7 +220,9 @@ class Turntable {
     const tick = this.#hitTick(event);
     if (tick === null) return;
     event.preventDefault();
-    this.#snapTo((tick / TICKS) * 360);
+    // Засечка i стоит на кольце под углом (i / TICKS) · 360°; доворачиваем
+    // модель так, чтобы бегунок встал именно туда.
+    this.#snapTo(toModelAngle((tick / TICKS) * 360));
   }
 
   // Плавный доворот по кратчайшей дуге.
@@ -249,7 +264,7 @@ class Turntable {
 
     const dx = this.hit.x - this.group.position.x;
     const dz = this.hit.z - this.group.position.z;
-    this.onRotate?.((Math.atan2(dz, dx) * 180) / Math.PI);
+    this.onRotate?.(toModelAngle((Math.atan2(dz, dx) * 180) / Math.PI));
   }
 
   togglePinned() {
@@ -280,8 +295,13 @@ class Turntable {
 
   // Вызывается каждый кадр: бегунок следует за углом модели, идёт доворот до
   // нажатой засечки, круг плавно появляется и исчезает.
+  //
+  // Возвращает true, пока сам что-то двигает (затухание, доворот). По этому
+  // признаку Viewer решает, нужен ли новый кадр: когда круг спрятан и ничего не
+  // анимируется, перерисовывать нечего.
   update(rotationDegrees, delta = 0.016) {
     this.currentRotation = rotationDegrees;
+    let animating = false;
 
     const target = this.visible ? 1 : 0;
     if (this.fade !== target) {
@@ -290,6 +310,7 @@ class Turntable {
         ? Math.min(this.fade + step, 1)
         : Math.max(this.fade - step, 0);
       this.#applyFade();
+      animating = true;
     }
 
     if (this.snap) {
@@ -302,17 +323,19 @@ class Turntable {
         this.snap = null;
         this.onDragEnd?.();
       }
+      animating = true;
     }
 
     this.group.visible = this.fade > 0.001 && !!this.metrics;
-    if (!this.group.visible) return;
+    if (!this.group.visible) return animating;
 
-    const angle = (rotationDegrees * Math.PI) / 180;
+    const angle = (toRingAngle(rotationDegrees) * Math.PI) / 180;
     this.knob.position.set(Math.cos(angle), 0, Math.sin(angle));
     // Билборд: кружок всегда развёрнут к камере и остаётся круглым при любом
     // ракурсе. Масштаб группы неравномерным не бывает, поэтому хватает копии
     // поворота камеры.
     this.knob.quaternion.copy(this.camera.quaternion);
+    return animating;
   }
 
   dispose() {

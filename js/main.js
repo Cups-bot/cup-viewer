@@ -1,30 +1,46 @@
 import { CONFIG } from './config.js';
 import { Viewer } from './Viewer.js';
-import { loadOrder } from './data/order.js';
+import { loadOrder, readLocalOrder, resolveOrder } from './data/order.js';
 import { renderOrderPanel } from './ui/orderPanel.js';
+import { setViewer, setOrder, getOrder } from './appState.js';
+// Интерфейс страницы согласования (вкладки, чек-лист, правки, подсказка).
+// Подключается импортом, а не вторым тегом <script>: так вся страница
+// собирается в один файл и общее состояние гарантированно одно на всех.
+import './ui/approval.js';
 
 // Точка входа. Поднимает просмотрщик, забирает данные заказа (Битрикс, endpoint
 // или значения по умолчанию — см. js/data/order.js) и применяет их: модель по
 // номенклатуре, дизайн, шероховатость по типу картона, правая панель.
 //
-// Небольшой публичный API для консоли:
-//   loadModel('assets/models/8cups.glb');
-//   replaceTexture('assets/textures/design.png');
-//   setRoughness(0.6);        // 0 — зеркало, 1 — матовая
-//   applyOrder({ paper: 'uncoated' });   // подмена данных на лету
+// Отладочный API публикуется в window.cupViewer только там, где это разрешено
+// config.security.debugApi (по умолчанию — на localhost):
+//   cupViewer.order                        // что применилось
+//   cupViewer.applyOrder({ paper: 'coated' })
+//   cupViewer.applyOrder({ sku: 'DW90-430' })
+//   cupViewer.setRoughness(0.35)           // 0 — зеркало, 1 — матовая
+//   cupViewer.describeSun()
 // Для постоянных изменений правьте js/config.js и js/data/.
+
+function debugAllowed(config) {
+  const mode = config.security?.debugApi ?? 'never';
+  if (mode === 'always') return true;
+  if (mode === 'never') return false;
+  const { hostname } = window.location;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 async function bootstrap() {
   const container = document.getElementById('canvas-container');
   if (!container) throw new Error('Нет элемента #canvas-container');
 
+  // Правую панель заполняем первым делом, ещё до сцены: тексты уже известны
+  // (умолчания + напечатанный в страницу заказ), и пустых полей быть не должно.
+  // Если заказ придёт с сервера, панель перерисуется данными оттуда.
+  renderOrderPanel(readLocalOrder(CONFIG));
+
   const viewer = new Viewer(container, CONFIG);
-  window.cupViewer = viewer;
-  window.loadModel = (url) => viewer.loadModel(url);
-  window.replaceTexture = (url) => viewer.textureManager.replaceTexture(url);
-  window.setRoughness = (roughness) => viewer.setSurfaceFinish({ roughness });
-  window.setMetalness = (metalness) => viewer.setSurfaceFinish({ metalness });
-  window.describeSun = () => viewer.describeSun();
-  window.applyOrder = (patch) => applyOrder(viewer, { ...window.cupOrder, ...patch });
+  setViewer(viewer);
+  if (debugAllowed(CONFIG)) publishDebugApi(viewer);
 
   // Данные читаем параллельно с подъёмом сцены — HDRI грузится дольше.
   const [order] = await Promise.all([loadOrder(CONFIG), viewer.startEnvironment()]);
@@ -33,9 +49,9 @@ async function bootstrap() {
 
 // Применяет заказ к сцене и к странице. Вызывается и на старте, и из консоли.
 async function applyOrder(viewer, order) {
-  window.cupOrder = order;
+  viewer.setOrder(order);
   // Развёртка и другие части интерфейса ждут этого события.
-  window.dispatchEvent(new CustomEvent('cup:order', { detail: order }));
+  setOrder(order);
 
   renderOrderPanel(order);
 
@@ -47,8 +63,57 @@ async function applyOrder(viewer, order) {
   return order;
 }
 
+// Отладочный API. Патч накладывается на ИСХОДНЫЕ значения заказа (order.input),
+// после чего справочники прогоняются заново — иначе applyOrder({ paper: … })
+// меняло бы поле, но не шероховатость, а applyOrder({ sku: … }) — не модель.
+function publishDebugApi(viewer) {
+  window.cupViewer = {
+    viewer,
+    get order() {
+      return getOrder();
+    },
+    applyOrder: (patch) => applyOrder(viewer, resolveOrder({ ...getOrder()?.input, ...patch })),
+    loadModel: (url) => viewer.loadModel(url),
+    replaceTexture: (url) => viewer.applyTexture(url),
+    setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
+    setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),
+    describeSun: () => viewer.describeSun(),
+  };
+}
+
+// Сцена не поднялась — клиент не должен смотреть в пустой прямоугольник без
+// объяснений. Раньше промис bootstrap() никто не обрабатывал: при переименовании
+// любого id в шаблоне страница молча оставалась пустой.
+function showStartupFailure(error) {
+  console.error('Просмотрщик не запустился:', error);
+
+  const host = document.getElementById('stage') ?? document.body;
+  if (host.querySelector('.startup-error')) return;
+
+  const box = document.createElement('div');
+  box.className = 'startup-error';
+  box.setAttribute('role', 'alert');
+
+  const title = document.createElement('p');
+  title.className = 'startup-error__title';
+  title.textContent = 'Не удалось показать 3D-модель';
+
+  const text = document.createElement('p');
+  text.className = 'startup-error__text';
+  text.textContent =
+    'Проверьте вкладку «Развёртка» — макет там открывается плоско. ' +
+    'Если 3D не появится и после обновления страницы, сообщите менеджеру.';
+
+  box.append(title, text);
+  host.appendChild(box);
+}
+
+function start() {
+  bootstrap().catch(showStartupFailure);
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+  document.addEventListener('DOMContentLoaded', start, { once: true });
 } else {
-  bootstrap();
+  start();
 }

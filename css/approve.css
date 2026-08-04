@@ -1,5 +1,5 @@
 /* Дизайн «страницы согласования» (блок 2 макета MyCups): карточка со сценой
-   вьювера и панелью согласования. Грузится ПОСЛЕ style.css/responsive.css и
+   вьювера и панелью согласования. Грузится ПОСЛЕ style.css и
    переопределяет полноэкранную раскладку вьювера на встроенную в макет.
    Идентификаторы элементов управления сохранены — UIManager работает как есть. */
 
@@ -143,24 +143,33 @@ body.has-fullscreen-stage {
   pointer-events: none;
 }
 
-/* Размер файла и текущий масштаб: по ним видно, упёрлись мы в разрешение
-   макета или ещё нет. */
-.unwrap__meta {
+/* Сцена не поднялась. Показывается вместо пустого прямоугольника: клиент должен
+   понимать, что видит, и знать, что делать дальше (см. js/main.js). */
+.startup-error {
   position: absolute;
-  right: 26px;
-  bottom: 26px;
-  max-width: 300px;
-  font-size: 12.5px;
-  line-height: 1.4;
-  text-align: right;
-  color: #5c6673;
-  pointer-events: none;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: var(--sky);
 }
 
-/* Макет, которого не хватает для проверки мелкого текста, отмечаем цветом
-   предупреждения — иначе «мыло» спишут на просмотрщик. */
-.unwrap.is-lowres .unwrap__meta {
-  color: #c98a2e;
+.startup-error__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.startup-error__text {
+  max-width: 380px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* Переключатели режимов. */
@@ -945,21 +954,10 @@ body.has-fullscreen-stage {
     right: 10px;
   }
 
-  /* Подсказка и строка с размером макета встают друг над другом: по краям
-     экрана они наезжали бы одна на другую. */
   .unwrap__hint {
     left: 14px;
-    bottom: 44px;
-    max-width: calc(100% - 28px);
-    font-size: 11.5px;
-  }
-
-  .unwrap__meta {
-    left: 14px;
-    right: auto;
     bottom: 14px;
     max-width: calc(100% - 28px);
-    text-align: left;
     font-size: 11.5px;
   }
 
