@@ -78,6 +78,9 @@ function publishDebugApi(viewer) {
     setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
     setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),
     describeSun: () => viewer.describeSun(),
+    // Показать только карту затенения складок: так удобно подбирать
+    // quality.ambientOcclusion.radius и scale в js/config.js.
+    debugAO: (on = true) => viewer.pipeline.showAmbientOcclusionOnly(on),
   };
 }
 

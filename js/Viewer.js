@@ -8,6 +8,9 @@ import { createControls } from './core/controls.js';
 import { createContactShadow } from './core/contactShadow.js';
 import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
+import { loadStudioEnvironment } from './core/studioEnvironment.js';
+import { RenderPipeline } from './core/postprocessing.js';
+import { HELPER_LAYER } from './core/layers.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
@@ -45,7 +48,7 @@ export class Viewer {
   #initCore() {
     const { clientWidth: w, clientHeight: h } = this.container;
 
-    this.scene = createScene(this.config);
+    this.scene = createScene();
     // Контейнер без раскладки (скрытая вкладка, display:none) отдаёт 0×0, а
     // 0/0 = NaN, который уходит в aspect и заклинивает рендерер. ResizeObserver
     // исправит это, как только элемент получит реальный размер.
@@ -64,6 +67,10 @@ export class Viewer {
       this.contactShadow = createContactShadow(this.config);
       this.scene.add(this.contactShadow.group);
     }
+
+    // Основная камера видит и предмет, и вспомогательную обвязку; камера
+    // затенения складок внутри конвейера — только предмет (см. core/layers.js).
+    this.camera.layers.enable(HELPER_LAYER);
 
     if (this.config.turntable.enabled) {
       this.turntable = createTurntable({
@@ -98,6 +105,13 @@ export class Viewer {
       maxAnisotropy,
       maxTextureSize,
     });
+    this.pipeline = new RenderPipeline({
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.camera,
+      config: this.config,
+    });
+
     this.ui = new UIManager(this.config);
 
     this.ui.bind({
@@ -199,7 +213,7 @@ export class Viewer {
         this.contactShadow?.update(this.renderer, this.scene);
         this.modelDirty = false;
       }
-      this.renderer.render(this.scene, this.camera);
+      this.pipeline.render();
       this.needsRender = false;
     };
 
@@ -234,6 +248,7 @@ export class Viewer {
     this.camera.aspect = aspectOf(w, h);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
+    this.pipeline.setSize(w, h);
     this.invalidate();
   }
 
@@ -285,29 +300,39 @@ export class Viewer {
     });
   }
 
-  // Загрузка HDRI. Сбой не критичен: свет продолжает работать.
+  // Поднимает источник отражений. Сбой не критичен: сцена остаётся видимой.
   async loadHDRI() {
-    this.ui.showLoader('Загрузка окружения…');
+    // Студия собирается в памяти мгновенно — индикатор нужен только файлу.
+    const fromFile = this.config.lighting.environment === 'hdri';
+    if (fromFile) this.ui.showLoader('Загрузка окружения…');
     try {
       await this.loadEnvironmentMap();
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Не удалось загрузить HDRI — работает только свет', 'error');
+      this.ui.showToast('Не удалось загрузить окружение', 'error');
     } finally {
-      this.ui.hideLoader();
+      if (fromFile) this.ui.hideLoader();
     }
   }
 
-  // Грузит HDRI и передаёт тени параметры солнца из карты: направление,
-  // ширину и плотность.
+  // Ставит окружение и передаёт тени параметры ключевого света: направление,
+  // ширину полутени и плотность.
+  //
+  // Источников два, и оба отдают одно и то же: карту и описание света. Поэтому
+  // всё, что ниже по течению (наводка ключевого света, подстройка тени),
+  // одинаково работает и со студией, и с панорамой из файла.
   async loadEnvironmentMap() {
-    const { envMap, sun } = await loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
-      this.ui.updateProgress(percent, 'Загрузка окружения…'),
-    );
+    const { envMap, sun } =
+      this.config.lighting.environment === 'hdri'
+        ? await loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
+            this.ui.updateProgress(percent, 'Загрузка окружения…'),
+          )
+        : loadStudioEnvironment(this.scene, this.renderer, this.config);
 
     this.sun = sun;
     aimLightAtSun(this.lightingRig, sun, this.config);
     this.shadowMatch = this.contactShadow?.matchToSun(sun) ?? null;
+    this.invalidateModel();
     return envMap;
   }
 
@@ -354,11 +379,14 @@ export class Viewer {
     }
   }
 
-  // Ставим плоскость тени точно на нижнюю точку модели.
+  // Ставим плоскость тени и невидимую опору для AO точно на нижнюю точку модели.
   #placeGround() {
-    if (!this.contactShadow || !this.modelLoader.currentModel) return;
+    if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
-    this.contactShadow.group.position.y = box.min.y;
+    if (this.contactShadow) this.contactShadow.group.position.y = box.min.y;
+    // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
+    // рябь от точности буфера глубины.
+    this.pipeline.setGroundHeight(box.min.y - 0.001);
   }
 
   // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
@@ -429,12 +457,18 @@ export class Viewer {
   }
 
   // Ставит конкретный фон по индексу (выбор кружочком).
+  //
+  // Фон рисует CSS, а не сцена: холст прозрачный, иначе тонмаппинг перекрашивал
+  // бы заливку (см. core/scene.js).
   selectBackground(index) {
     this.backgroundIndex = index;
-    const color = new THREE.Color(this.config.backgrounds[index]);
-    this.scene.background = color;
+    const value = this.config.backgrounds[index];
+
+    const stage = this.container.closest('.stage') ?? this.container;
+    stage.style.setProperty('--stage-bg', value);
+
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
-    this.turntable?.setBackground(color);
+    this.turntable?.setBackground(new THREE.Color(value));
     this.ui.setActiveBackground(index);
     this.invalidate();
   }
@@ -524,7 +558,10 @@ export class Viewer {
   // а Windows 11 и macOS его поддерживают — поэтому на компьютере вместо
   // скачивания открывался системный диалог отправки.
   async takeScreenshot() {
-    this.renderer.render(this.scene, this.camera);
+    // Через конвейер, а не напрямую: иначе снимок уйдёт без затенения складок и
+    // без тонмаппинга — то есть заметно хуже того, что клиент видит на экране.
+    this.contactShadow?.update(this.renderer, this.scene);
+    this.pipeline.render();
     const name = this.config.ui.screenshotName;
 
     const blob = await this.#canvasBlob();

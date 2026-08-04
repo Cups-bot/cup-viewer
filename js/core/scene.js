@@ -1,8 +1,16 @@
 import * as THREE from 'three';
 
 // Корневая сцена.
-export function createScene(config) {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(config.backgrounds[0]);
-  return scene;
+//
+// Фон намеренно НЕ задаётся здесь: холст прозрачный, а цвет за ним рисует CSS
+// (см. Viewer.selectBackground).
+//
+// Причина в тонмаппинге. Он применяется последним проходом ко всему кадру
+// целиком — вместе с заливкой фона. Светло-голубой #eaf5ff после ACES
+// превращался в невнятный серый, и подобрать «нужный» цвет заранее нельзя:
+// формула нелинейная. Прозрачный холст поверх CSS-фона снимает вопрос — цвет
+// на экране ровно тот, что записан в конфиге, а заодно фон сцены и фон
+// страницы физически не могут разойтись.
+export function createScene() {
+  return new THREE.Scene();
 }

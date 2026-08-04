@@ -50,8 +50,14 @@ export function frameObject(camera, controls, box, offset = 1.3) {
   controls.target.copy(center);
   camera.position.copy(center).addScaledVector(direction, distance);
 
-  camera.near = distance / 100;
-  camera.far = distance * 100;
+  // Ближняя и дальняя плоскости держатся плотно вокруг предмета. Прежние
+  // distance/100 и distance*100 давали отношение 10 000:1, а точность буфера
+  // глубины распределяется по этому диапазону нелинейно: у дальней границы её
+  // почти не остаётся. Затенению складок глубина нужна точная — на грубой оно
+  // «плывёт» полосами по гладкой стенке. 400:1 хватает с запасом, при этом
+  // предмет и плоскость тени целиком в кадре.
+  camera.near = distance / 20;
+  camera.far = distance * 20;
   camera.updateProjectionMatrix();
   controls.update();
 }

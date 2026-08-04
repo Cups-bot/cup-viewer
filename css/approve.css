@@ -70,11 +70,14 @@ body.has-fullscreen-stage {
 
 /* Левая колонка: сцена вьювера. Высота своя и постоянная — от содержимого
    правой панели она не зависит. */
+/* Фон сцены задаёт CSS, а не сам просмотрщик: холст прозрачный, потому что
+   тонмаппинг перекрашивал бы заливку (см. js/core/scene.js). Переменную
+   --stage-bg переставляет кнопка выбора фона. */
 .stage {
   position: relative;
   height: var(--stage-h);
   overflow: hidden;
-  background: var(--sky);
+  background: var(--stage-bg, var(--sky));
   border-radius: 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }

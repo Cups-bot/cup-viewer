@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 
+// Способы сжатия яркости в диапазон экрана (config.renderer.toneMapping).
+const TONE_MAPPING = {
+  aces: THREE.ACESFilmicToneMapping,
+  agx: THREE.AgXToneMapping,
+  none: THREE.NoToneMapping,
+};
+
 // WebGL-рендерер с физически корректным цветовым конвейером: вывод в sRGB,
 // тонмаппинг ACES Filmic, ограниченный pixel ratio.
 export function createRenderer(config) {
@@ -14,11 +21,14 @@ export function createRenderer(config) {
     powerPreference: 'high-performance',
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
+  // Холст прозрачный: цвет за сценой рисует CSS, иначе тонмаппинг перекрасил бы
+  // фон (см. core/scene.js).
+  renderer.setClearAlpha(0);
 
   // Текстуры авторизованы в sRGB, свет считается в линейном пространстве,
   // итог тонмаппится обратно в sRGB.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMapping = TONE_MAPPING[config.renderer.toneMapping] ?? THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = toneMappingExposure;
 
   // Только самозатенение; тень под моделью рисует contactShadow.js.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HELPER_LAYER } from './layers.js';
 
 // Поворотный круг под моделью — объект сцены, а не оверлей. Живёт в 3D именно
 // ради перекрытия: дальняя дуга уходит за стакан по буферу глубины, как
@@ -73,6 +74,14 @@ class Turntable {
     this.group.userData.excludeFromShadow = true;
 
     this.#build();
+
+    // Круг — интерфейс, а не предмет: он не должен участвовать в расчёте
+    // затенения складок (см. core/layers.js). Луч курсора по умолчанию видит
+    // только нулевой слой, поэтому ему этот слой включаем отдельно — иначе по
+    // бегунку и засечкам перестанет попадать мышь.
+    this.group.traverse((node) => node.layers.set(HELPER_LAYER));
+    this.raycaster.layers.enable(HELPER_LAYER);
+
     scene.add(this.group);
     this.#bind();
   }

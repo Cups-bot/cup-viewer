@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HELPER_LAYER } from './layers.js';
 import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
 import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 
@@ -43,6 +44,11 @@ class ContactShadow {
     );
     this.plane.scale.y = -1;
     this.plane.renderOrder = -1;
+    // Плоскость тени в расчёт затенения складок попадать не должна: иначе AO
+    // видит её как сплошной пол и обводит стакан тёмным кольцом по фону.
+    // Служебный quad размытия остаётся на нулевом слое — его рисует своя
+    // камера (см. #blur).
+    this.plane.layers.set(HELPER_LAYER);
     this.group.add(this.plane);
 
     // Служебный quad для проходов размытия. Той же протяжённости, что и камера.
