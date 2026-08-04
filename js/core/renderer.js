@@ -34,7 +34,10 @@ export function createRenderer(config) {
   // Только самозатенение; тень под моделью рисует contactShadow.js.
   if (shadows) {
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // VSM даёт по-настоящему мягкий край с управляемым радиусом размытия.
+    // PCFSoft размывает на фиксированную величину в один-два текселя — для
+    // тени от крупного софтбокса этого мало, край выходит жёстким.
+    renderer.shadowMap.type = THREE.VSMShadowMap;
   }
 
   return renderer;

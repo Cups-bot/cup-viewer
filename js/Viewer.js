@@ -6,6 +6,7 @@ import { createRenderer } from './core/renderer.js';
 import { createLighting, aimLightAtSun } from './core/lighting.js';
 import { createControls } from './core/controls.js';
 import { createContactShadow } from './core/contactShadow.js';
+import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
@@ -67,6 +68,11 @@ export class Viewer {
     if (this.config.contactShadow.enabled) {
       this.contactShadow = createContactShadow(this.config);
       this.scene.add(this.contactShadow.group);
+    }
+
+    if (this.config.shadowCatcher?.enabled) {
+      this.shadowCatcher = createShadowCatcher(this.config);
+      this.scene.add(this.shadowCatcher.plane);
     }
 
     // Основная камера видит и предмет, и вспомогательную обвязку; камера
@@ -385,6 +391,7 @@ export class Viewer {
     if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
     if (this.contactShadow) this.contactShadow.group.position.y = box.min.y;
+    this.shadowCatcher?.setHeight(box.min.y);
     // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
     // рябь от точности буфера глубины.
     this.pipeline.setGroundHeight(box.min.y - 0.001);

@@ -29,6 +29,10 @@ export function createLighting(scene, config) {
     if (spec.castShadow && config.renderer.shadows) {
       light.castShadow = true;
       light.shadow.mapSize.set(shadow.mapSize, shadow.mapSize);
+      // Мягкий край: софтбокс — источник крупный, и резкая тень от него
+      // выглядела бы как от точечной лампы.
+      light.shadow.radius = shadow.radius ?? 1;
+      light.shadow.blurSamples = shadow.blurSamples ?? 8;
 
       // Плотно подгоняем камеру теней под модель: стандартный фрустум для
       // модели в 0.5 юнита примерно в 20 раз велик и тратит почти всю карту.
