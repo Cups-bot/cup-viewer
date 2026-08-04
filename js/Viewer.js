@@ -11,6 +11,7 @@ import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.j
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
 import { RenderPipeline } from './core/postprocessing.js';
 import { HELPER_LAYER } from './core/layers.js';
+import { backdropColors, backdropCss, paintBackdrop } from './core/backdrop.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
@@ -464,8 +465,11 @@ export class Viewer {
     this.backgroundIndex = index;
     const value = this.config.backgrounds[index];
 
+    // Цвета фона держим у себя: тот же фон подкладывается под снимок сцены.
+    this.backdrop = backdropColors(value);
+
     const stage = this.container.closest('.stage') ?? this.container;
-    stage.style.setProperty('--stage-bg', value);
+    stage.style.background = backdropCss(this.backdrop);
 
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
     this.turntable?.setBackground(new THREE.Color(value));
@@ -615,10 +619,25 @@ export class Viewer {
     return isIOS;
   }
 
+  // Кадр вместе с фоном.
+  //
+  // Холст просмотрщика прозрачный — фон рисует CSS (см. core/backdrop.js).
+  // Поэтому снимать напрямую с холста нельзя: получится стакан на пустоте, а в
+  // PNG прозрачность выглядит как чёрный или клетчатый фон в большинстве
+  // просмотрщиков. Собираем кадр заново: сначала тот же фон, сверху сцена.
   #canvasBlob() {
     return new Promise((resolve) => {
       try {
-        this.renderer.domElement.toBlob((blob) => resolve(blob), 'image/png');
+        const source = this.renderer.domElement;
+        const canvas = document.createElement('canvas');
+        canvas.width = source.width;
+        canvas.height = source.height;
+
+        const ctx = canvas.getContext('2d');
+        paintBackdrop(ctx, canvas.width, canvas.height, this.backdrop);
+        ctx.drawImage(source, 0, 0);
+
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
       } catch (error) {
         console.error(error);
         resolve(null);

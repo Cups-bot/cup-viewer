@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { disposeObject, measure, frameObject } from '../utils/helpers.js';
+import { applyPaperSurface } from '../core/paperSurface.js';
 
 // Грузит glTF/GLB и нормализует модель в сцене: центрирует, масштабирует до
 // предсказуемого размера, включает тени, находит материалы под текстуру и
@@ -70,6 +71,9 @@ export class ModelLoader {
         if (!('roughness' in material)) continue;
         if (finish.roughness != null) material.roughness = finish.roughness;
         if (finish.metalness != null) material.metalness = finish.metalness;
+        // Микрорельеф бумаги — карта нормалей общая на все материалы, строится
+        // один раз (см. core/paperSurface.js).
+        if (finish.paperRelief != null) applyPaperSurface(material, finish.paperRelief);
         material.needsUpdate = true;
         updated++;
       }

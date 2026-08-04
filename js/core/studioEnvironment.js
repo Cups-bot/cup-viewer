@@ -54,7 +54,7 @@ const SOFTBOXES = [
 
   // Заполняющий: справа, крупнее и слабее — снимает провал в тенях, но своего
   // выраженного блика не даёт.
-  { name: 'fill', width: 7, height: 7, distance: 7, rotationY: -58, elevation: 8, intensity: 1.1 },
+  { name: 'fill', width: 7, height: 7, distance: 7, rotationY: -58, elevation: 8, intensity: 0.8 },
 
   // Контровой сзади-сверху: обводит силуэт светлым кантом и отделяет стакан
   // от фона.
