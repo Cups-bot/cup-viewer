@@ -23,14 +23,14 @@ export const PAPER_TYPES = {
   coated: {
     label: 'Мелованный',
     roughness: 0.2,
-    relief: 0.09,
-    reliefScale: 9,
+    relief: 0.009,
+    reliefScale: 90,
   },
   uncoated: {
     label: 'Немелованный',
     roughness: 0.8,
-    relief: 0.3,
-    reliefScale: 5,
+    relief: 0.1,
+    reliefScale: 10,
   },
 };
 
