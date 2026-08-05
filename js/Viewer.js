@@ -6,6 +6,7 @@ import { createRenderer } from './core/renderer.js';
 import { createLighting, aimKeyLight } from './core/lighting.js';
 import { createControls } from './core/controls.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
+import { createAmbientContactShadow } from './core/ambientContactShadow.js';
 import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
@@ -68,6 +69,11 @@ export class Viewer {
     if (this.config.shadowCatcher?.enabled) {
       this.shadowCatcher = createShadowCatcher(this.config);
       this.scene.add(this.shadowCatcher.plane);
+    }
+
+    if (this.config.ambientShadow?.enabled) {
+      this.ambientShadow = createAmbientContactShadow(this.config);
+      this.scene.add(this.ambientShadow.group);
     }
 
     // Основная камера видит и предмет, и вспомогательную обвязку; камера
@@ -202,7 +208,12 @@ export class Viewer {
 
       if (!this.needsRender) return;
 
-      this.modelDirty = false;
+      if (this.modelDirty) {
+        // Затенение у основания пересчитывается только когда модель сдвинулась:
+        // это отдельный проход глубины плюс четыре прохода размытия.
+        this.ambientShadow?.update(this.renderer, this.scene);
+        this.modelDirty = false;
+      }
       this.pipeline.render();
       this.needsRender = false;
     };
@@ -370,6 +381,7 @@ export class Viewer {
     if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
     this.shadowCatcher?.setHeight(box.min.y);
+    if (this.ambientShadow) this.ambientShadow.group.position.y = box.min.y;
     // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
     // рябь от точности буфера глубины.
     this.pipeline.setGroundHeight(box.min.y - 0.001);
@@ -555,6 +567,7 @@ export class Viewer {
   async takeScreenshot() {
     // Через конвейер, а не напрямую: иначе снимок уйдёт без затенения складок и
     // без тонмаппинга — то есть заметно хуже того, что клиент видит на экране.
+    this.ambientShadow?.update(this.renderer, this.scene);
     this.pipeline.render();
     const name = this.config.ui.screenshotName;
 
@@ -686,6 +699,7 @@ export class Viewer {
 
     this.modelLoader.destroy();
     this.textureManager.dispose();
+    this.ambientShadow?.dispose();
     this.turntable?.dispose();
     this.scene.environment?.dispose();
     this.controls.dispose();
