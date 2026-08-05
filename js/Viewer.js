@@ -5,6 +5,7 @@ import { createCamera } from './core/camera.js';
 import { createRenderer } from './core/renderer.js';
 import { createLighting, aimKeyLight } from './core/lighting.js';
 import { createControls } from './core/controls.js';
+import { createFloor } from './core/floor.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createAmbientContactShadow } from './core/ambientContactShadow.js';
 import { createTurntable } from './core/turntable.js';
@@ -65,6 +66,11 @@ export class Viewer {
     // Страховка к возвращаемому значению controls.update(): любое изменение
     // камеры обязано приводить к новому кадру.
     this.controls.addEventListener('change', () => this.invalidate());
+
+    if (this.config.floor?.enabled) {
+      this.floor = createFloor(this.config);
+      this.scene.add(this.floor.mesh);
+    }
 
     if (this.config.shadowCatcher?.enabled) {
       this.shadowCatcher = createShadowCatcher(this.config);
@@ -380,11 +386,12 @@ export class Viewer {
   #placeGround() {
     if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
+    this.floor?.setHeight(box.min.y);
     this.shadowCatcher?.setHeight(box.min.y);
     if (this.ambientShadow) this.ambientShadow.group.position.y = box.min.y;
     // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
     // рябь от точности буфера глубины.
-    this.pipeline.setGroundHeight(box.min.y - 0.001);
+
   }
 
   // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
@@ -475,6 +482,7 @@ export class Viewer {
     stage.style.background = backdropCss(this.backdrop);
 
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
+    this.floor?.setColor(value);
     this.turntable?.setBackground(new THREE.Color(value));
     this.ui.setActiveBackground(index);
     this.invalidate();
@@ -699,6 +707,7 @@ export class Viewer {
 
     this.modelLoader.destroy();
     this.textureManager.dispose();
+    this.floor?.dispose();
     this.ambientShadow?.dispose();
     this.turntable?.dispose();
     this.scene.environment?.dispose();

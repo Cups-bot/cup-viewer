@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { AO_GROUND_LAYER, OBJECT_LAYER } from './layers.js';
+import { OBJECT_LAYER } from './layers.js';
 
 // Конвейер отрисовки: сцена → затенение складок (AO) → тонмаппинг на экран.
 //
@@ -54,23 +54,26 @@ export class RenderPipeline {
     this.renderPass = new RenderPass(scene, camera);
     this.composer.addPass(this.renderPass);
 
-    // Невидимая опора под предметом — только для расчёта затенения.
-    this.aoGround = new THREE.Mesh(
-      new THREE.PlaneGeometry(6, 6).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial(),
-    );
-    this.aoGround.name = 'AOGround';
-    this.aoGround.layers.set(AO_GROUND_LAYER);
-    scene.add(this.aoGround);
-
-    // Отдельная камера для AO — копия основной, но со своей маской слоёв: без
-    // вспомогательной обвязки и с невидимым полом.
+    // Отдельная камера для AO — копия основной, но без вспомогательной обвязки:
+    // плоскости теней и поворотный круг в расчёте участвовать не должны. Сам
+    // пол (core/floor.js) в расчёт входит — на нём и появляется затенение у
+    // контакта.
     this.aoCamera = camera.clone();
     this.aoCamera.layers.set(OBJECT_LAYER);
-    this.aoCamera.layers.enable(AO_GROUND_LAYER);
 
     this.gtao = new GTAOPass(scene, this.aoCamera, size.x, size.y);
     this.gtao.output = GTAOPass.OUTPUT.Default;
+    // Шумоподавление поверх затенения. Значения по умолчанию рассчитаны на
+    // крупные сцены; у нас один предмет крупным планом, и на границе его
+    // силуэта оставалась рябь.
+    this.gtao.updatePdMaterial({
+      lumaPhi: 10,
+      depthPhi: 2,
+      normalPhi: 3,
+      radius: 8,
+      rings: 4,
+      samples: 16,
+    });
     this.setAmbientOcclusion(quality.ambientOcclusion ?? {});
     this.composer.addPass(this.gtao);
 
@@ -97,11 +100,6 @@ export class RenderPipeline {
     });
   }
 
-  // Ставит невидимую опору на уровень основания модели.
-  setGroundHeight(y) {
-    if (this.aoGround) this.aoGround.position.y = y;
-  }
-
   // Показать только карту AO — чтобы подбирать radius и scale вживую.
   // Из консоли: cupViewer.debugAO(true)
   showAmbientOcclusionOnly(on) {
@@ -118,7 +116,6 @@ export class RenderPipeline {
     // и маску, поэтому её приходится восстанавливать после каждого копирования.
     this.aoCamera.copy(this.camera);
     this.aoCamera.layers.set(OBJECT_LAYER);
-    this.aoCamera.layers.enable(AO_GROUND_LAYER);
     this.composer.render();
   }
 
@@ -132,9 +129,6 @@ export class RenderPipeline {
 
   dispose() {
     if (!this.enabled) return;
-    this.aoGround.geometry.dispose();
-    this.aoGround.material.dispose();
-    this.aoGround.removeFromParent();
     this.gtao.dispose?.();
     this.composer.dispose?.();
     this.target.dispose();
