@@ -469,14 +469,19 @@ export class Viewer {
 
   // Ставит конкретный фон по индексу (выбор кружочком).
   //
-  // Фон рисует CSS, а не сцена: холст прозрачный, иначе тонмаппинг перекрашивал
-  // бы заливку (см. core/scene.js).
+  // Цвет ставится в ДВУХ местах одним значением: в сцену и в CSS страницы.
+  //
+  // В сцену — чтобы кадр был непрозрачным целиком. На прозрачном холсте
+  // сглаженный край пола давал светлую волосяную линию: полупрозрачный пиксель
+  // раздувается при переводе в sRGB. В CSS — чтобы фон был на месте до запуска
+  // скрипта и вокруг холста.
   selectBackground(index) {
     this.backgroundIndex = index;
     const value = this.config.backgrounds[index];
 
     // Цвета фона держим у себя: тот же фон подкладывается под снимок сцены.
     this.backdrop = backdropColors(value);
+    this.scene.background = new THREE.Color(value);
 
     const stage = this.container.closest('.stage') ?? this.container;
     stage.style.background = backdropCss(this.backdrop);

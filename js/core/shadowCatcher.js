@@ -20,6 +20,16 @@ import { HELPER_LAYER } from './layers.js';
 export function createShadowCatcher(config) {
   const options = config.shadowCatcher;
 
+  // Плоскость обязана целиком помещаться в фрустум карты теней: за его
+  // границей теней не существует, и выборка размазывает наружу краевой тексель.
+  const limit = config.lighting.shadow.frustum * 2;
+  if (options.size > limit) {
+    console.warn(
+      `shadowCatcher.size (${options.size}) больше области карты теней (${limit}). ` +
+        'По кадру пойдёт бледная полоса — уменьшите размер или поднимите lighting.shadow.frustum.',
+    );
+  }
+
   const material = new THREE.ShadowMaterial();
   material.opacity = options.opacity;
   material.transparent = true;
