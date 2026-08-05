@@ -19,6 +19,11 @@
 //       стенке. БОЛЬШЕ ЗНАЧЕНИЕ — МЕЛЬЧЕ зерно. У мелованного зерно тоньше.
 //
 // Подобрать вживую, не пересобирая: см. cupViewer.setRelief() в README.
+//
+// Картон — не металл, поэтому metalness одинаков для всех типов и в справочнике
+// не повторяется.
+export const PAPER_METALNESS = 0;
+
 export const PAPER_TYPES = {
   coated: {
     label: 'Мелованный',
@@ -34,7 +39,24 @@ export const PAPER_TYPES = {
   },
 };
 
+// КАКОЙ КАРТОН ПОКАЗЫВАТЬ, ПОКА ЗАКАЗ НЕ СКАЗАЛ ИНОГО.
+//
+// Это единственное место, где задан картон по умолчанию: отсюда его берёт и
+// DEFAULT_ORDER (js/data/order.js), и запасная отделка при загрузке модели.
+// Поменяйте на 'coated' — страница откроется мелованной.
 export const DEFAULT_PAPER = 'uncoated';
+
+// Отделка «по умолчанию» одним объектом — тем же, что уходит в материал.
+// Нужна на момент, когда модель уже загрузилась, а заказ ещё не применён.
+export function defaultPaperFinish() {
+  const paper = PAPER_TYPES[DEFAULT_PAPER];
+  return {
+    roughness: paper.roughness,
+    metalness: PAPER_METALNESS,
+    relief: paper.relief,
+    reliefScale: paper.reliefScale,
+  };
+}
 
 // Синонимы: Битрикс может прислать что угодно из этого списка.
 const PAPER_ALIASES = {

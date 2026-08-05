@@ -3,9 +3,8 @@ import * as THREE from 'three';
 import { createScene } from './core/scene.js';
 import { createCamera } from './core/camera.js';
 import { createRenderer } from './core/renderer.js';
-import { createLighting, aimLightAtSun } from './core/lighting.js';
+import { createLighting, aimKeyLight } from './core/lighting.js';
 import { createControls } from './core/controls.js';
-import { createContactShadow } from './core/contactShadow.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createTurntable } from './core/turntable.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
@@ -13,6 +12,7 @@ import { loadStudioEnvironment } from './core/studioEnvironment.js';
 import { RenderPipeline } from './core/postprocessing.js';
 import { HELPER_LAYER } from './core/layers.js';
 import { backdropColors, backdropCss, paintBackdrop } from './core/backdrop.js';
+import { defaultPaperFinish } from './data/catalog.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
 import { UIManager } from './ui/UIManager.js';
@@ -64,11 +64,6 @@ export class Viewer {
     // Страховка к возвращаемому значению controls.update(): любое изменение
     // камеры обязано приводить к новому кадру.
     this.controls.addEventListener('change', () => this.invalidate());
-
-    if (this.config.contactShadow.enabled) {
-      this.contactShadow = createContactShadow(this.config);
-      this.scene.add(this.contactShadow.group);
-    }
 
     if (this.config.shadowCatcher?.enabled) {
       this.shadowCatcher = createShadowCatcher(this.config);
@@ -151,13 +146,6 @@ export class Viewer {
     this.invalidateModel();
   }
 
-  // Полный запуск на ассетах из конфига — когда данных заказа нет.
-  async start() {
-    await this.startEnvironment();
-    await this.loadModel(this.config.assets.model);
-    await this.applyTexture(this.config.assets.texture);
-  }
-
   // Кладёт дизайн на модель. Отсутствие файла не должно ронять страницу:
   // модель останется с исходным материалом.
   async applyTexture(url) {
@@ -214,12 +202,7 @@ export class Viewer {
 
       if (!this.needsRender) return;
 
-      if (this.modelDirty) {
-        // Тень рисуется до основного кадра: она сначала рендерит сцену в свой
-        // собственный таргет.
-        this.contactShadow?.update(this.renderer, this.scene);
-        this.modelDirty = false;
-      }
+      this.modelDirty = false;
       this.pipeline.render();
       this.needsRender = false;
     };
@@ -337,31 +320,27 @@ export class Viewer {
         : loadStudioEnvironment(this.scene, this.renderer, this.config);
 
     this.sun = sun;
-    aimLightAtSun(this.lightingRig, sun, this.config);
-    this.shadowMatch = this.contactShadow?.matchToSun(sun) ?? null;
+    aimKeyLight(this.lightingRig, sun, this.config);
     this.invalidateModel();
     return envMap;
   }
 
-  // Где солнце HDRI и что из него вывелось для тени. Читать из консоли, когда
-  // тень выглядит не так: большой angularRadius при низком contrast должен
-  // давать мягкую и бледную тень, малый при высоком — резкую и тёмную.
-  describeSun() {
+  // Куда смотрит ключевой свет и какой он яркости. Читать из консоли, когда
+  // тень или светотень выглядят не так: elevation задаёт длину тени, azimuth —
+  // её направление, оба приходят из раскладки студии.
+  describeKeyLight() {
     if (!this.sun) return null;
-    const { direction, color, irradiance, angularRadius, peak, mean } = this.sun;
+    const { direction, color, irradiance, angularRadius } = this.sun;
     const toDeg = 180 / Math.PI;
+    const light = this.lightingRig.getObjectByName('KeyLight');
     return {
       elevation: +(Math.asin(direction.y) * toDeg).toFixed(1),
       azimuth: +(Math.atan2(direction.z, direction.x) * toDeg).toFixed(1),
-      direction: direction.toArray().map((n) => +n.toFixed(3)),
       color: `#${color.getHexString()}`,
-      irradiance: +irradiance.toFixed(3),
+      // Яркость софтбокса в студии и то, что из неё досталось источнику тени.
+      softboxIntensity: +irradiance.toFixed(2),
+      lightIntensity: +(light?.intensity ?? 0).toFixed(2),
       angularRadius: +(angularRadius * toDeg).toFixed(2),
-      contrast: Math.round(peak / mean),
-      shadow: this.shadowMatch && {
-        blur: +this.shadowMatch.blur.toFixed(1),
-        opacity: +this.shadowMatch.opacity.toFixed(3),
-      },
     };
   }
 
@@ -390,7 +369,6 @@ export class Viewer {
   #placeGround() {
     if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
-    if (this.contactShadow) this.contactShadow.group.position.y = box.min.y;
     this.shadowCatcher?.setHeight(box.min.y);
     // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
     // рябь от точности буфера глубины.
@@ -411,7 +389,7 @@ export class Viewer {
           reliefScale: order.reliefScale,
         });
       }
-      await this.applyTexture(order?.texture ?? this.config.assets.texture);
+      await this.applyTexture(order?.texture);
       this.ui.showToast(`Модель загружена: ${file.name}`);
     } catch (error) {
       console.error(error);
@@ -458,7 +436,7 @@ export class Viewer {
   // обновлённых материалов.
   setSurfaceFinish(finish) {
     const updated = this.modelLoader.applySurfaceFinish({
-      ...this.config.texturedSurface,
+      ...defaultPaperFinish(),
       ...finish,
     });
     if (updated > 0) this.invalidate();
@@ -577,7 +555,6 @@ export class Viewer {
   async takeScreenshot() {
     // Через конвейер, а не напрямую: иначе снимок уйдёт без затенения складок и
     // без тонмаппинга — то есть заметно хуже того, что клиент видит на экране.
-    this.contactShadow?.update(this.renderer, this.scene);
     this.pipeline.render();
     const name = this.config.ui.screenshotName;
 
@@ -711,7 +688,6 @@ export class Viewer {
     this.textureManager.dispose();
     this.turntable?.dispose();
     this.scene.environment?.dispose();
-    this.contactShadow?.dispose();
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

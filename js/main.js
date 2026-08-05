@@ -20,7 +20,7 @@ import './ui/approval.js';
 //   cupViewer.setRoughness(0.35)           // 0 — зеркало, 1 — матовая
 //   cupViewer.setRelief(0.3)               // сила фактуры картона
 //   cupViewer.setReliefScale(5)            // крупность зерна: больше — мельче
-//   cupViewer.describeSun()
+//   cupViewer.describeKeyLight()
 // Для постоянных изменений правьте js/config.js и js/data/.
 
 function debugAllowed(config) {
@@ -90,7 +90,7 @@ function publishDebugApi(viewer) {
       viewer.setSurfaceFinish({ relief, reliefScale: getOrder()?.reliefScale }),
     setReliefScale: (reliefScale) =>
       viewer.setSurfaceFinish({ relief: getOrder()?.relief, reliefScale }),
-    describeSun: () => viewer.describeSun(),
+    describeKeyLight: () => viewer.describeKeyLight(),
     // Показать только карту затенения складок: так удобно подбирать
     // quality.ambientOcclusion.radius и scale в js/config.js.
     debugAO: (on = true) => viewer.pipeline.showAmbientOcclusionOnly(on),

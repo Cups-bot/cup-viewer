@@ -31,7 +31,7 @@ export function createRenderer(config) {
   renderer.toneMapping = TONE_MAPPING[config.renderer.toneMapping] ?? THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = toneMappingExposure;
 
-  // Только самозатенение; тень под моделью рисует contactShadow.js.
+  // Падающая тень на подложке и самозатенение модели.
   if (shadows) {
     renderer.shadowMap.enabled = true;
     // VSM даёт по-настоящему мягкий край с управляемым радиусом размытия.

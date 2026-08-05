@@ -37,7 +37,7 @@
 // отбрасываются, строки обрезаются, пути к файлам проверяются по белому списку
 // префиксов из CONFIG.security.allowedAssetPrefixes.
 
-import { resolveModel, resolvePaper } from './catalog.js';
+import { DEFAULT_PAPER, resolveModel, resolvePaper } from './catalog.js';
 import { sanitizeOrder } from './sanitize.js';
 
 // ЕДИНСТВЕННОЕ место, где лежит текст правой панели.
@@ -59,8 +59,11 @@ export const DEFAULT_ORDER = Object.freeze({
   // текстуру ужимают (видеопамять), а во вкладке «Развёртка» мелкий текст на
   // ужатом файле не проверить. Не задан — берётся texture.
   unwrap: null,
-  // 'coated' | 'uncoated' — задаёт шероховатость поверхности.
-  paper: 'uncoated',
+  // Тип картона: задаёт шероховатость и фактуру поверхности.
+  // Значение НЕ пишется здесь руками: и оно, и его настройки живут в
+  // js/data/catalog.js. Хотите открывать страницу мелованной — поменяйте там
+  // DEFAULT_PAPER на 'coated'.
+  paper: DEFAULT_PAPER,
   // Явная шероховатость 0…1. Задана — важнее типа картона.
   roughness: null,
 

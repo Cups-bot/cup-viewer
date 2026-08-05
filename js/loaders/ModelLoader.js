@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { disposeObject, measure, frameObject } from '../utils/helpers.js';
 import { applyPaperSurface } from '../core/paperSurface.js';
+import { defaultPaperFinish } from '../data/catalog.js';
 
 // Грузит glTF/GLB и нормализует модель в сцене: центрирует, масштабирует до
 // предсказуемого размера, включает тени, находит материалы под текстуру и
@@ -60,7 +61,11 @@ export class ModelLoader {
   // Задаёт отделку мешей, на которые ложится текстура. Трогает только
   // texturableMeshes; значение null оставляет свойство как есть. Возвращает
   // число обновлённых материалов.
-  applySurfaceFinish(finish = this.config.texturedSurface) {
+  // Без аргумента берётся отделка картона по умолчанию из справочника
+  // (js/data/catalog.js). Она живёт доли секунды — до применения заказа, — но
+  // задавать её вторым набором чисел в конфиге нельзя: они разъезжаются
+  // с справочником и потом никто не может понять, какое из значений работает.
+  applySurfaceFinish(finish = defaultPaperFinish()) {
     if (!finish) return 0;
     let updated = 0;
 
