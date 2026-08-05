@@ -71,9 +71,11 @@ export class ModelLoader {
         if (!('roughness' in material)) continue;
         if (finish.roughness != null) material.roughness = finish.roughness;
         if (finish.metalness != null) material.metalness = finish.metalness;
-        // Микрорельеф бумаги — карта нормалей общая на все материалы, строится
-        // один раз (см. core/paperSurface.js).
-        if (finish.paperRelief != null) applyPaperSurface(material, finish.paperRelief);
+        // Фактура картона: сила рельефа и крупность зерна приходят из типа
+        // бумаги (см. js/data/catalog.js).
+        if (finish.relief != null) {
+          applyPaperSurface(material, finish.relief, finish.reliefScale);
+        }
         material.needsUpdate = true;
         updated++;
       }

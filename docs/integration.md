@@ -126,6 +126,7 @@ order: {
 | `unwrap` | строка | Отдельный крупный файл для вкладки «Развёртка». Не задан — берётся `texture` |
 | `paper` | строка | `coated` / `uncoated` (принимает и «мелованный» / «немелованный») |
 | `roughness` | число | Шероховатость 0…1 вручную. Задана — важнее `paper` |
+| `relief` | число | Сила фактуры картона 0…1 вручную. Задана — важнее `paper` |
 | `status` | строка | Текст плашки состояния |
 | `title` | строка | Заголовок панели |
 | `lead` | строка | Абзац под заголовком |
@@ -164,8 +165,8 @@ export const MODELS = {
 };
 
 export const PAPER_TYPES = {
-  coated:   { label: 'Мелованный',   roughness: 0.2 },
-  uncoated: { label: 'Немелованный', roughness: 0.8 },
+  coated:   { label: 'Мелованный',   roughness: 0.2, relief: 0.09, reliefScale: 9 },
+  uncoated: { label: 'Немелованный', roughness: 0.8, relief: 0.3,  reliefScale: 5 },
 };
 ```
 

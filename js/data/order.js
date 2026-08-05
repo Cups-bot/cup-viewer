@@ -167,13 +167,28 @@ export function resolveOrder(raw) {
   // Явное число важнее типа картона; пустое поле и мусор игнорируем.
   // Проверять только Number() нельзя: Number(null) === 0 — вполне конечное
   // число, и картон каждый раз затирался бы нулём (зеркальная поверхность).
-  const hasExplicit = raw.roughness !== null && raw.roughness !== undefined && raw.roughness !== '';
-  const explicitRoughness = Number(raw.roughness);
-  const roughness = hasExplicit && Number.isFinite(explicitRoughness)
-    ? Math.min(Math.max(explicitRoughness, 0), 1)
-    : paper.roughness;
+  const override = (value, fallback) => {
+    if (value === null || value === undefined || value === '') return fallback;
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.min(Math.max(number, 0), 1) : fallback;
+  };
 
-  return { ...raw, model, modelMatchedBy: matchedBy, paper, roughness, input: raw };
+  const roughness = override(raw.roughness, paper.roughness);
+  // Сила фактуры картона. Крупность зерна берётся только из справочника: это
+  // свойство самой бумаги, а не заказа.
+  const relief = override(raw.relief, paper.relief);
+  const reliefScale = paper.reliefScale;
+
+  return {
+    ...raw,
+    model,
+    modelMatchedBy: matchedBy,
+    paper,
+    roughness,
+    relief,
+    reliefScale,
+    input: raw,
+  };
 }
 
 // Всё, что доступно без сети: умолчания, напечатанный в страницу объект и

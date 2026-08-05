@@ -16,8 +16,9 @@ import * as THREE from 'three';
 
 // Сторона карты в пикселях.
 const SIZE = 512;
-// Сколько раз карта укладывается по стенке стакана.
-const REPEAT = 6;
+// Сколько раз карта укладывается по стенке стакана, если крупность не задана.
+// Больше — мельче зерно.
+const DEFAULT_REPEAT = 6;
 
 // Значение шума в точке. Три слоя разной частоты — переплетение волокон разного
 // размера.
@@ -101,33 +102,54 @@ function heightToNormalMap(field, size) {
   return canvas;
 }
 
-let cached = null;
+// Само поле шума считается один раз: это самая дорогая часть, а зависит она
+// только от размера карты.
+let cachedField = null;
+// Готовые текстуры под каждую крупность зерна. Разные типы картона просят
+// разную, а мутировать repeat у общей текстуры нельзя: она одна на все
+// материалы, и последний вызов молча переопределил бы предыдущие.
+const cachedTextures = new Map();
 
-// Карта нормалей бумаги. Строится один раз на всю страницу.
-export function paperNormalMap() {
-  if (cached) return cached;
+// Карта нормалей бумаги для заданной крупности зерна.
+export function paperNormalMap(repeat = DEFAULT_REPEAT) {
+  const key = Math.round(repeat * 100) / 100;
+  const existing = cachedTextures.get(key);
+  if (existing) return existing;
 
-  const field = noiseField(SIZE, SIZE);
-  const texture = new THREE.CanvasTexture(heightToNormalMap(field, SIZE));
+  if (!cachedField) cachedField = noiseField(SIZE, SIZE);
+
+  const texture = new THREE.CanvasTexture(heightToNormalMap(cachedField, SIZE));
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(REPEAT, REPEAT);
+  texture.repeat.set(key, key);
   // Карта нормалей хранит направления, а не цвет: переводить её через sRGB
   // нельзя, иначе рельеф перекосит.
   texture.colorSpace = THREE.NoColorSpace;
   texture.anisotropy = 4;
 
-  cached = texture;
-  return cached;
+  cachedTextures.set(key, texture);
+  return texture;
 }
 
-// Вешает микрорельеф на материал. Сила задаётся в конфиге: 0 — гладко.
-export function applyPaperSurface(material, scale) {
+// Вешает микрорельеф на материал.
+//
+//   strength — сила рельефа: 0 гладко, 0.5 грубая крафт-бумага;
+//   repeat   — крупность зерна: больше значение — мельче волокно.
+//
+// Оба значения приходят из типа картона (см. js/data/catalog.js).
+export function applyPaperSurface(material, strength, repeat = DEFAULT_REPEAT) {
   if (!('normalScale' in material)) return false;
-  if (!scale) return false;
 
-  material.normalMap = paperNormalMap();
-  material.normalScale = new THREE.Vector2(scale, scale);
+  if (!strength) {
+    // Ноль — это осознанное «гладко», а не «не трогать»: карту надо снять,
+    // иначе мелованный картон унаследовал бы рельеф от немелованного.
+    material.normalMap = null;
+    material.needsUpdate = true;
+    return true;
+  }
+
+  material.normalMap = paperNormalMap(repeat);
+  material.normalScale = new THREE.Vector2(strength, strength);
   material.needsUpdate = true;
   return true;
 }

@@ -103,7 +103,10 @@ function matchesPrefix(path, allowedPrefixes) {
   return allowedPrefixes.some((prefix) => path.startsWith(prefix));
 }
 
-function cleanRoughness(value) {
+// Числовые поля, которые разрешено принимать снаружи. Все — доли от 0 до 1.
+const UNIT_FIELDS = ['roughness', 'relief'];
+
+function clampUnit(value) {
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
@@ -160,8 +163,10 @@ export function sanitizeOrder(input, { allowedAssetPrefixes = [] } = {}) {
     }
   }
 
-  const roughness = cleanRoughness(input.roughness);
-  if (roughness !== null) out.roughness = roughness;
+  for (const field of UNIT_FIELDS) {
+    const value = clampUnit(input[field]);
+    if (value !== null) out[field] = value;
+  }
 
   const spec = cleanSpec(input.spec);
   if (spec) out.spec = spec;

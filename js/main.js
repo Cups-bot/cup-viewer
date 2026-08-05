@@ -18,6 +18,8 @@ import './ui/approval.js';
 //   cupViewer.applyOrder({ paper: 'coated' })
 //   cupViewer.applyOrder({ sku: 'DW90-430' })
 //   cupViewer.setRoughness(0.35)           // 0 — зеркало, 1 — матовая
+//   cupViewer.setRelief(0.3)               // сила фактуры картона
+//   cupViewer.setReliefScale(5)            // крупность зерна: больше — мельче
 //   cupViewer.describeSun()
 // Для постоянных изменений правьте js/config.js и js/data/.
 
@@ -57,7 +59,11 @@ async function applyOrder(viewer, order) {
 
   await viewer.loadModel(order.model);
   // Шероховатость ставится после модели: загрузка сбрасывает материалы.
-  viewer.setSurfaceFinish({ roughness: order.roughness });
+  viewer.setSurfaceFinish({
+    roughness: order.roughness,
+    relief: order.relief,
+    reliefScale: order.reliefScale,
+  });
   await viewer.applyTexture(order.texture);
 
   return order;
@@ -77,6 +83,13 @@ function publishDebugApi(viewer) {
     replaceTexture: (url) => viewer.applyTexture(url),
     setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
     setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),
+    // Фактура картона. Крупность передаём вместе с силой: без неё
+    // setSurfaceFinish подставит запасное значение из конфига, и зерно
+    // перескочит на другое прямо посреди подбора.
+    setRelief: (relief) =>
+      viewer.setSurfaceFinish({ relief, reliefScale: getOrder()?.reliefScale }),
+    setReliefScale: (reliefScale) =>
+      viewer.setSurfaceFinish({ relief: getOrder()?.relief, reliefScale }),
     describeSun: () => viewer.describeSun(),
     // Показать только карту затенения складок: так удобно подбирать
     // quality.ambientOcclusion.radius и scale в js/config.js.

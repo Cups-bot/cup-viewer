@@ -404,7 +404,13 @@ export class Viewer {
     const order = this.order;
     try {
       await this.loadModel(url);
-      if (order?.roughness != null) this.setSurfaceFinish({ roughness: order.roughness });
+      if (order?.roughness != null) {
+        this.setSurfaceFinish({
+          roughness: order.roughness,
+          relief: order.relief,
+          reliefScale: order.reliefScale,
+        });
+      }
       await this.applyTexture(order?.texture ?? this.config.assets.texture);
       this.ui.showToast(`Модель загружена: ${file.name}`);
     } catch (error) {
