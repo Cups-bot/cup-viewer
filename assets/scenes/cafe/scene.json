@@ -1,0 +1,105 @@
+{
+  "id": "cafe",
+  "label": "Кофейня",
+  "backdrop": {
+    "wide": "backdrop.webp",
+    "tall": "backdrop-tall.webp"
+  },
+  "environment": "env.hdr",
+  "camera": {
+    "position": [
+      0.0,
+      0.24738,
+      1.82249
+    ],
+    "target": [
+      0.0,
+      0.0,
+      -0.0
+    ],
+    "fov": {
+      "wide": {
+        "x": 23.9132,
+        "y": 23.9132
+      },
+      "tall": {
+        "x": 23.9132,
+        "y": 29.6429
+      }
+    },
+    "lens_mm": 85.0,
+    "shift": [
+      0.0,
+      0.0
+    ],
+    "fstop": 0.0
+  },
+  "floor": {
+    "y": 0.0,
+    "mmPerUnit": 696.864
+  },
+  "cup": {
+    "origin": [
+      0.00932,
+      0.0,
+      0.99663
+    ]
+  },
+  "view": {
+    "transform": "Standard",
+    "look": "None",
+    "exposure": 0.0
+  },
+  "frames": {
+    "wide": [
+      1122,
+      1122
+    ],
+    "tall": [
+      1122,
+      1402
+    ]
+  },
+  "quick": false,
+  "environmentIntensity": 2.8,
+  "shadow": {
+    "keyScale": 0.0
+  },
+  "shadows": {
+    "DW80-280": {
+      "wide": "shadow-DW80-280.webp",
+      "tall": "shadow-DW80-280-tall.webp"
+    },
+    "HB80-280": {
+      "wide": "shadow-HB80-280.webp",
+      "tall": "shadow-HB80-280-tall.webp"
+    },
+    "PP-410": {
+      "wide": "shadow-PP-410.webp",
+      "tall": "shadow-PP-410-tall.webp"
+    },
+    "PP-500": {
+      "wide": "shadow-PP-500.webp",
+      "tall": "shadow-PP-500-tall.webp"
+    },
+    "PP-650": {
+      "wide": "shadow-PP-650.webp",
+      "tall": "shadow-PP-650-tall.webp"
+    }
+  },
+  "shadowOpacity": 1.0,
+  "shadowFrame": [
+    1122,
+    1122
+  ],
+  "shadowFrames": {
+    "wide": [
+      1122,
+      1122
+    ],
+    "tall": [
+      1122,
+      1402
+    ]
+  }
+}

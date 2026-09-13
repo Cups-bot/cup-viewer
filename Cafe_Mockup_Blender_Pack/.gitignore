@@ -1,0 +1,18 @@
+# Скачанные ассеты сцены — в репозиторий не кладутся: это ~900 МБ исходников
+# 4K (Poly Haven, Sketchfab), один архив больше лимита GitHub в 100 МБ. Откуда
+# что брать — assets_manifest.csv; разложить рядом со скриптами, как было.
+*.zip
+*_4k.blend/
+take-away-coffee-cup-set/
+croissant.glb
+boma_2k.*
+decor_shop_2k.*
+comfy_cafe_2k.hdr
+
+# Результаты сборки — пересобираются скриптами (см. BUILD_RU.md). Из рендеров
+# хранится только согласованный кадр фото-композита: по нему сверяется веб-сцена.
+build/
+scene/
+renders/*
+!renders/photo_cup_final.png
+*.blend1
