@@ -217,6 +217,153 @@ body.has-fullscreen-stage {
   background: #1c1c1e;
 }
 
+/* ── Выбор фото-сцены ──────────────────────────────────────────────────── */
+/* Занимает то же место, что кружочки фона: на вкладке «Фото-сцена» фон —
+   снятая комната, и плоский цвет там выбирать нечего. */
+.stage-scenes {
+  position: absolute;
+  top: 74px;
+  left: 20px;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.stage-scenes[hidden] {
+  display: none;
+}
+
+/* ── Фото-сцена: снимок в рамке, панели его не касаются ────────────────── */
+/* В 3D панели плавают поверх сцены — там под ними фон-заливка. Фото-сцена —
+   это фотография, и кнопки поверх неё закрывали бы стол и предметы. Поэтому
+   холст сжимается до области между панелями, вьювер вписывает в неё снимок
+   (холст становится ровно кадром, Viewer#resize), а вокруг снимка лежит рамка.
+
+   Отступы контейнера — габариты панелей, зазор до рамки и сами поля рамки:
+   вкладки 20 + 46 сверху, панель управления 24 + 58 снизу, выбор сцены
+   (когда сцен больше одной) 74 + 42. */
+.stage {
+  container-type: inline-size;
+  /* Рамка снимка: белые поля и скругление самого фото. Внешний радиус рамки
+     выводится из них, чтобы углы шли концентрично. */
+  --photo-mat: 12px;
+  --photo-radius: 10px;
+  --photo-gap: 14px;
+}
+
+.stage.is-photo #canvas-container {
+  inset:
+    calc(116px + var(--photo-gap) + var(--photo-mat))
+    calc(24px + var(--photo-mat))
+    calc(82px + var(--photo-gap) + var(--photo-mat));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Сцена одна — ряда выбора нет (approval.js его не строит), и его место
+   отходит снимку. */
+.stage.is-photo:not(:has(.stage-scenes)) #canvas-container {
+  top: calc(66px + var(--photo-gap) + var(--photo-mat));
+}
+
+/* Колонке хватает ширины на вкладки и выбор сцены в одну строку — ставим их
+   рядом и отдаём снимку ещё полсотни пикселей высоты. Правило живёт в
+   container query, а она стилизует только потомков .stage, не её саму. */
+@container (min-width: 620px) {
+  .stage.is-photo .stage-scenes {
+    top: 22px;
+    left: auto;
+    right: 20px;
+  }
+
+  .stage.is-photo #canvas-container {
+    top: calc(66px + var(--photo-gap) + var(--photo-mat));
+  }
+}
+
+/* Пока сцена грузится, в сжатом контейнере оставался бы студийный стакан на
+   пустоте — прячем холст до появления снимка (класс ставит вьювер). */
+.stage.is-photo #canvas-container:not(.has-photo) {
+  visibility: hidden;
+}
+
+/* Рамка — как фото-отпечаток, положенный на страницу: белые поля в цвет
+   карточек, скругление в тон сцене и мягкая двухслойная тень: близкая держит
+   край, дальняя приподнимает снимок над голубым фоном.
+
+   Это псевдоэлемент позади холста: у самого холста рамки быть не должно —
+   поворотный круг считает касания по его прямоугольнику, и поля сдвинули бы
+   их. Размер снимка сообщает вьювер: --photo-width и --photo-height. Холст
+   стоит по центру контейнера, от этого центра рамка и строится. */
+#canvas-container.has-photo::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--photo-width) + 2 * var(--photo-mat));
+  height: calc(var(--photo-height) + 2 * var(--photo-mat));
+  transform: translate(-50%, -50%);
+  background: var(--card);
+  border-radius: calc(var(--photo-radius) + var(--photo-mat));
+  box-shadow:
+    0 0 0 1px rgba(16, 24, 40, 0.04),
+    0 2px 5px rgba(16, 24, 40, 0.06),
+    0 24px 48px -18px rgba(16, 24, 40, 0.28);
+  pointer-events: none;
+}
+
+#canvas-container.has-photo canvas {
+  position: relative;
+  border-radius: var(--photo-radius);
+}
+
+#canvas-container.has-photo {
+  animation: photo-print-in 0.34s ease-out both;
+}
+
+@keyframes photo-print-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #canvas-container.has-photo {
+    animation: none;
+  }
+}
+
+.scene-chip {
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .scene-chip:hover {
+    color: var(--ink);
+  }
+}
+
+.scene-chip.is-active {
+  color: #fff;
+  background: #1c1c1e;
+}
+
 /* Кружочки фонов. */
 .stage-swatches {
   position: absolute;
@@ -232,8 +379,13 @@ body.has-fullscreen-stage {
 
 /* #bg-btn нужен UIManager, но фон здесь выбирают кружочки. Атрибут hidden
    перебивается .btn { display:flex }, поэтому прячем явно. */
-.stage-swatches #bg-btn,
-.stage-controls #texture-btn {
+.stage-swatches #bg-btn {
+  display: none;
+}
+
+/* Кнопку, выключенную настройкой (ui.uploadButton), UIManager помечает
+   атрибутом hidden — а его точно так же перебивает .btn { display:flex }. */
+.stage-controls .btn[hidden] {
   display: none;
 }
 
@@ -353,10 +505,369 @@ body.has-fullscreen-stage {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+
+  /* У кнопок с раскрывающимся меню подпись молчит, пока меню открыто: она
+     всплывает ровно туда же, где стоит карточка, и читалась бы сквозь неё. */
+  .stage-controls .btn[aria-expanded='true'][data-tip]:hover::after,
+  .stage-controls .btn[aria-expanded='true'][data-tip]:focus-visible::after {
+    opacity: 0;
+  }
+}
+
+/* ── Выгрузка оборота ──────────────────────────────────────────────────── */
+/* Обёртка кнопки нужна только для того, чтобы меню лежало в разметке рядом с
+   ней. Собственного контекста позиционирования у неё нет намеренно: меню
+   отсчитывается от самой панели, а та отцентрована в сцене — значит, и меню
+   встаёт по центру при любой ширине экрана. */
+.export-menu {
+  display: flex;
+}
+
+/* Меню раскрывается вверх прямо из панели. В отличие от подсказки «как
+   управлять», оно низкое и в сцену помещается целиком — поэтому позицию не
+   приходится считать в JS. */
+.export-popover {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 14px);
+  z-index: 8;
+  width: min(300px, calc(100vw - 48px));
+  padding: 16px 18px 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: left;
+  background: #1c1c1e;
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(16, 24, 40, 0.3);
+  transform: translateX(-50%);
+}
+
+.export-popover[hidden] {
+  display: none;
+}
+
+.export-popover__title {
+  margin-bottom: 6px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.export-popover__text {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Галочка «плюс фото». Своя, а не .check из правой панели: там крупный пункт
+   чек-листа на белом, здесь — компактная строка на тёмном. */
+.export-option {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+  cursor: pointer;
+}
+
+.export-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export-option__box {
+  flex: 0 0 auto;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Сама галочка — две линии уголком, повёрнутые на 45°. */
+.export-option__box::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+.export-option input:checked + .export-option__box {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.export-option input:checked + .export-option__box::after {
+  opacity: 1;
+}
+
+.export-option input:focus-visible + .export-option__box {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.export-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.export-option__text b {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.export-option__text i {
+  font-size: 12px;
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.export-go {
+  width: 100%;
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+@media (hover: hover) {
+  .export-go:hover {
+    background: var(--brand-strong);
+  }
+}
+
+.export-go:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Пока идёт запись, кнопка выгрузки нажатий не принимает. */
+.stage-controls .btn:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 /* Подсказка «как управлять». Живёт вне сцены (у той overflow: hidden) и
    позиционируется из js/ui/approval.js — поэтому fixed, а не absolute. */
+/* ── Окно выбора стакана ───────────────────────────────────────────────── */
+/* Лежит поверх всей страницы, а не внутри сцены: у сцены overflow: hidden, и
+   карточки обрезало бы её краем — ровно та же причина, по которой снаружи
+   лежит подсказка «как управлять». */
+.cup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(16, 24, 40, 0.35);
+}
+
+.cup-backdrop[hidden] {
+  display: none;
+}
+
+.cup-dialog {
+  position: fixed;
+  z-index: 61;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(660px, calc(100vw - 32px));
+  max-height: min(660px, calc(100vh - 48px));
+  padding: 20px 22px 16px;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.22);
+  transform: translate(-50%, -50%);
+}
+
+.cup-dialog[hidden] {
+  display: none;
+}
+
+.cup-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cup-dialog__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cup-dialog__close {
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+}
+
+@media (hover: hover) {
+  .cup-dialog__close:hover {
+    color: var(--ink);
+    background: rgba(16, 24, 40, 0.06);
+  }
+}
+
+.cup-search {
+  width: 100%;
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: #f4f5f7;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+}
+
+.cup-search::placeholder {
+  color: var(--muted);
+}
+
+.cup-search:focus {
+  background: #fff;
+  border-color: var(--brand);
+  outline: none;
+}
+
+/* Прокручивается только список карточек — заголовок с поиском остаются на
+   месте, иначе на телефоне поле уезжает вверх и искать нечем. */
+.cup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  /* Поля, чтобы рамка выбранной карточки и её тень не срезались краем
+     прокручиваемой области. */
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.cup-group[hidden] {
+  display: none;
+}
+
+.cup-group__title {
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 10px;
+}
+
+.cup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 10px;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cup-card[hidden] {
+  display: none;
+}
+
+@media (hover: hover) {
+  .cup-card:hover {
+    border-color: rgba(0, 0, 0, 0.22);
+  }
+}
+
+.cup-card:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.cup-card.is-active {
+  border-color: var(--brand);
+  background: rgba(232, 41, 12, 0.045);
+}
+
+/* Силуэт. Высота фиксирована, а поле рисунка у всех карточек одно, поэтому
+   стаканы сравниваются по росту честно: 650 мл заметно выше бумажного. */
+.cup-card__art {
+  width: 100%;
+  height: 94px;
+}
+
+.cup-card__shadow {
+  fill: rgba(16, 24, 40, 0.09);
+}
+
+.cup-card__body {
+  fill: #dee2e8;
+}
+
+/* Внутренность стакана темнее стенки — иначе силуэт читается как трапеция. */
+.cup-card__rim {
+  fill: #c3cad3;
+}
+
+.cup-card__name {
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cup-card__note {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.cup-empty {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.cup-empty[hidden] {
+  display: none;
+}
+
+.cup-dialog__foot {
+  padding-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
 .help-popover {
   position: fixed;
   z-index: 60;
@@ -955,6 +1466,18 @@ body.has-fullscreen-stage {
     font-size: 12px;
   }
 
+  .stage-scenes {
+    top: 50px;
+    left: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .scene-chip {
+    padding: 6px 9px;
+    font-size: 11.5px;
+  }
+
   .stage-swatches {
     top: 15px;
     right: 10px;
@@ -1003,6 +1526,32 @@ body.has-fullscreen-stage {
     display: none;
   }
 
+  /* Меню выгрузки раскрывается влево от столбика кнопок, а не вверх: вверху
+     от него остался бы край сцены, а панель здесь стоит не внизу по центру,
+     а вертикальной полосой у правого края. */
+  .export-popover {
+    left: auto;
+    right: calc(100% + 12px);
+    bottom: auto;
+    top: 50%;
+    width: min(300px, calc(100vw - 108px));
+    transform: translateY(-50%);
+  }
+
+  .cup-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 28px);
+    padding: 16px 16px 12px;
+  }
+
+  .cup-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cup-card__art {
+    height: 82px;
+  }
+
   /* Подсказка — карточка снизу во всю ширину. Раньше она раскрывалась влево от
      кнопки и упиралась в край сцены: из-под панели было видно меньше половины
      текста. Координаты в этом режиме не считаются (см. approval.js). */
@@ -1039,5 +1588,30 @@ body.has-fullscreen-stage {
   .edits__actions {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Фото-сцена на телефоне: панель управления стоит колонкой у правого края,
+   вкладки и выбор сцены — двумя строками сверху. Холст отступает от обоих:
+   сверху вкладки 12 + 36 (выбор сцены 50 + 34), справа колонка кнопок
+   14 + 44, плюс зазор и поля рамки — на узком экране они тоньше.
+   Правило в конце файла, чтобы перекрыть общее .stage.is-photo выше. */
+@media (max-width: 640px) {
+  .stage {
+    --photo-mat: 7px;
+    --photo-radius: 8px;
+    --photo-gap: 10px;
+  }
+
+  .stage.is-photo #canvas-container {
+    inset:
+      calc(84px + var(--photo-gap) + var(--photo-mat))
+      calc(58px + var(--photo-gap) + var(--photo-mat))
+      calc(4px + var(--photo-gap) + var(--photo-mat))
+      calc(10px + var(--photo-mat));
+  }
+
+  .stage.is-photo:not(:has(.stage-scenes)) #canvas-container {
+    top: calc(48px + var(--photo-gap) + var(--photo-mat));
   }
 }

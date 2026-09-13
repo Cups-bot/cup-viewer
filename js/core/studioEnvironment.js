@@ -29,6 +29,12 @@ import * as THREE from 'three';
 // расширенным диапазоном, и именно превышение единицы даёт настоящий блик.
 
 // Фон вокруг: задаёт общий уровень заполняющего света.
+//
+// ЦВЕТ ПОДЛОЖКИ ЗДЕСЬ НЕ ЗАДАН — он приходит снаружи, из выбранного фона
+// страницы (см. loadStudioEnvironment). Предмет стоит не в пустоте: подложка
+// под ним отражает свет в его теневую сторону, и цвет этого отсвета — цвет
+// подложки. Без этого стакан выглядит вырезанным и наклеенным на фон: на
+// чёрном он оставался таким же светлым снизу, как на белом.
 const SURROUND = {
   // Верх светлее низа — из-за этого у цилиндра появляется вертикальный градиент,
   // и он перестаёт выглядеть плоской вырезкой.
@@ -88,9 +94,13 @@ const SOFTBOXES = [
 
 // Материал светящейся панели: обычный «безразличный к свету» материал, чей цвет
 // поднят выше единицы. Так же устроены студийные окружения в самом three.js.
-function panelMaterial(intensity) {
+//
+// Принимает либо число (нейтральная панель такой яркости), либо готовый цвет —
+// им красятся стены и пол, когда их тонирует подложка.
+function panelMaterial(value) {
   const material = new THREE.MeshBasicMaterial();
-  material.color.setScalar(intensity);
+  if (typeof value === 'number') material.color.setScalar(value);
+  else material.color.copy(value);
   material.side = THREE.DoubleSide;
   return material;
 }
@@ -114,22 +124,50 @@ function addPanel(scene, box) {
   return mesh;
 }
 
+// Насколько цвет подложки передаётся окружению.
+//
+// ПОЛ — это и есть фон страницы: предмет стоит прямо на нём, и отсвет снизу
+// повторяет его цвет один в один. СТЕНЫ тонируются наполовину: съёмка идёт в
+// лайтбоксе, стенки которого сами по себе светлые, но общий тон помещения фон
+// всё-таки задаёт. ПОТОЛОК не трогаем вовсе — это верхний свет студии, он
+// белый всегда; если увести в цвет фона и его, на тёмной подложке предмет
+// останется без света, а страница нужна для согласования цвета печати.
+const BACKDROP_TINT = { walls: 0.5, floor: 1 };
+
+// Цвет грани окружения: нейтральная яркость, подкрашенная подложкой.
+//
+// Цвет подложки берётся в ЛИНЕЙНОМ пространстве и работает как яркость самой
+// поверхности: светлый фон отражает много, тёмный почти ничего. Тонмаппинг
+// выключен (см. config.renderer), поэтому экранный цвет фона и есть его
+// яркость в сцене — подложка светит ровно так, как выглядит.
+function faceColor(neutral, backdrop, tint) {
+  const base = new THREE.Color().setScalar(neutral);
+  if (!backdrop || tint <= 0) return base;
+  return base.lerp(backdrop.clone().multiplyScalar(neutral / SURROUND.walls), tint);
+}
+
 // Коробка вокруг сцены. Грани разной яркости — отсюда градиент «светлее сверху».
-function addSurround(scene) {
+function addSurround(scene, backdrop) {
   const { size, ceiling, walls, floor } = SURROUND;
   const half = size / 2;
 
+  // Пол принимает цвет подложки целиком, стены — наполовину.
+  const floorColor = backdrop
+    ? backdrop.clone().multiplyScalar(BACKDROP_TINT.floor)
+    : new THREE.Color().setScalar(floor);
+  const wallColor = (level) => faceColor(level, backdrop, BACKDROP_TINT.walls);
+
   const faces = [
-    { intensity: ceiling, position: [0, half, 0], rotation: [Math.PI / 2, 0, 0] },
-    { intensity: floor, position: [0, -half, 0], rotation: [-Math.PI / 2, 0, 0] },
-    { intensity: walls, position: [0, 0, -half], rotation: [0, 0, 0] },
-    { intensity: walls * 0.85, position: [0, 0, half], rotation: [0, Math.PI, 0] },
-    { intensity: walls * 1.1, position: [-half, 0, 0], rotation: [0, Math.PI / 2, 0] },
-    { intensity: walls * 0.9, position: [half, 0, 0], rotation: [0, -Math.PI / 2, 0] },
+    { color: ceiling, position: [0, half, 0], rotation: [Math.PI / 2, 0, 0] },
+    { color: floorColor, position: [0, -half, 0], rotation: [-Math.PI / 2, 0, 0] },
+    { color: wallColor(walls), position: [0, 0, -half], rotation: [0, 0, 0] },
+    { color: wallColor(walls * 0.85), position: [0, 0, half], rotation: [0, Math.PI, 0] },
+    { color: wallColor(walls * 1.1), position: [-half, 0, 0], rotation: [0, Math.PI / 2, 0] },
+    { color: wallColor(walls * 0.9), position: [half, 0, 0], rotation: [0, -Math.PI / 2, 0] },
   ];
 
   for (const face of faces) {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), panelMaterial(face.intensity));
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), panelMaterial(face.color));
     mesh.position.set(...face.position);
     mesh.rotation.set(...face.rotation);
     scene.add(mesh);
@@ -174,9 +212,14 @@ function describeKeyLight() {
 // Собирает студию, прогоняет её через PMREM и ставит источником освещения сцены.
 // Возвращает то же, что загрузка панорамы: карту и описание ключевого света —
 // поэтому всё, что ниже по течению, менять не пришлось.
-export function loadStudioEnvironment(scene, renderer, config) {
+// backdrop — цвет фона страницы (тот же, что залит в сцену). Пересобирать
+// окружение при его смене дёшево: студия собирается в памяти, а PMREM снимает
+// с неё карту за один проход.
+export function loadStudioEnvironment(scene, renderer, config, backdrop = null) {
+  const tint = backdrop ? new THREE.Color(backdrop).convertSRGBToLinear() : null;
+
   const studio = new THREE.Scene();
-  addSurround(studio);
+  addSurround(studio, tint);
   for (const box of SOFTBOXES) addPanel(studio, box);
 
   const pmrem = new THREE.PMREMGenerator(renderer);

@@ -56,6 +56,8 @@ class Turntable {
     this.visible = false;
     this.pinned = false;
     this.dragging = false;
+    // Круг убран на время выгрузки оборота (см. setHiddenForCapture).
+    this.capturing = false;
     // Плавное появление: 0 — скрыт, 1 — виден.
     this.fade = 0;
     this.theme = THEMES.light;
@@ -287,6 +289,17 @@ class Turntable {
     this.visible = true;
   }
 
+  // Убирает круг с кадра на время выгрузки оборота. Круг — элемент управления,
+  // а не часть предмета: в ролике и на фотографиях ему делать нечего.
+  //
+  // Своё состояние (показан, закреплён кнопкой) при этом не трогается — после
+  // выгрузки круг возвращается сам, тем же кадром, каким возобновляется
+  // отрисовка.
+  setHiddenForCapture(hidden) {
+    this.capturing = hidden;
+    if (hidden) this.group.visible = false;
+  }
+
   hide() {
     if (this.dragging || this.pinned) return;
     this.visible = false;
@@ -335,7 +348,7 @@ class Turntable {
       animating = true;
     }
 
-    this.group.visible = this.fade > 0.001 && !!this.metrics;
+    this.group.visible = !this.capturing && this.fade > 0.001 && !!this.metrics;
     if (!this.group.visible) return animating;
 
     const angle = (toRingAngle(rotationDegrees) * Math.PI) / 180;

@@ -2,6 +2,9 @@
 // индикатор загрузки, всплывающие сообщения, drag & drop. О Three.js не знает —
 // только переводит действия пользователя в вызовы привязанных обработчиков.
 
+import { findCup } from '../data/models.js';
+import { CupPicker } from './cupPicker.js';
+
 // Расширения файлов, считающиеся 3D-моделями при перетаскивании.
 const MODEL_EXTENSIONS = ['.glb', '.gltf'];
 
@@ -11,6 +14,15 @@ const SHORTCUTS = {
   a: 'onToggleAutoRotate',
   s: 'onScreenshot',
   f: 'onToggleFullscreen',
+};
+
+// Клавиши, которые UIManager отрабатывает сам, не беспокоя вьювер: меню
+// выгрузки — это разметка страницы, сцена о нём ничего не знает.
+//
+// Клавиша открывает и закрывает меню, а не запускает запись: шесть секунд
+// записи по случайно нажатой букве никому не нужны.
+const LOCAL_SHORTCUTS = {
+  v: 'toggleExportMenu',
 };
 
 // Поля ввода, внутри которых горячие клавиши обязаны молчать. Без этой проверки
@@ -43,10 +55,21 @@ export class UIManager {
       dropOverlay: byId('drop-overlay'),
       textureInput: byId('texture-input'),
       bgSwatches: byId('bg-swatches'),
+      // Выбор стакана. Необязателен, как и всё ниже: просмотрщик должен
+      // подниматься и на странице, где этих элементов нет.
+      cupBtn: document.getElementById('cup-btn'),
+      cupDialog: document.getElementById('cup-dialog'),
+      cupBackdrop: document.getElementById('cup-backdrop'),
       // Слайдера может не быть: на странице согласования поворотом управляет
       // круг под моделью (js/core/turntable.js).
       rotateWrap: document.getElementById('rotate-wrap'),
       rotateSlider: document.getElementById('rotate-slider'),
+      // Выгрузка оборота. Тоже необязательна: просмотрщик должен подниматься и
+      // на странице, где этой кнопки нет, — поэтому не byId, который бросает.
+      exportBtn: document.getElementById('export-btn'),
+      exportPopover: document.getElementById('export-popover'),
+      exportPhotos: document.getElementById('export-photos'),
+      exportStart: document.getElementById('export-start'),
       buttons: {
         background: byId('bg-btn'),
         autorotate: byId('autorotate-btn'),
@@ -74,20 +97,68 @@ export class UIManager {
     });
   }
 
+  // Кнопка «Выбрать стакан» и окно с карточками (js/ui/cupPicker.js).
+  //
+  // Выключается флагом ui.modelPicker в js/config.js: на клиентской странице
+  // стакан задан заказом, и подменять его там незачем. Тогда кнопки нет, а
+  // окно не строится вовсе — рисовать карточки некому и не для кого.
+  #buildCupPicker() {
+    const { cupBtn, cupDialog, cupBackdrop } = this.dom;
+    if (!cupBtn) return;
+
+    if (this.config.ui.modelPicker === false || !cupDialog) {
+      cupBtn.hidden = true;
+      return;
+    }
+
+    this.cupPicker = new CupPicker(cupDialog, {
+      backdrop: cupBackdrop,
+      onSelect: (id) => this.#call('onSelectCup', id),
+      onToggle: (open) => {
+        cupBtn.classList.toggle('is-active', open);
+        cupBtn.setAttribute('aria-expanded', String(open));
+      },
+    });
+
+    cupBtn.addEventListener('click', () => this.cupPicker.toggle(cupBtn));
+  }
+
+  // Отмечает стакан, который на самом деле стоит в сцене: подсветкой карточки
+  // и подписью кнопки. Подпись важна: кнопка иконочная, и без неё текущую
+  // модель было бы видно только внутри окна.
+  //
+  // id === null — модель не из каталога: её задали прямым путём в заказе или
+  // перетащили файлом.
+  setActiveCup(id) {
+    this.cupPicker?.setActive(id);
+
+    const button = this.dom.cupBtn;
+    if (!button) return;
+    const cup = id ? findCup(id) : null;
+    button.dataset.tip = cup ? `Стакан: ${cup.label}` : 'Выбрать стакан';
+  }
+
   // Привязывает события DOM к обработчикам. Обработчики необязательны.
   bind(handlers) {
     this.handlers = handlers;
     const { buttons, textureInput, rotateWrap, rotateSlider } = this.dom;
 
     this.#buildSwatches();
+    this.#buildCupPicker();
 
     buttons.background.addEventListener('click', () => this.#call('onChangeBackground'));
     buttons.autorotate.addEventListener('click', () => this.#call('onToggleAutoRotate'));
     buttons.screenshot.addEventListener('click', () => this.#call('onScreenshot'));
     buttons.fullscreen.addEventListener('click', () => this.#call('onToggleFullscreen'));
 
+    // Кнопка «Заменить дизайн». Прячется флагом ui.uploadButton в js/config.js
+    // — по тому же соображению, по которому выключается приём перетаскиваемых
+    // файлов: на клиентской странице подменять согласуемый макет нельзя.
+    buttons.texture.hidden = this.config.ui.uploadButton === false;
     buttons.texture.addEventListener('click', () => textureInput.click());
     textureInput.addEventListener('change', (e) => this.#onFilePicked(e));
+
+    this.#bindExportMenu();
 
     // Слайдер поворота: пока курсор над панелькой — автоповорот на паузе, чтобы
     // не спорить с ручным вращением.
@@ -104,6 +175,71 @@ export class UIManager {
     if (this.config.ui.dragAndDrop !== false) this.#bindDragAndDrop();
   }
 
+  // Меню выгрузки оборота: кнопка раскрывает его, галочка добавляет к ролику
+  // фотографии, «Записать» запускает выгрузку.
+  //
+  // Меню раскрывается вверх прямо из панели, без вычисления координат: оно
+  // низкое и помещается в сцену целиком. Подсказке «как управлять» позицию
+  // приходится считать в js/ui/approval.js только потому, что она высокая и
+  // упирается в край сцены с overflow: hidden.
+  #bindExportMenu() {
+    const { exportBtn, exportPopover, exportPhotos, exportStart } = this.dom;
+    if (!exportBtn || !exportPopover) return;
+
+    // Всплытие намеренно не гасим: клик проходит дальше по документу, и
+    // подсказка «как управлять» (у неё свой слушатель) успевает закрыться.
+    // Своё же меню от этого клика не пострадает — слушатель ниже проверяет,
+    // не по кнопке ли попали.
+    exportBtn.addEventListener('click', () => this.toggleExportMenu());
+
+    exportStart?.addEventListener('click', () => {
+      this.toggleExportMenu(false);
+      this.#call('onExportTurn', { photos: exportPhotos?.checked === true });
+    });
+
+    // Клик мимо меню и Escape закрывают его — как у подсказки «как управлять».
+    //
+    // Слушаем на погружении (третий аргумент true), а не на всплытии: кнопка
+    // подсказки гасит всплытие у себя (js/ui/approval.js), и на всплытии этот
+    // обработчик до клика по ней просто не доходил — подсказка раскрывалась
+    // поверх меню, и на экране висели обе карточки разом.
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (exportPopover.hidden) return;
+        if (exportPopover.contains(event.target) || exportBtn.contains(event.target)) return;
+        this.toggleExportMenu(false);
+      },
+      true,
+    );
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !exportPopover.hidden) this.toggleExportMenu(false);
+    });
+  }
+
+  // open: true — открыть, false — закрыть, не задан — переключить.
+  toggleExportMenu(open) {
+    const { exportBtn, exportPopover } = this.dom;
+    if (!exportBtn || !exportPopover) return;
+    // Пока идёт запись, открывать меню незачем: кнопка в нём всё равно
+    // заблокирована.
+    if (exportBtn.disabled) return;
+
+    const next = open ?? exportPopover.hidden;
+    exportPopover.hidden = !next;
+    exportBtn.classList.toggle('is-active', next);
+    exportBtn.setAttribute('aria-expanded', String(next));
+  }
+
+  // Запись идёт — кнопки выгрузки не должны принимать новые нажатия: вторая
+  // запись поверх первой сбила бы угол модели у обеих.
+  setExportBusy(busy) {
+    const { exportBtn, exportStart } = this.dom;
+    if (busy) this.toggleExportMenu(false);
+    if (exportBtn) exportBtn.disabled = busy;
+    if (exportStart) exportStart.disabled = busy;
+  }
+
   #call(action, ...args) {
     this.handlers[action]?.(...args);
   }
@@ -116,7 +252,15 @@ export class UIManager {
     // приходит отдельным событием — оно не про управление сценой.
     if (event.isComposing || event.keyCode === 229) return;
 
-    const action = SHORTCUTS[event.key.toLowerCase()];
+    const key = event.key.toLowerCase();
+
+    const local = LOCAL_SHORTCUTS[key];
+    if (local) {
+      this[local]();
+      return;
+    }
+
+    const action = SHORTCUTS[key];
     if (action) this.#call(action);
   }
 

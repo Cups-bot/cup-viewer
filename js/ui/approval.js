@@ -3,6 +3,9 @@
 // Логики рендера не касается — только страница вокруг вьювера.
 
 import { UnwrapView } from './unwrap.js';
+import { blankSheetUrl } from '../utils/blankSheet.js';
+import { DEFAULT_SCENE_ID, PHOTO_SCENES } from '../data/scenes.js';
+import { CONFIG } from '../config.js';
 import { getViewer, whenViewer, onOrder, setUnwrap } from '../appState.js';
 
 // Тосты берём у вьювера, но не зависим от него: сцена может ещё грузиться или
@@ -32,24 +35,28 @@ function initTabs() {
   const unwrapEl = document.getElementById('unwrap');
   const controls = document.querySelector('.stage-controls');
   const swatches = document.querySelector('.stage-swatches');
+  const scenes = document.getElementById('scene-picker');
+
+  const stage = document.querySelector('.stage');
 
   const show = (mode) => {
+    // Фото-сцену панели не перекрывают: холст сжимается до области между ними
+    // (см. .stage.is-photo в approve.css), и снимок вписывается уже туда.
+    stage?.classList.toggle('is-photo', mode === 'scene');
     if (unwrapEl) unwrapEl.hidden = mode !== 'unwrap';
     // В развёртке вращать и менять фон нечего.
     if (controls) controls.hidden = mode === 'unwrap';
-    if (swatches) swatches.hidden = mode === 'unwrap';
+    // Кружочки фона и выбор сцены делят одно место и меняются местами: в
+    // фото-сцене фон — это снятая комната, плоский цвет там выбирать нечего.
+    if (swatches) swatches.hidden = mode !== '3d';
+    if (scenes) scenes.hidden = mode !== 'scene';
     // Автоповорот в фоне только жрёт кадры, пока смотрят картинку.
-    getViewer()?.setManualRotate(mode !== '3d');
+    getViewer()?.setManualRotate(mode === 'unwrap');
   };
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       const mode = tab.dataset.tab;
-      // Нереализованный режим не должен «съедать» текущую вкладку.
-      if (mode === 'scene') {
-        toast('Этот режим появится позже', 'error');
-        return;
-      }
 
       tabs.forEach((t) => {
         const active = t === tab;
@@ -57,8 +64,81 @@ function initTabs() {
         t.setAttribute('aria-selected', String(active));
       });
       show(mode);
+
+      // Фото-сцена грузится с первым открытием вкладки и дальше остаётся в
+      // памяти: возвращаться к ней можно бесплатно.
+      const viewer = getViewer();
+      if (!viewer) return;
+      if (mode === 'scene') openScene(viewer, currentSceneId);
+      else viewer.exitPhotoScene();
     });
   });
+}
+
+// Какая сцена выбрана. Между открытиями вкладки помним: клиент вернулся к 3D
+// и обратно — показываем ту же комнату, а не начинаем сначала.
+let currentSceneId = DEFAULT_SCENE_ID;
+
+async function openScene(viewer, id) {
+  currentSceneId = id;
+  markScene(id);
+  await viewer.enterPhotoScene(id);
+  // Пока сцена грузилась, клиент мог уйти на другую вкладку: выход тогда
+  // уже отработал вхолостую, и сцена встала бы поверх 3D.
+  if (!document.querySelector('.stage')?.classList.contains('is-photo')) {
+    viewer.exitPhotoScene();
+  }
+}
+
+function markScene(id) {
+  for (const button of document.querySelectorAll('.scene-chip')) {
+    const active = button.dataset.scene === id;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+}
+
+// Кнопки выбора сцены. Строятся один раз из каталога js/data/scenes.js.
+function initPhotoScenes() {
+  const box = document.getElementById('scene-picker');
+  if (!box) return;
+
+  // Режим выключен настройкой — вкладки нет вовсе: показывать её и отвечать
+  // «недоступно» хуже, чем не показывать.
+  if (CONFIG.ui.photoScene === false) {
+    document.querySelector('.stage-tab[data-tab="scene"]')?.remove();
+    box.remove();
+    return;
+  }
+
+  // Выбирать не из чего — ряда кнопок нет. Сцена при этом работает: она
+  // откроется по DEFAULT_SCENE_ID, как только нажмут вкладку.
+  if (PHOTO_SCENES.length < 2) {
+    box.remove();
+    return;
+  }
+
+  box.replaceChildren();
+  for (const scene of PHOTO_SCENES) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'scene-chip';
+    button.dataset.scene = scene.id;
+    button.setAttribute('aria-pressed', String(scene.id === currentSceneId));
+    button.title = scene.note ?? '';
+
+    const label = document.createElement('span');
+    label.className = 'scene-chip__label';
+    label.textContent = scene.label;
+    button.appendChild(label);
+
+    button.addEventListener('click', () => {
+      const viewer = getViewer();
+      if (viewer) openScene(viewer, scene.id);
+    });
+    box.appendChild(button);
+  }
+  markScene(currentSceneId);
 }
 
 // Просмотр развёртки. Картинку берём из данных заказа — они могут прийти позже
@@ -73,7 +153,9 @@ function initUnwrap() {
   // Крупный файл развёртки, если он пришёл: на модель ложится ужатая текстура,
   // а здесь смотрят мелкий текст. onOrder сам вызовет обработчик, если заказ
   // уже применён, — порядок загрузки модулей на это влиять не должен.
-  onOrder((order) => view.setSource(order?.unwrap || order?.texture));
+  // Макета нет — показываем тот же чистый лист, что лежит на модели: пустая
+  // вкладка выглядела бы как не загрузившаяся страница.
+  onOrder((order) => view.setSource(order?.unwrap || order?.texture || blankSheetUrl()));
 }
 
 // Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
@@ -283,6 +365,7 @@ function initShare() {
 
 function init() {
   initTabs();
+  initPhotoScenes();
   initUnwrap();
   initStage();
   initHelp();

@@ -17,6 +17,7 @@ import './ui/approval.js';
 //   cupViewer.order                        // что применилось
 //   cupViewer.applyOrder({ paper: 'coated' })
 //   cupViewer.applyOrder({ sku: 'DW90-430' })
+//   cupViewer.selectCup('PP-650')          // другой стакан, как из списка
 //   cupViewer.setRoughness(0.35)           // 0 — зеркало, 1 — матовая
 //   cupViewer.setRelief(0.3)               // сила фактуры картона
 //   cupViewer.setReliefScale(5)            // крупность зерна: больше — мельче
@@ -57,7 +58,7 @@ async function applyOrder(viewer, order) {
 
   renderOrderPanel(order);
 
-  await viewer.loadModel(order.model);
+  await viewer.loadModel(order.model, order.cup);
   // Шероховатость ставится после модели: загрузка сбрасывает материалы.
   viewer.setSurfaceFinish({
     roughness: order.roughness,
@@ -80,6 +81,9 @@ function publishDebugApi(viewer) {
     },
     applyOrder: (patch) => applyOrder(viewer, resolveOrder({ ...getOrder()?.input, ...patch })),
     loadModel: (url) => viewer.loadModel(url),
+    // Сменить стакан так же, как это делает список в сцене: с чистым листом
+    // вместо прежнего макета. Идентификаторы — в js/data/models.js.
+    selectCup: (id) => viewer.selectCup(id),
     replaceTexture: (url) => viewer.applyTexture(url),
     setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
     setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),

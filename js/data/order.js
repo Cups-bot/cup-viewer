@@ -37,7 +37,8 @@
 // отбрасываются, строки обрезаются, пути к файлам проверяются по белому списку
 // префиксов из CONFIG.security.allowedAssetPrefixes.
 
-import { DEFAULT_PAPER, resolveModel, resolvePaper } from './catalog.js';
+import { DEFAULT_PAPER, resolvePaper } from './catalog.js';
+import { findCupByFile, resolveCup } from './models.js';
 import { sanitizeOrder } from './sanitize.js';
 
 // ЕДИНСТВЕННОЕ место, где лежит текст правой панели.
@@ -49,12 +50,19 @@ import { sanitizeOrder } from './sanitize.js';
 // Текст, который НЕ зависит от заказа (подписи кнопок, вкладки, подсказки,
 // заголовок вкладки браузера), правится прямо в index.html.
 export const DEFAULT_ORDER = Object.freeze({
-  // Номенклатура: по ней подбирается 3D-модель (см. js/data/catalog.js).
+  // Номенклатура: по ней подбирается 3D-модель (см. js/data/models.js).
   sku: 'DW80-280',
   // Прямой путь к модели. Задан — важнее номенклатуры.
   model: null,
   // Дизайн (он же развёртка). Показывается и на модели, и во вкладке «Развёртка».
-  texture: 'assets/textures/design.png',
+  //
+  // ПУСТО — И ЭТО ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ. Пока заказ не сказал, что печатать,
+  // стакан показывается чистым: на него ложится пустой лист
+  // (js/utils/blankSheet.js). Своя картинка в файле модели для этого не
+  // годится — у бумажных стаканов там лежит техническая развёртка с метками
+  // вырубки и чужими логотипами, и клиент принимает её за свой макет.
+  // Пример настоящего макета остался в assets/textures/design.png.
+  texture: null,
   // Отдельный файл развёртки — крупнее того, что ложится на модель. Для 3D
   // текстуру ужимают (видеопамять), а во вкладке «Развёртка» мелкий текст на
   // ужатом файле не проверить. Не задан — берётся texture.
@@ -163,9 +171,15 @@ async function fromEndpoint(config) {
 // следующий пересчёт.
 export function resolveOrder(raw) {
   const paper = resolvePaper(raw.paper);
-  const { model, matchedBy } = raw.model
-    ? { model: raw.model, matchedBy: 'explicit' }
-    : resolveModel(raw.sku);
+
+  // Модель. Явный путь важнее номенклатуры, но каталог опрашивается в обоих
+  // случаях: из него приходит не только файл, но и правила печати — на какой
+  // материал и на какой UV-набор ложится макет (js/data/models.js). У чужого
+  // пути, которого в каталоге нет, правил не будет, и макет ляжет на материалы
+  // с уже готовой картинкой — так же, как было раньше.
+  const explicit = raw.model ? { cup: findCupByFile(raw.model), matchedBy: 'explicit' } : null;
+  const { cup, matchedBy } = explicit ?? resolveCup(raw.sku);
+  const model = raw.model ?? cup?.file ?? null;
 
   // Явное число важнее типа картона; пустое поле и мусор игнорируем.
   // Проверять только Number() нельзя: Number(null) === 0 — вполне конечное
@@ -185,6 +199,8 @@ export function resolveOrder(raw) {
   return {
     ...raw,
     model,
+    // Позиция каталога целиком: вьюверу из неё нужны отделка и правила печати.
+    cup,
     modelMatchedBy: matchedBy,
     paper,
     roughness,
