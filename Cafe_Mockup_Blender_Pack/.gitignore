@@ -16,3 +16,6 @@ scene/
 renders/*
 !renders/photo_cup_final.png
 *.blend1
+
+# Кэш Python от запусков скриптов пакета.
+__pycache__/

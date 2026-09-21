@@ -31,6 +31,9 @@ body.approve {
   max-width: 1360px;
   margin: 0 auto;
   padding: 22px;
+  /* Свёрнутая панель уезжает за правый край: clip отрезает её, не создавая
+     прокрутки (в отличие от overflow: hidden, он не делает блок скроллером). */
+  overflow-x: clip;
 }
 
 /* Полноэкранный режим сцены. Настоящий Fullscreen API есть не везде (на iPhone
@@ -62,10 +65,135 @@ body.has-fullscreen-stage {
    сетки — холст менял бы размер, и стакан на вид «увеличивался». Правое меню
    ничего в сцене менять не должно. */
 .approve-grid {
+  /* Полная ширина панели. Её читает сама панель: пока колонка едет к нулю,
+     панель не должна сплющиваться (см. .approve-panel ниже).
+
+     ВНИМАНИЕ: в grid-template-columns ширина подставлена ЧИСЛОМ, а не через
+     var(). Chrome не пересчитывает свойство с объявленным переходом, когда
+     меняется только переменная внутри var(): колонка так и оставалась 420 px.
+     Поэтому у каждого размера экрана ширина написана дважды — в колонках и в
+     переменной, и менять их нужно парой. */
+  --panel-open: 420px;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 14px;
   align-items: start;
+  /* Вход — 400 мс с мягкой посадкой, уход — 200 мс: закрытие не требует
+     внимания и должно быть быстрее (кривые и длительности из Material 3). */
+  transition: grid-template-columns 400ms cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+.approve-grid.is-panel-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0px;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+
+/* Панель уезжает целиком, а не сплющивается: пока колонка едет к нулю, ширина
+   держится на --panel-open, и текст внутри не переливается. Всё, что вылезло
+   за край страницы, отрезано (.page { overflow-x: clip }). */
+.approve-grid.is-panel-collapsed .approve-panel {
+  transform: translateX(24px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.approve-panel {
+  min-width: var(--panel-open);
+  transition:
+    transform 400ms cubic-bezier(0.05, 0.7, 0.1, 1),
+    opacity 200ms linear;
+}
+
+/* Ручка, которой панель убирается и возвращается. Живёт у правого края сцены,
+   по середине высоты: сверху вкладки и кружочки фона, снизу панель управления,
+   а середина свободна. Она внутри сцены намеренно — так она сама едет вместе с
+   её краем, когда колонка растёт, и остаётся на виду при свёрнутой панели.
+   (Привязка к ширине панели через var() не работает: см. .approve-grid.) */
+.panel-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 74px;
+  padding: 0;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Шеврон: развёрнутая панель — стрелка вправо («убрать»), свёрнутая — влево
+   («вернуть»). Рисуется уголком из границ, без картинки. */
+.panel-toggle__icon {
+  width: 7px;
+  height: 7px;
+  border-top: 1.6px solid currentColor;
+  border-right: 1.6px solid currentColor;
+  transform: translateX(-1px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.approve-grid.is-panel-collapsed .panel-toggle__icon {
+  transform: translateX(1px) rotate(-135deg);
+}
+
+/* Подпись выезжает слева при наведении и по фокусу: на самой ручке места нет,
+   а понимать, что она делает, нужно до нажатия. */
+.panel-toggle__text {
+  position: absolute;
+  right: calc(100% + 8px);
+  padding: 5px 10px;
+  font-size: 12.5px;
+  line-height: 1;
+  white-space: nowrap;
+  color: #fff;
+  background: #1c1c1e;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateX(6px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+@media (hover: hover) {
+  .panel-toggle:hover {
+    color: var(--ink);
+    box-shadow: 0 4px 14px rgba(16, 24, 40, 0.14);
+  }
+
+  .panel-toggle:hover .panel-toggle__text {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.panel-toggle:focus-visible {
+  outline: none;
+  color: var(--ink);
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
+.panel-toggle:focus-visible .panel-toggle__text {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approve-grid,
+  .approve-panel,
+  .panel-toggle {
+    transition: none;
+  }
 }
 
 /* Левая колонка: сцена вьювера. Высота своя и постоянная — от содержимого
@@ -409,6 +537,103 @@ body.has-fullscreen-stage {
   }
 }
 
+/* ── Картон: мелованный и немелованный ─────────────────────────────────── */
+/* Стоит под кружочками фона, в том же правом верхнем углу: это такой же орган
+   просмотра — «посмотреть иначе», а не «изменить заказ». Кнопки наполняет
+   UIManager из справочника js/data/catalog.js.
+
+   Образец слева от подписи показывает разницу до нажатия: у мелованного
+   собранный блик по гладкой поверхности, у немелованного — матовое волокно. */
+.stage-paper {
+  position: absolute;
+  top: 62px;
+  right: 22px;
+  z-index: 6;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.stage-paper[hidden] {
+  display: none;
+}
+
+/* На развёртке нет ни света, ни материала — там макет лежит плоско. */
+.stage.is-unwrap .stage-paper {
+  display: none;
+}
+
+/* В фото-сцене кружочков фона нет — их место наверху свободно. Заодно чипы
+   уходят выше кадра: снимок начинается сразу под вкладками. */
+.stage.is-photo .stage-paper {
+  top: 22px;
+}
+
+.paper-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 7px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Короткая подпись включается только на узком экране — как у вкладок. */
+.paper-chip__short {
+  display: none;
+}
+
+.paper-chip__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* Мелованный: блик собран в узкую полосу, как на лощёной поверхности. */
+.paper-chip__dot[data-paper='coated'] {
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.95) 12%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(200deg, #ffffff, #d8dee6);
+}
+
+/* Немелованный: ровный матовый тон с крапом волокна. */
+.paper-chip__dot[data-paper='uncoated'] {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.07) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 68% 58%, rgba(0, 0, 0, 0.06) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 45% 75%, rgba(0, 0, 0, 0.05) 0 1px, transparent 1.5px),
+    #efe9de;
+}
+
+@media (hover: hover) {
+  .paper-chip:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.85);
+  }
+}
+
+.paper-chip.is-active {
+  color: #fff;
+  background: #1c1c1e;
+}
+
+.paper-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand);
+}
+
 /* Поворотный круг рисуется внутри 3D-сцены (js/core/turntable.js) — так его
    дальняя дуга уходит за стакан по буферу глубины. Стилей здесь нет. */
 
@@ -687,8 +912,8 @@ body.has-fullscreen-stage {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: min(660px, calc(100vw - 32px));
-  max-height: min(660px, calc(100vh - 48px));
+  width: min(780px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 48px));
   padding: 20px 22px 16px;
   background: var(--card);
   border-radius: 18px;
@@ -753,6 +978,54 @@ body.has-fullscreen-stage {
   outline: none;
 }
 
+/* Разделы каталога кнопками. Стоят между поиском и списком: сначала сужаем
+   выбор типом, потом ищем внутри него. Число рядом с названием отвечает на
+   вопрос «а сколько их там» до нажатия. */
+.cup-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cup-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  background: #f4f5f7;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cup-filter__count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
+@media (hover: hover) {
+  .cup-filter:hover {
+    color: var(--ink);
+    background: #eceef2;
+  }
+}
+
+.cup-filter.is-active {
+  color: #fff;
+  background: #1c1c1e;
+}
+
+.cup-filter:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 /* Прокручивается только список карточек — заголовок с поиском остаются на
    месте, иначе на телефоне поле уезжает вверх и искать нечем. */
 .cup-list {
@@ -781,11 +1054,12 @@ body.has-fullscreen-stage {
 
 .cup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
   gap: 10px;
 }
 
 .cup-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -820,6 +1094,21 @@ body.has-fullscreen-stage {
   background: rgba(232, 41, 12, 0.045);
 }
 
+/* Галочка у выбранного. Рамка и подложка меняются и при наведении, и при
+   выборе, а метка отвечает на вопрос «какой стоит сейчас» однозначно. */
+.cup-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 17px;
+  height: 17px;
+  background: var(--brand)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
+  border-radius: 50%;
+}
+
 /* Силуэт. Высота фиксирована, а поле рисунка у всех карточек одно, поэтому
    стаканы сравниваются по росту честно: 650 мл заметно выше бумажного. */
 .cup-card__art {
@@ -831,6 +1120,13 @@ body.has-fullscreen-stage {
   fill: rgba(16, 24, 40, 0.09);
 }
 
+/* Общий пол под всеми силуэтами: без него низкий стакан читается как мелко
+   нарисованный, а не как низкий. */
+.cup-card__floor {
+  stroke: rgba(16, 24, 40, 0.1);
+  stroke-width: 1;
+}
+
 .cup-card__body {
   fill: #dee2e8;
 }
@@ -840,6 +1136,32 @@ body.has-fullscreen-stage {
   fill: #c3cad3;
 }
 
+/* Обёртка двухслойного: чуть темнее стенки, и её нижняя кромка отбита
+   линией — по ней тип и узнаётся на карточке. */
+.cup-card__sleeve {
+  fill: #cdd4dd;
+}
+
+.cup-card__seam {
+  stroke: rgba(16, 24, 40, 0.18);
+  stroke-width: 0.8;
+}
+
+/* Тиснение: косая решётка ромбов поверх стенки, обрезанная её контуром. */
+.cup-card__emboss line {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 0.9;
+}
+
+/* Пластик светлее и холоднее картона — как молочный полипропилен. */
+.cup-card__art--plastic .cup-card__body {
+  fill: #e6ebf2;
+}
+
+.cup-card__art--plastic .cup-card__rim {
+  fill: #cfd8e3;
+}
+
 .cup-card__name {
   margin-top: 6px;
   font-size: 13.5px;
@@ -847,9 +1169,15 @@ body.has-fullscreen-stage {
   color: var(--ink);
 }
 
-.cup-card__note {
+/* Объём и рост: по ним выбирают на самом деле — «на 300 мл, повыше». */
+.cup-card__meta {
   font-size: 11.5px;
   color: var(--muted);
+}
+
+.cup-card__volume {
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .cup-empty {
@@ -1349,6 +1677,7 @@ body.has-fullscreen-stage {
   }
 
   .approve-grid {
+    --panel-open: 460px;
     grid-template-columns: minmax(0, 1fr) 460px;
     gap: 18px;
   }
@@ -1365,6 +1694,7 @@ body.has-fullscreen-stage {
   }
 
   .approve-grid {
+    --panel-open: 520px;
     grid-template-columns: minmax(0, 1fr) 520px;
     gap: 22px;
   }
@@ -1384,6 +1714,7 @@ body.has-fullscreen-stage {
   }
 
   .approve-grid {
+    --panel-open: 560px;
     grid-template-columns: minmax(0, 1fr) 560px;
   }
 }
@@ -1400,13 +1731,42 @@ body.has-fullscreen-stage {
   }
 
   .approve-grid {
+    --panel-open: 600px;
     grid-template-columns: minmax(0, 1fr) 600px;
+  }
+}
+
+/* Свёрнутая панель важнее ширины экрана: правило идёт после медиазапросов
+   размеров, иначе на широком мониторе колонка возвращалась бы к 460–600 px. */
+@media (min-width: 901px) {
+  .approve-grid.is-panel-collapsed {
+    grid-template-columns: minmax(0, 1fr) 0px;
   }
 }
 
 @media (max-width: 900px) {
   .approve-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Колонки идут друг под другом: панель не сбоку, сворачивать её вправо
+     некуда — и незачем, кнопки согласования должны быть на виду. */
+  .approve-grid.is-panel-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .approve-grid.is-panel-collapsed .approve-panel {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .approve-panel {
+    min-width: 0;
+  }
+
+  .panel-toggle {
+    display: none;
   }
 
   .approve-panel {
@@ -1492,6 +1852,43 @@ body.has-fullscreen-stage {
 
   .stage-swatches #bg-swatches {
     gap: 7px;
+  }
+
+  /* Картон уходит под вкладки, к левому краю: справа колонка кнопок, и ряд
+     подписей с ней не разойдётся. Подписи — короткие. */
+  .stage-paper {
+    top: 54px;
+    left: 10px;
+    right: auto;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  /* В фото-сцене кадр начинается сразу под вкладками — ряд уходит наверх, в
+     свободное место справа от них. */
+  .stage.is-photo .stage-paper {
+    top: 12px;
+    left: auto;
+    right: 10px;
+  }
+
+  .paper-chip__full {
+    display: none;
+  }
+
+  .paper-chip__short {
+    display: inline;
+  }
+
+  .paper-chip {
+    gap: 5px;
+    padding: 5px 9px 5px 5px;
+    font-size: 11px;
+  }
+
+  .paper-chip__dot {
+    width: 13px;
+    height: 13px;
   }
 
   .stage-swatches .swatch {

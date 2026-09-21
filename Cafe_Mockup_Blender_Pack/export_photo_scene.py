@@ -30,7 +30,6 @@ import argparse
 import json
 import math
 import os
-import re
 import subprocess
 import sys
 
@@ -46,13 +45,21 @@ BUILD = os.path.join(PACK, 'build_photo_composite.py')
 
 def read_catalog():
     """Модели каталога прямо из js/data/models.js — второго списка заводить
-    нельзя, разъедутся."""
-    src = open(os.path.join(PROJ, 'js', 'data', 'models.js'), encoding='utf-8').read()
-    cups = []
-    for m in re.finditer(r"id:\s*'([^']+)'.*?file:\s*'([^']+)'.*?"
-                         r"size:\s*\{\s*height:\s*([\d.]+)", src, re.S):
-        cups.append({'id': m.group(1), 'file': m.group(2), 'height': float(m.group(3))})
-    return cups
+    нельзя, разъедутся.
+
+    Читаем через Node, а не регулярным выражением: записи в каталоге собираются
+    функцией (paperCup), и поля file у них в тексте файла просто нет.
+    """
+    code = ("import('file://' + process.argv[1]).then(m => "
+            "console.log(JSON.stringify(m.CUP_MODELS.map(c => "
+            "({ id: c.id, file: c.file, height: c.size.height })))))")
+    models = os.path.join(PROJ, 'js', 'data', 'models.js').replace('\\', '/')
+    out = subprocess.run(['node', '--input-type=module', '-e', code, models],
+                         capture_output=True, text=True, encoding='utf-8')
+    if out.returncode != 0:
+        sys.stderr.write(out.stdout + out.stderr)
+        raise RuntimeError('не прочитать js/data/models.js — нужен Node')
+    return json.loads(out.stdout.strip().splitlines()[-1])
 
 
 def srgb_to_linear(v):

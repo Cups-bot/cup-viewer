@@ -43,6 +43,9 @@ function initTabs() {
     // Фото-сцену панели не перекрывают: холст сжимается до области между ними
     // (см. .stage.is-photo в approve.css), и снимок вписывается уже туда.
     stage?.classList.toggle('is-photo', mode === 'scene');
+    // На развёртке скрывается и выбор картона: там макет лежит плоско, без
+    // света и материала (см. .stage.is-unwrap в approve.css).
+    stage?.classList.toggle('is-unwrap', mode === 'unwrap');
     if (unwrapEl) unwrapEl.hidden = mode !== 'unwrap';
     // В развёртке вращать и менять фон нечего.
     if (controls) controls.hidden = mode === 'unwrap';
@@ -351,6 +354,68 @@ function initEditsFlow() {
   });
 }
 
+// Свернуть панель согласования вправо.
+//
+// ЗАЧЕМ. На широком экране панель забирает 420 px, а смотрят прежде всего на
+// сам стакан: свёрнутая панель отдаёт сцене всю ширину колонки. Состояние
+// запоминается — клиент, свернувший панель, не должен разворачивать её после
+// каждой перезагрузки.
+//
+// Кнопка остаётся на виду и в свёрнутом состоянии: панель, которую нечем
+// вернуть, — это потерянная панель. Она же меняет подпись и aria-expanded,
+// поэтому с клавиатуры и с экранного диктора состояние читается однозначно.
+//
+// На узком экране колонки идут друг под другом, сворачивать нечего: там кнопка
+// скрыта (см. approve.css), а класс с сетки снимается.
+const PANEL_STORAGE_KEY = 'cup-viewer:panel-collapsed';
+
+function initPanelToggle() {
+  const grid = document.querySelector('.approve-grid');
+  const button = document.getElementById('panel-toggle');
+  const panel = document.getElementById('approve-panel');
+  if (!grid || !button || !panel) return;
+
+  const text = button.querySelector('.panel-toggle__text');
+
+  const apply = (collapsed) => {
+    grid.classList.toggle('is-panel-collapsed', collapsed);
+    button.setAttribute('aria-expanded', String(!collapsed));
+    // Свёрнутая панель не должна ловить фокус табом и попадать в диктор.
+    panel.inert = collapsed;
+    const label = collapsed
+      ? button.dataset.labelExpand ?? 'Показать панель'
+      : button.dataset.labelCollapse ?? 'Свернуть панель';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    if (text) text.textContent = collapsed ? 'Заказ' : 'Свернуть';
+  };
+
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(PANEL_STORAGE_KEY) === '1';
+  } catch {
+    // Приватный режим и заблокированные куки: не беда, откроемся развёрнутыми.
+  }
+  apply(collapsed);
+
+  button.addEventListener('click', () => {
+    collapsed = !collapsed;
+    apply(collapsed);
+    try {
+      localStorage.setItem(PANEL_STORAGE_KEY, collapsed ? '1' : '0');
+    } catch {
+      // см. выше
+    }
+  });
+
+  // Холст следит за своим контейнером сам (ResizeObserver во Viewer), но во
+  // время анимации ширина меняется каждый кадр. Один пересчёт в конце —
+  // страховка на случай, если наблюдатель пропустит последний шаг.
+  grid.addEventListener('transitionend', (event) => {
+    if (event.propertyName === 'grid-template-columns') getViewer()?.resize();
+  });
+}
+
 // Ссылка на заказ в буфер обмена.
 function initShare() {
   document.getElementById('share-btn')?.addEventListener('click', async () => {
@@ -372,6 +437,7 @@ function init() {
   initApproveFlow();
   initEditsFlow();
   initShare();
+  initPanelToggle();
 }
 
 if (document.readyState === 'loading') {

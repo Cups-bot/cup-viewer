@@ -134,11 +134,28 @@ export function paperNormalMap(repeat = DEFAULT_REPEAT) {
 // Вешает микрорельеф на материал.
 //
 //   strength — сила рельефа: 0 гладко, 0.5 грубая крафт-бумага;
-//   repeat   — крупность зерна: больше значение — мельче волокно.
+//   repeat   — крупность зерна: больше значение — мельче волокно;
+//   ownScale — во сколько раз показывать СОБСТВЕННЫЙ рельеф модели, если он в
+//              ней есть.
 //
-// Оба значения приходят из типа картона (см. js/data/catalog.js).
-export function applyPaperSurface(material, strength, repeat = DEFAULT_REPEAT) {
+// Значения приходят из типа картона (см. js/data/catalog.js).
+//
+// СВОЙ РЕЛЬЕФ МОДЕЛИ ГЛАВНЕЕ ПРОЦЕДУРНОГО. У моделей конвейера 3D_Cups в
+// материале лежит своя карта нормалей: у стакана с тиснением (EM) это сам
+// рисунок тиснения, у остальных — волокно, снятое с картона. Подменять её
+// процедурным шумом нельзя — тиснение просто исчезнет. Поэтому карту модели
+// сохраняет загрузчик (ModelLoader), а тип картона меняет только её силу:
+// у мелованного рельеф придавлен каландром, у немелованного открыт.
+export function applyPaperSurface(material, strength, repeat = DEFAULT_REPEAT, ownScale = 1) {
   if (!('normalScale' in material)) return false;
+
+  const own = material.userData?.sourceNormalMap;
+  if (own) {
+    material.normalMap = own;
+    material.normalScale.set(ownScale, ownScale);
+    material.needsUpdate = true;
+    return true;
+  }
 
   if (!strength) {
     // Ноль — это осознанное «гладко», а не «не трогать»: карту надо снять,

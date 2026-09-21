@@ -25,7 +25,7 @@ import {
   pickFrame,
   shadowKeyFor,
 } from './core/photoScene.js';
-import { defaultPaperFinish } from './data/catalog.js';
+import { DEFAULT_PAPER, PAPER_TYPES, defaultPaperFinish, paperFinish } from './data/catalog.js';
 import { findCup } from './data/models.js';
 import { DEFAULT_SCENE_ID } from './data/scenes.js';
 import { blankSheetUrl } from './utils/blankSheet.js';
@@ -175,6 +175,7 @@ export class Viewer {
       onImageFile: (file) => this.replaceTextureFromFile(file),
       onModelFile: (file) => this.loadModelFromFile(file),
       onSelectCup: (id) => this.selectCup(id),
+      onSelectPaper: (key) => this.selectPaper(key),
     });
 
     // Через selectBackground, а не setActiveBackground: заодно задаёт тему
@@ -446,6 +447,9 @@ export class Viewer {
         this.#measureTurntable();
       }
       this.ui.setActiveCup(cup?.id ?? null);
+      // Переключатель картона касается только бумажных: у пластика своя
+      // отделка из справочника, и тип бумаги ей не указ.
+      this.ui.setPaperAvailable(this.cupTakesPaper());
       this.invalidateModel();
     } catch (error) {
       console.error(error);
@@ -793,15 +797,10 @@ export class Viewer {
     }
     if (shadow) this.#setPhotoShadow(await shadow);
 
-    // Отделка из заказа. Пластик её не примет — каталог велит ему держать
-    // собственный материал (см. ModelLoader.applySurfaceFinish).
-    if (this.order?.roughness != null) {
-      this.setSurfaceFinish({
-        roughness: this.order.roughness,
-        relief: this.order.relief,
-        reliefScale: this.order.reliefScale,
-      });
-    }
+    // Загрузка модели сбрасывает материалы — возвращаем выбранный картон.
+    // Пластик его не примет: каталог велит ему держать собственный материал
+    // (см. ModelLoader.applySurfaceFinish).
+    this.#applyPaper();
 
     const sheet = blankSheetUrl();
     await this.applyTexture(sheet);
@@ -859,6 +858,35 @@ export class Viewer {
   // страница Битрикса — чужая территория, глобальное имя там могут занять.
   setOrder(order) {
     this.order = order;
+    // Страница открывается на том картоне, который выбран в заказе.
+    this.paperKey = order?.paper?.key ?? this.paperKey ?? DEFAULT_PAPER;
+    this.ui.setActivePaper(this.paperKey);
+  }
+
+  // ПОКАЗАТЬ на другом картоне. Заказ при этом не меняется: тип бумаги в нём
+  // уже выбран, а здесь клиент смотрит, как тот же макет ложится на глянцевый
+  // и на матовый — на мелованном краска собраннее и ярче, на немелованном
+  // садится в волокно (см. js/data/catalog.js).
+  selectPaper(key) {
+    if (!PAPER_TYPES[key]) return;
+    this.paperKey = key;
+    this.ui.setActivePaper(key);
+    this.#applyPaper();
+  }
+
+  // Кладёт выбранный картон на материалы модели и решает, показывать ли сам
+  // переключатель: у пластикового стакана картона нет.
+  #applyPaper() {
+    const paper = this.cupTakesPaper();
+    this.ui.setPaperAvailable(paper);
+    if (!paper) return 0;
+    return this.setSurfaceFinish(paperFinish(this.paperKey ?? DEFAULT_PAPER));
+  }
+
+  // Принимает ли текущая модель картонную отделку.
+  cupTakesPaper() {
+    const kind = this.modelLoader.cup?.finish ?? 'paper';
+    return kind === 'paper';
   }
 
   // Подключает вкладку «Развёртка», чтобы перетащенный файл менял и её.

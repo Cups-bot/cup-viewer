@@ -3,6 +3,7 @@
 // только переводит действия пользователя в вызовы привязанных обработчиков.
 
 import { findCup } from '../data/models.js';
+import { PAPER_TYPES } from '../data/catalog.js';
 import { CupPicker } from './cupPicker.js';
 
 // Расширения файлов, считающиеся 3D-моделями при перетаскивании.
@@ -55,6 +56,9 @@ export class UIManager {
       dropOverlay: byId('drop-overlay'),
       textureInput: byId('texture-input'),
       bgSwatches: byId('bg-swatches'),
+      // Переключатель картона. Необязателен: просмотрщик должен подниматься и
+      // на странице, где его нет.
+      paperPicker: document.getElementById('paper-picker'),
       // Выбор стакана. Необязателен, как и всё ниже: просмотрщик должен
       // подниматься и на странице, где этих элементов нет.
       cupBtn: document.getElementById('cup-btn'),
@@ -95,6 +99,66 @@ export class UIManager {
       this.dom.bgSwatches.appendChild(swatch);
       return swatch;
     });
+  }
+
+  // Переключатель типа картона: мелованный и немелованный из справочника
+  // (js/data/catalog.js).
+  //
+  // ЭТО ОРГАН ПРОСМОТРА, А НЕ ПРАВКА ЗАКАЗА. Он показывает, как один и тот же
+  // макет выглядит на глянцевом и на матовом картоне: на мелованном краски
+  // собраннее и ярче, на немелованном сидят в волокне. Заказ при этом не
+  // меняется — в нём тип бумаги уже выбран, и страница открывается на нём.
+  #buildPaperPicker() {
+    const box = this.dom.paperPicker;
+    if (!box) return;
+
+    box.replaceChildren();
+    this.paperChips = new Map();
+
+    for (const [key, paper] of Object.entries(PAPER_TYPES)) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'paper-chip';
+      chip.dataset.paper = key;
+      chip.setAttribute('aria-pressed', 'false');
+      // Подпись объясняет, чем типы отличаются на вид: сам по себе «мелованный»
+      // мало что говорит тому, кто согласовывает макет впервые.
+      chip.title = paper.note ? `${paper.label}: ${paper.note.toLowerCase()}` : paper.label;
+
+      const dot = document.createElement('span');
+      dot.className = 'paper-chip__dot';
+      dot.dataset.paper = key;
+      dot.setAttribute('aria-hidden', 'true');
+
+      // Две подписи, как у вкладок режима: узкий экран показывает короткую
+      // (см. approve.css).
+      const label = document.createElement('span');
+      label.className = 'paper-chip__full';
+      label.textContent = paper.label;
+
+      const short = document.createElement('span');
+      short.className = 'paper-chip__short';
+      short.textContent = paper.short ?? paper.label;
+
+      chip.append(dot, label, short);
+      chip.addEventListener('click', () => this.#call('onSelectPaper', key));
+      box.appendChild(chip);
+      this.paperChips.set(key, chip);
+    }
+  }
+
+  // Отмечает выбранный картон.
+  setActivePaper(key) {
+    for (const [chipKey, chip] of this.paperChips ?? []) {
+      const active = chipKey === key;
+      chip.classList.toggle('is-active', active);
+      chip.setAttribute('aria-pressed', String(active));
+    }
+  }
+
+  // Показывать ли переключатель вообще: у пластикового стакана картона нет.
+  setPaperAvailable(available) {
+    if (this.dom.paperPicker) this.dom.paperPicker.hidden = !available;
   }
 
   // Кнопка «Выбрать стакан» и окно с карточками (js/ui/cupPicker.js).
@@ -144,6 +208,7 @@ export class UIManager {
     const { buttons, textureInput, rotateWrap, rotateSlider } = this.dom;
 
     this.#buildSwatches();
+    this.#buildPaperPicker();
     this.#buildCupPicker();
 
     buttons.background.addEventListener('click', () => this.#call('onChangeBackground'));

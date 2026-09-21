@@ -8,7 +8,7 @@
          не храним. -->
     <title>Согласование макета</title>
     <link rel="stylesheet" href="css/style.css?v=6748e202" />
-    <link rel="stylesheet" href="css/approve.css?v=af2e9561" />
+    <link rel="stylesheet" href="css/approve.css?v=5e0a9197" />
   </head>
   <body class="approve">
     <main class="page">
@@ -53,6 +53,31 @@
               <img class="btn__icon" src="assets/icons/background.svg" alt="" aria-hidden="true" />
             </button>
           </div>
+
+          <!-- Картон: как макет выглядит на мелованном и на немелованном.
+               Кнопки строит UIManager из справочника js/data/catalog.js —
+               здесь только место для них. У пластиковых стаканов блок
+               скрывается: тип бумаги к полипропилену отношения не имеет. -->
+          <div class="stage-paper" id="paper-picker" role="group" aria-label="Тип картона" hidden></div>
+
+          <!-- Свернуть панель заказа: на широком экране она забирает 420 px, а
+               смотрят прежде всего на сам стакан. Ручка стоит у правого края
+               сцены и остаётся на виду в обоих состояниях — иначе свёрнутую
+               панель нечем вернуть (js/ui/approval.js, .approve-grid.is-panel-collapsed
+               в approve.css). На узком экране колонки идут друг под другом, и
+               ручка скрыта. -->
+          <button
+            class="panel-toggle"
+            id="panel-toggle"
+            type="button"
+            aria-expanded="true"
+            aria-controls="approve-panel"
+            data-label-collapse="Свернуть панель заказа"
+            data-label-expand="Показать панель заказа"
+          >
+            <span class="panel-toggle__icon" aria-hidden="true"></span>
+            <span class="panel-toggle__text">Свернуть</span>
+          </button>
 
           <!-- Плавающая панель управления. Подпись у каждой кнопки — в
                data-tip: всплывает над панелью и объясняет, что она делает. -->
@@ -142,7 +167,7 @@
              Раньше эти строки были продублированы и тут, и в JS: правка в
              разметке ничего не меняла, а при загрузке успевала мелькнуть
              старая версия. -->
-        <aside class="approve-panel">
+        <aside class="approve-panel" id="approve-panel">
           <!-- Начальный текст плашки — order.status; текст после согласования
                одинаков всегда, поэтому лежит здесь. -->
           <span class="status-chip" id="status-chip" data-label-done="Согласовано — макет отправлен в печать">
@@ -257,10 +282,15 @@
       <input
         class="cup-search"
         type="search"
-        placeholder="Поиск: название, объём, «пластик»"
+        placeholder="Поиск: название, объём, «двухслойный»"
         aria-label="Поиск стакана"
         autocomplete="off"
       />
+
+      <!-- Разделы каталога кнопками: позиций два десятка, и пролистывать их
+           целиком ради одного типа незачем. Кнопки строит js/ui/cupPicker.js —
+           вместе с числом позиций в каждом разделе. -->
+      <div class="cup-filters" role="group" aria-label="Тип стакана"></div>
 
       <div class="cup-list"></div>
       <p class="cup-empty" hidden>Ничего не нашлось. Попробуйте объём — например, «500».</p>
@@ -282,6 +312,6 @@
          сторонний CDN на клиентской странице — и точка отказа, и канал подмены
          кода. Заодно ушла карта импорта, которую не понимает Safari до 16.4:
          на таких iPhone страница не показывала ничего. -->
-    <script type="module" src="dist/cup-viewer.js?v=ac37d3ef"></script>
+    <script type="module" src="dist/cup-viewer.js?v=9d5558d9"></script>
   </body>
 </html>

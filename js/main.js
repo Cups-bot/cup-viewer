@@ -64,6 +64,8 @@ async function applyOrder(viewer, order) {
     roughness: order.roughness,
     relief: order.relief,
     reliefScale: order.reliefScale,
+    // Сила собственного рельефа модели — тиснения и волокна (paperSurface.js).
+    normalScale: order.paper?.normalScale,
   });
   await viewer.applyTexture(order.texture);
 
@@ -84,6 +86,8 @@ function publishDebugApi(viewer) {
     // Сменить стакан так же, как это делает список в сцене: с чистым листом
     // вместо прежнего макета. Идентификаторы — в js/data/models.js.
     selectCup: (id) => viewer.selectCup(id),
+    // Показать на другом картоне — то же, что переключатель в сцене.
+    selectPaper: (key) => viewer.selectPaper(key),
     replaceTexture: (url) => viewer.applyTexture(url),
     setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
     setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),

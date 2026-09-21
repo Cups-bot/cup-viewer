@@ -103,9 +103,10 @@ export class ModelLoader {
       if (finish.roughness != null) material.roughness = finish.roughness;
       if (finish.metalness != null) material.metalness = finish.metalness;
       // Фактура картона: сила рельефа и крупность зерна приходят из типа
-      // бумаги (см. js/data/catalog.js).
+      // бумаги (см. js/data/catalog.js). Если у модели есть своя карта
+      // рельефа — тиснение, волокно, — меняется только её сила.
       if (finish.relief != null) {
-        applyPaperSurface(material, finish.relief, finish.reliefScale);
+        applyPaperSurface(material, finish.relief, finish.reliefScale, finish.normalScale ?? 1);
       }
       material.needsUpdate = true;
       updated++;
@@ -284,6 +285,12 @@ export class ModelLoader {
         if (!material || seen.has(material)) continue;
         seen.add(material);
         this.#sharpenTextures(material);
+        // Рельеф, пришедший в файле, запоминаем ДО того, как его тронет тип
+        // картона: у стаканов с тиснением на этой карте держится сам рисунок
+        // (см. js/core/paperSurface.js).
+        if (material.userData.sourceNormalMap === undefined) {
+          material.userData.sourceNormalMap = material.normalMap ?? null;
+        }
 
         const takesPrint = named.size > 0 ? named.has(material.name) : Boolean(material.map);
         if (takesPrint) this.printMaterials.push(material);

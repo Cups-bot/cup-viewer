@@ -166,19 +166,21 @@ unwrap:  '/upload/orders/2431/design-print.png',  // во вкладку «Ра�
 
 Номенклатура и модели — в `js/data/models.js`, по объекту на позицию:
 
+Бумажные позиции описаны одной строкой: всё, кроме обмеров, у них общее и
+подставляется функцией `paperCup` — файл `assets/models/cups/<ID>.glb`, печать
+на материал `Paper_Print`, отделка картоном.
+
 ```js
-export const CUP_MODELS = Object.freeze([
-  {
-    id: 'DW80-280',                       // как в 1С
-    label: 'DW80-280 — двухслойный, 280 мл',
-    group: 'Бумажные',
-    file: 'assets/models/8cups.glb',
-    size: { height: 92, top: 80, bottom: 57 },   // мм, для карточки выбора
-    finish: 'paper',                      // 'paper' | 'plastic' | 'own'
-    print: { materials: [], uv: 0, sheet: false },
-  },
-]);
+const PAPER_CUPS = [
+  //  как в 1С    раздел окна выбора   тип стенки      объём, мл   обмеры, мм
+  { id: 'HB80-280', group: 'Однослойные', wall: 'single', volume: 280,
+    size: { height: 88.0, top: 80.1, bottom: 57.1 } },
+].map(paperCup);
 ```
+
+Числа берутся из `checks/model.json` конвейера 3D_Cups — там записаны обмеры
+готовой модели. Пластиковые позиции описаны целиком, объектом: у них другая
+печать (прямоугольная вырубка по второму UV-набору).
 
 `finish` говорит, чем красить стенку: `paper` — типом картона из заказа,
 `plastic` — молочным полипропиленом из справочника, `own` — ничем, материал
