@@ -142,10 +142,8 @@ export function loadEnvironment(scene, renderer, config, onProgress) {
         pmrem.dispose();
 
         scene.environment = envMap;
-        if ('environmentIntensity' in scene) {
-          scene.environmentIntensity = config.lighting.environmentIntensity;
-        }
-
+        // Яркость окружения задаётся на материалах (applyEnvironmentIntensity),
+        // а не на сцене: в three 0.160 у сцены такого свойства ещё нет.
         resolve({ envMap, sun });
       },
       (event) => onProgress?.(event.total > 0 ? (event.loaded / event.total) * 100 : -1),

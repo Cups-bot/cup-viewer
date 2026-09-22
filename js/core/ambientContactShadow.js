@@ -24,7 +24,7 @@ import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 // сторон. Наклон под источник — задача падающей тени (core/shadowCatcher.js).
 class AmbientContactShadow {
   constructor(config) {
-    const { size, resolution, height, blur, opacity, darkness } = config.ambientShadow;
+    const { size, resolution, height, blur, opacity, darkness, falloff } = config.ambientShadow;
 
     this.config = config;
     this.blurAmount = blur;
@@ -32,10 +32,10 @@ class AmbientContactShadow {
     this.group = new THREE.Group();
     this.group.name = 'AmbientContactShadow';
 
-    // Оба таргета — обычные RGBA: тень несёт только альфа-канал, цвет всегда
-    // чёрный, буфер глубины здесь не нужен.
+    // Тень несёт альфа-канал. Основной таргет хранит и глубину, чтобы студия
+    // выбирала ближайшую к столу поверхность; проходам размытия она не нужна.
     const options = { depthBuffer: false, stencilBuffer: false };
-    this.target = new THREE.WebGLRenderTarget(resolution, resolution, options);
+    this.target = new THREE.WebGLRenderTarget(resolution, resolution, { ...options, depthBuffer: true });
     this.blurTarget = new THREE.WebGLRenderTarget(resolution, resolution, options);
     this.target.texture.generateMipmaps = false;
     this.blurTarget.texture.generateMipmaps = false;
@@ -82,7 +82,7 @@ class AmbientContactShadow {
     this.blurCamera = this.camera.clone();
     this.group.add(this.blurCamera);
 
-    this.depthMaterial = this.#createDepthMaterial(darkness);
+    this.depthMaterial = this.#createDepthMaterial(darkness, falloff);
     this.horizontalBlur = new THREE.ShaderMaterial(HorizontalBlurShader);
     this.verticalBlur = new THREE.ShaderMaterial(VerticalBlurShader);
   }
@@ -91,22 +91,57 @@ class AmbientContactShadow {
   // MeshDepthMaterial выдаёт серую карту глубины; переписываем его выходную
   // строку так, чтобы след модели выходил тёмным, а всё выше пола затухало по
   // высоте — за счёт этого тень поджимается под основание.
-  #createDepthMaterial(darkness) {
+  //
+  // ЗАТУХАНИЕ НЕЛИНЕЙНОЕ. Раньше темнота падала по высоте прямой линией, и
+  // пятно выходило одинаково серым и у самого ранта, и в сантиметре от него —
+  // то есть ровным диском, из-за которого предмет «парит над облаком».
+  // Загороженность подложки на самом деле падает гораздо быстрее: у линии
+  // касания свету физически неоткуда взяться, а уже на высоте ранта половина
+  // неба открыта. Показатель falloff и задаёт эту крутизну: 1 — прежняя прямая,
+  // 2…3 — плотное ядро у контакта и быстрый уход в ничто.
+  #createDepthMaterial(darkness, falloff) {
     const material = new THREE.MeshDepthMaterial();
     material.userData.darkness = { value: darkness };
+    material.userData.falloff = { value: falloff ?? 1 };
     material.onBeforeCompile = (shader) => {
       shader.uniforms.darkness = material.userData.darkness;
+      shader.uniforms.falloff = material.userData.falloff;
       const from = 'gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );';
-      const to = 'gl_FragColor = vec4( vec3( 0.0 ), ( 1.0 - fragCoordZ ) * darkness );';
+      const to =
+        'gl_FragColor = vec4( vec3( 0.0 ), pow( 1.0 - fragCoordZ, falloff ) * darkness );';
       if (!shader.fragmentShader.includes(from)) {
         // Обновление three, переименовавшее эту строку, оставило бы серую плиту
         // на полу — сообщаем об этом вместо тихой поломки.
         console.warn('AmbientContactShadow: шейдер MeshDepthMaterial изменился — тень будет неверной.');
         return;
       }
-      shader.fragmentShader = `uniform float darkness;\n${shader.fragmentShader}`.replace(from, to);
+      shader.fragmentShader =
+        `uniform float darkness;\nuniform float falloff;\n${shader.fragmentShader}`.replace(from, to);
     };
     return material;
+  }
+
+  // Профиль студии отделён от фото-сцен. Размер таргетов остаётся прежним;
+  // изменяются только высота захвата, плотность и ширина размытия.
+  setAppearance(options) {
+    const { height, darkness, blur, opacity, falloff, resolution, nearestSurface = false } = {
+      ...this.config.ambientShadow,
+      ...options,
+    };
+    this.target.setSize(resolution, resolution);
+    this.blurTarget.setSize(resolution, resolution);
+    // Студия берёт ближайшую к столу поверхность, а не последний меш в обходе.
+    // Фото-сцены сохраняют прежний проход без проверки глубины.
+    this.depthMaterial.depthTest = nearestSurface;
+    this.camera.position.y = nearestSurface ? -0.0001 : 0;
+    this.camera.far = height;
+    this.camera.updateProjectionMatrix();
+    this.blurCamera.far = height;
+    this.blurCamera.updateProjectionMatrix();
+    this.depthMaterial.userData.darkness.value = darkness;
+    this.depthMaterial.userData.falloff.value = falloff ?? 1;
+    this.blurAmount = blur;
+    this.plane.material.opacity = opacity;
   }
 
   // Перерисовывает тень. Вызывается каждый кадр, т.к. модель крутится: один

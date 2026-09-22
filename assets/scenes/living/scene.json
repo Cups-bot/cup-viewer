@@ -1,0 +1,113 @@
+{
+  "id": "living",
+  "label": "Гостиная",
+  "backdrop": {
+    "wide": "backdrop.webp",
+    "tall": "backdrop-tall.webp"
+  },
+  "environment": "env.hdr",
+  "camera": {
+    "position": [
+      0.29153,
+      0.7789,
+      0.91987
+    ],
+    "target": [
+      -0.24034,
+      0.67715,
+      0.07918
+    ],
+    "fov": {
+      "wide": {
+        "x": 17.0615,
+        "y": 17.0615
+      },
+      "tall": {
+        "x": 11.4212,
+        "y": 17.0615
+      }
+    },
+    "lens_mm": 120.0,
+    "shift": [
+      0.0,
+      0.0
+    ],
+    "fstop": 3.5
+  },
+  "floor": {
+    "y": 0.6129,
+    "mmPerUnit": 971.599
+  },
+  "cup": {
+    "origin": [
+      -0.18961,
+      0.6129,
+      0.15754
+    ]
+  },
+  "view": {
+    "transform": "Filmic",
+    "look": "Medium High Contrast",
+    "exposure": 0.0
+  },
+  "reference": {
+    "cup": "500",
+    "cupHeightMm": 135.3,
+    "mockup": "living_500ml_clean.png"
+  },
+  "frames": {
+    "wide": [
+      1600,
+      1600
+    ],
+    "tall": [
+      1200,
+      1800
+    ]
+  },
+  "quick": false,
+  "shadows": {
+    "HB80-280": {
+      "wide": "shadow-HB80-280.webp",
+      "tall": "shadow-HB80-280-tall.webp"
+    },
+    "DW80-280": {
+      "wide": "shadow-DW80-280.webp",
+      "tall": "shadow-DW80-280-tall.webp"
+    },
+    "PP-410": {
+      "wide": "shadow-PP-410.webp",
+      "tall": "shadow-PP-410-tall.webp"
+    },
+    "PP-500": {
+      "wide": "shadow-PP-500.webp",
+      "tall": "shadow-PP-500-tall.webp"
+    },
+    "PP-650": {
+      "wide": "shadow-PP-650.webp",
+      "tall": "shadow-PP-650-tall.webp"
+    }
+  },
+  "shadowFrame": [
+    1600,
+    1600
+  ],
+  "shadowFrames": {
+    "wide": [
+      1600,
+      1600
+    ],
+    "tall": [
+      1200,
+      1800
+    ]
+  },
+  "shadowOpacity": 1.23,
+  "shadowSources": {
+    "DW80-280": "bd16948a49162a23:92:1600x1600+1200x1800",
+    "HB80-280": "7c41a56f422b6738:88:1600x1600+1200x1800",
+    "PP-410": "af8e8b17b461393b:112:1600x1600+1200x1800",
+    "PP-500": "281b216ce959c14e:135:1600x1600+1200x1800",
+    "PP-650": "3058c0abacdb6bb7:179:1600x1600+1200x1800"
+  }
+}

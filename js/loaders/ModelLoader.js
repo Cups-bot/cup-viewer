@@ -209,6 +209,7 @@ export class ModelLoader {
       this.controls,
       measure(this.currentModel).box,
       this.config.model.cameraFitOffset,
+      this.config.model.cameraAim,
     );
   }
 

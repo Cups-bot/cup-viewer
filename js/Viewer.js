@@ -5,7 +5,6 @@ import { createCamera } from './core/camera.js';
 import { createRenderer } from './core/renderer.js';
 import { createLighting, aimKeyLight } from './core/lighting.js';
 import { createControls } from './core/controls.js';
-import { createFloor } from './core/floor.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createAmbientContactShadow } from './core/ambientContactShadow.js';
 import { createTurntable } from './core/turntable.js';
@@ -13,7 +12,12 @@ import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.j
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
 import { RenderPipeline } from './core/postprocessing.js';
 import { HELPER_LAYER } from './core/layers.js';
-import { backdropColors, backdropCss, paintBackdrop } from './core/backdrop.js';
+import {
+  backdropColors,
+  backdropCss,
+  createBackdropScreen,
+  paintBackdrop,
+} from './core/backdrop.js';
 import { captureTurn, pickVideoType } from './core/turnCapture.js';
 import {
   frameAspectOf,
@@ -38,8 +42,8 @@ import { UIManager } from './ui/UIManager.js';
 const MAX_FRAME_DELTA = 0.1;
 
 // Яркость панорамы фото-сцены на стакане. Панорама уже несёт свет комнаты,
-// поэтому по умолчанию 1; сцена может поправить (scene.environmentIntensity),
-// если сверка с эталонным рендером показала расхождение.
+// поэтому по умолчанию 1; сцена может поправить (environmentIntensity в
+// scene.json), если сверка с эталонным рендером показала расхождение.
 function photoEnvIntensity(data) {
   return data?.environmentIntensity ?? 1;
 }
@@ -99,11 +103,6 @@ export class Viewer {
     // камеры обязано приводить к новому кадру.
     this.controls.addEventListener('change', () => this.invalidate());
 
-    if (this.config.floor?.enabled) {
-      this.floor = createFloor(this.config);
-      this.scene.add(this.floor.mesh);
-    }
-
     if (this.config.shadowCatcher?.enabled) {
       this.shadowCatcher = createShadowCatcher(this.config);
       this.scene.add(this.shadowCatcher.plane);
@@ -113,6 +112,12 @@ export class Viewer {
       this.ambientShadow = createAmbientContactShadow(this.config);
       this.scene.add(this.ambientShadow.group);
     }
+
+    // Свёртка прибита к камере: она закрывает кадр целиком и не едет при
+    // облёте (см. core/backdrop.js).
+    this.backdropScreen = createBackdropScreen();
+    this.backdropScreen.fit(this.camera);
+    this.camera.add(this.backdropScreen.mesh);
 
     this.scene.add(this.camera);
 
@@ -159,6 +164,7 @@ export class Viewer {
       camera: this.camera,
       config: this.config,
     });
+    this.#applyShadingProfile();
 
     this.ui = new UIManager(this.config);
 
@@ -304,6 +310,8 @@ export class Viewer {
     const [width, height] = this.photo ? this.#photoCanvasSize(w, h) : [w, h];
     this.camera.aspect = aspectOf(width, height);
     this.camera.updateProjectionMatrix();
+    // Свёртка закрывает кадр целиком, а её ширина зависит от соотношения сторон.
+    this.backdropScreen?.fit(this.camera);
     this.renderer.setSize(width, height);
     this.pipeline.setSize(width, height);
     // У фото-сцены от формы кадра зависит и угол камеры, и кроп фона: их
@@ -464,7 +472,6 @@ export class Viewer {
   #placeGround() {
     if (!this.modelLoader.currentModel) return;
     const box = new THREE.Box3().setFromObject(this.modelLoader.currentModel);
-    this.floor?.setHeight(box.min.y);
     this.shadowCatcher?.setHeight(box.min.y);
     if (this.ambientShadow) this.ambientShadow.group.position.y = box.min.y;
     // Небольшой зазор вниз: точно совпадающие плоскости дают у самого основания
@@ -501,6 +508,7 @@ export class Viewer {
     // другую студию не трогает.
     if (!this.photo) this.#saveStudioView();
     this.photo = photo;
+    this.#applyShadingProfile();
 
     // Стакан живёт в сцене по панораме env.hdr — это линейная яркость
     // комнаты, и без тонмаппинга его блики выбьет в белое. В обычном режиме
@@ -519,7 +527,6 @@ export class Viewer {
     // Свет сцены. Интенсивность здесь полная: панорама снята в этой самой
     // комнате и уже несёт её яркость — ослаблять нечего.
     this.scene.environment = photo.envMap;
-    if ('environmentIntensity' in this.scene) this.scene.environmentIntensity = 1;
     applyEnvironmentIntensity(this.modelLoader.currentModel, photoEnvIntensity(data));
 
     // Ключевой свет наводится по самому яркому пятну панорамы — он нужен
@@ -538,11 +545,9 @@ export class Viewer {
       },
     });
 
-    // Пол студии красится в цвет фона и потому невидим; на снятом фоне он
-    // стал бы серым диском поперёк стола.
-    if (this.floor) this.floor.mesh.visible = false;
-    // Заливку сцены убираем: кадр закрывает её целиком.
+    // Заливку сцены и свёртку убираем: снятый кадр закрывает их целиком.
     this.scene.background = null;
+    this.backdropScreen.mesh.visible = false;
 
     this.#placePhotoCamera();
 
@@ -620,13 +625,38 @@ export class Viewer {
     this.#measureTurntable();
   }
 
+  // Фото-сцены используют исходный профиль, включая запасную расчётную
+  // тень для моделей без запечённого слоя. Настройки 3D на них не переносятся.
+  #applyShadingProfile() {
+    const studio = this.photo ? null : this.config.studioShading;
+    this.shadowCatcher?.setOpacity(studio?.shadowOpacity ?? this.config.shadowCatcher.opacity);
+    this.shadowCatcher?.setPenumbra(studio?.shadowPenumbra);
+    const falloff = studio?.shadowFalloff;
+    this.shadowCatcher?.setFalloff(
+      falloff?.start ?? this.config.shadowCatcher.falloffStart,
+      falloff?.end ?? this.config.shadowCatcher.falloffEnd,
+    );
+    this.ambientShadow?.setAppearance(studio?.contact ?? {});
+    const light = this.lightingRig.getObjectByName('KeyLight');
+    if (light) {
+      light.shadow.radius = studio?.shadowRadius ?? this.config.lighting.shadow.radius;
+      light.shadow.normalBias =
+        studio?.shadowNormalBias ?? this.config.lighting.shadow.normalBias;
+    }
+    this.#fitAmbientOcclusion(1);
+  }
+
   // Радиус и толщина затенения складок заданы в единицах сцены под студийный
   // размер модели (наибольшая сторона — config.model.targetSize). В фото-сцене
   // стакан стоит в натуральную величину и выходит в разы меньше, и прежний
   // радиус заливал темнотой всю внутренность. Масштаб — вслед за моделью.
   #fitAmbientOcclusion(scale) {
-    const ao = this.config.quality?.ambientOcclusion ?? {};
+    const ao = {
+      ...this.config.quality?.ambientOcclusion,
+      ...(!this.photo ? this.config.studioShading?.ambientOcclusion : null),
+    };
     this.pipeline.setAmbientOcclusion({
+      ...ao,
       radius: (ao.radius ?? 0.06) * scale,
       thickness: (ao.thickness ?? 0.3) * scale,
     });
@@ -714,11 +744,11 @@ export class Viewer {
   async exitPhotoScene() {
     if (!this.photo) return;
     this.photo = null;
+    this.#applyShadingProfile();
 
     this.renderer.toneMapping = this.baseToneMapping;
     this.renderer.toneMappingExposure = this.config.renderer.toneMappingExposure;
 
-    if (this.floor) this.floor.mesh.visible = true;
     this.pipeline.setBackdrop(null);
     this.photoShadow = null;
     this.#useBakedShadow(false);
@@ -912,25 +942,32 @@ export class Viewer {
 
   // Ставит конкретный фон по индексу (выбор кружочком).
   //
-  // Цвет ставится в ДВУХ местах одним значением: в сцену и в CSS страницы.
+  // Фон ставится в ДВУХ местах одним значением: в сцену и в CSS страницы.
   //
-  // В сцену — чтобы кадр был непрозрачным целиком. На прозрачном холсте
-  // сглаженный край пола давал светлую волосяную линию: полупрозрачный пиксель
-  // раздувается при переводе в sRGB. В CSS — чтобы фон был на месте до запуска
-  // скрипта и вокруг холста.
+  // В сцену — чтобы кадр был непрозрачным целиком: на прозрачном холсте
+  // сглаженный край раздувается при переводе в sRGB и даёт светлую волосяную
+  // линию. В CSS — чтобы фон был на месте до запуска скрипта и вокруг холста.
+  //
+  // Это не заливка, а СВЁРТКА — лист со слабой растяжкой по высоте, как на
+  // предметной съёмке (см. core/backdrop.js). Ровная заливка спорила с
+  // направленной тенью: тень говорит, что есть стол, а стола в кадре нет.
   selectBackground(index) {
     this.backgroundIndex = index;
     const value = this.config.backgrounds[index];
 
     // Цвета фона держим у себя: тот же фон подкладывается под снимок сцены.
-    this.backdrop = backdropColors(value);
-    this.scene.background = new THREE.Color(value);
+    this.backdrop = backdropColors(value, this.config.backgroundSweep);
+    this.backdropScreen.setColors(this.backdrop);
+    // В фото-сцене свёртки нет: её место занимает снятый кадр.
+    this.backdropScreen.mesh.visible = !this.photo;
+    // Заливка под свёрткой — чтобы кадр был непрозрачным даже там, куда
+    // свёртка почему-либо не дотянулась.
+    this.scene.background = new THREE.Color(this.backdrop.base);
 
     const stage = this.container.closest('.stage') ?? this.container;
     stage.style.background = backdropCss(this.backdrop);
 
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
-    this.floor?.setColor(value);
     this.turntable?.setBackground(new THREE.Color(value));
     this.ui.setActiveBackground(index);
 
@@ -1048,13 +1085,24 @@ export class Viewer {
   // а Windows 11 и macOS его поддерживают — поэтому на компьютере вместо
   // скачивания открывался системный диалог отправки.
   async takeScreenshot() {
+    // Экспорт видео уже владеет холстом и скрытием круга. Не запускаем
+    // параллельный захват, который мог бы вернуть интерфейс в середине ролика.
+    if (this.exporting || this.screenshotting) return;
+    this.screenshotting = true;
+    this.turntable?.setHiddenForCapture(true);
     // Через конвейер, а не напрямую: иначе снимок уйдёт без затенения складок и
     // без тонмаппинга — то есть заметно хуже того, что клиент видит на экране.
-    this.ambientShadow?.update(this.renderer, this.scene);
-    this.pipeline.render();
     const name = this.config.ui.screenshotName;
-
-    const blob = await this.#canvasBlob();
+    let blob;
+    try {
+      this.ambientShadow?.update(this.renderer, this.scene);
+      this.pipeline.render();
+      blob = await this.#canvasBlob();
+    } finally {
+      this.turntable?.setHiddenForCapture(false);
+      this.screenshotting = false;
+      this.invalidate();
+    }
     if (!blob) {
       this.ui.showToast('Не удалось сделать снимок', 'error');
       return;
@@ -1157,7 +1205,7 @@ export class Viewer {
   //
   // Настройки — js/config.js → turnExport.
   async exportTurn({ photos = false } = {}) {
-    if (this.exporting) return;
+    if (this.exporting || this.screenshotting) return;
 
     const model = this.modelLoader.currentModel;
     if (!model) {
@@ -1314,7 +1362,7 @@ export class Viewer {
 
     this.modelLoader.destroy();
     this.textureManager.dispose();
-    this.floor?.dispose();
+    this.backdropScreen?.dispose();
     this.ambientShadow?.dispose();
     this.turntable?.dispose();
     this.scene.environment?.dispose();

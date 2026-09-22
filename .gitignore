@@ -27,3 +27,7 @@ npm-debug.log*
 # Локальные настройки окружения
 .env
 .env.local
+
+# Generated local capture verification page and its media
+capture-review.local.html
+tests/output/

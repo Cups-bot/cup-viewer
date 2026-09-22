@@ -49,8 +49,8 @@ export const PAPER_TYPES = {
     // 139.2 у немелованного — стенка не ловит отражение всей студии, чего
     // опасались при 0.2 на прежней модели.
     roughness: 0.18,
-    relief: 0.009,
-    reliefScale: 90,
+    relief: 0.1,
+    reliefScale: 42,
     normalScale: 0.3,
     // Подпись в переключателе на странице: полная и короткая — на узком экране
     // «Мелованный» и «Немелованный» рядом не помещаются, а «глянец» и «мат»
@@ -61,8 +61,8 @@ export const PAPER_TYPES = {
   uncoated: {
     label: 'Немелованный',
     roughness: 0.85,
-    relief: 0.1,
-    reliefScale: 10,
+    relief: 0.55,
+    reliefScale: 16,
     normalScale: 1.4,
     short: 'Мат',
     note: 'Матовый, видно волокно',

@@ -32,15 +32,26 @@ export function measure(object) {
 }
 
 // Ставит перспективную камеру так, чтобы объект помещался в кадр, сохраняя
-// текущее направление взгляда. offset — множитель отступа вокруг объекта.
-export function frameObject(camera, controls, box, offset = 1.3) {
+// текущее направление взгляда.
+//
+//   offset — множитель отступа вокруг объекта;
+//   aim    — куда целиться по высоте, в долях высоты объекта от его середины.
+//            0 — точно в середину коробки, минус — ниже середины.
+//
+// ЗАЧЕМ aim. Предмет в кадре — это не только он сам, но и его тень, а она
+// целиком ниже него. Камера, наведённая в середину коробки, ставит предмет
+// ровно по центру, и тень съедает весь нижний отступ: сверху остаётся пустое
+// поле, снизу всё забито. Небольшой сдвиг прицела ВНИЗ поднимает предмет в
+// кадре, и пара «предмет + тень» встаёт по центру целиком.
+export function frameObject(camera, controls, box, offset = 1.3, aim = 0) {
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
+  center.y += size.y * aim;
   const maxDim = Math.max(size.x, size.y, size.z);
 
   const fitHeightDistance = maxDim / (2 * Math.tan((Math.PI * camera.fov) / 360));
   const aspect = Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1;
-  const fitWidthDistance = fitHeightDistance / aspect;
+  const fitWidthDistance = Math.max(size.x, size.z) / (2 * Math.tan((Math.PI * camera.fov) / 360) * aspect);
   // Пустой или вырожденный box иначе поставил бы камеру в NaN, что тихо портит
   // все матрицы дальше и заклинивает рендерер.
   const fitted = offset * Math.max(fitHeightDistance, fitWidthDistance);

@@ -19,16 +19,38 @@ import * as THREE from 'three';
 // Сцена собирается один раз, прогоняется через PMREMGenerator (он раскладывает
 // её по уровням шероховатости) и дальше не существует — в памяти остаётся
 // только небольшая кубическая карта.
+//
+// ── ГЛАВНОЕ ПРО ЭТОТ ФАЙЛ ────────────────────────────────────────────────
+//
+// Стенка стакана — цилиндр, и все её нормали лежат ГОРИЗОНТАЛЬНО. Значит
+// светотень на ней целиком определяется тем, как окружение распределено ПО
+// КРУГУ, и почти не зависит от того, что сверху и снизу. Ровная по кругу
+// «коробка» (а именно такой студия была раньше: четыре стены в пределах ±10 %
+// друг от друга) не даёт стакану никакой формы вообще — сколько ни добавляй
+// направленного света, он тонет в заполнении, приходящем отовсюду.
+//
+// Поэтому раскладка ниже несимметрична по кругу намеренно: со стороны ключа
+// стоит светлая панель, с противоположной — ТЁМНАЯ. Тёмная панель («чёрный
+// флаг», negative fill) — стандартный приём предметной съёмки белого товара:
+// белое читается белым только тогда, когда рядом есть чему быть темнее.
+//
+// Замер, ради которого это переделано. Раньше: яркость стенки от теневого края
+// к светлому шла 187 → 225 из 255, то есть перепад 0,6 ступени экспозиции, и
+// профиль был монотонным — ровная растяжка, как заливка в векторном редакторе.
+// На эталонном рендере того же стакана (Cafe_Mockup_Blender_Pack/build) —
+// 148 → 79 → 103, то есть около 2 ступеней И перегиб: к теневому краю яркость
+// сначала падает до собственной тени, а у самого силуэта снова поднимается от
+// отсвета подложки. Этот перегиб глаз и читает как «круглое».
 
 // ── Раскладка студии ──────────────────────────────────────────────────────
 // Координаты в условных единицах; важно только направление и угловой размер,
 // потому что карта снимается из одной точки. Камера смотрит на стакан
-// со стороны +Z, поэтому «перед» — это +Z.
+// со стороны +Z, поэтому «перед» — это +Z, а ключ стоит справа-спереди (+X+Z).
 //
 // intensity — яркость. Значения больше 1 законны: карта хранится в формате с
 // расширенным диапазоном, и именно превышение единицы даёт настоящий блик.
 
-// Фон вокруг: задаёт общий уровень заполняющего света.
+// Стены студии. Уровни — яркость самой панели; НОЛЬ значит «чёрный флаг».
 //
 // ЦВЕТ ПОДЛОЖКИ ЗДЕСЬ НЕ ЗАДАН — он приходит снаружи, из выбранного фона
 // страницы (см. loadStudioEnvironment). Предмет стоит не в пустоте: подложка
@@ -36,30 +58,41 @@ import * as THREE from 'three';
 // подложки. Без этого стакан выглядит вырезанным и наклеенным на фон: на
 // чёрном он оставался таким же светлым снизу, как на белом.
 const SURROUND = {
-  // Верх светлее низа — из-за этого у цилиндра появляется вертикальный градиент,
-  // и он перестаёт выглядеть плоской вырезкой.
-  //
-  // Уровень высокий намеренно: это съёмка в лайтбоксе, а не драматический
-  // портрет. Страница нужна для СОГЛАСОВАНИЯ ЦВЕТА, и главный критерий здесь —
-  // чтобы жёлтый на стакане остался тем же жёлтым, что в макете.
-  //
-  // Перепад между освещённой и теневой стороной создаёт именно окружение, а не
-  // направленный свет: при слабом фоне теневая сторона проваливалась вдвое, и
-  // ровная заливка макета выглядела браком печати. Разницу между сторонами
-  // держим в пределах 20 %.
-  ceiling: 0.82,
-  walls: 0.46,
-  floor: 0.22,
   size: 14,
+
+  // Верхний рассеиватель. Даёт общий уровень и верхний край отражения.
+  ceiling: 0.46,
+
+  // Стол под предметом. Свой уровень низкий: светлым его делает подложка
+  // (см. BACKDROP_TINT) — ровно настолько, насколько светлый фон выбран.
+  floor: 0.12,
+
+  // ПО КРУГУ. Именно эти четыре числа делают стакан круглым.
+  //
+  //   key    (+X) — сторона ключа: светлая стена-отражатель;
+  //   shadow (−X) — противоположная: ЧЁРНЫЙ ФЛАГ. Здесь была 0,5 — от неё
+  //                 теневая сторона стакана освещалась почти как светлая;
+  //   front  (+Z) — за камерой: то, что отражается в лицевой стенке. Держать
+  //                 умеренным, иначе лицо стакана заливается ровным светом;
+  //   back   (−Z) — за предметом: тёмный фон, на котором работает контровой.
+  wallKey: 0.36,
+  wallShadow: 0.5,
+  wallFront: 0.42,
+  wallBack: 0.3,
+
+  // Перепад яркости стены по высоте (доля от уровня стены): верх панели
+  // светлее низа. На матовой бумаге это почти не видно, а на лощёной даёт
+  // вертикальную растяжку в отражении — то, по чему глаз узнаёт студию.
+  wallGradient: 0.55,
 };
 
 // Софтбоксы. rotationY — поворот вокруг вертикали в градусах: 0 — панель
 // смотрит на стакан спереди, 90 — слева, -90 — справа.
 const SOFTBOXES = [
-  // Ключевой: крупный, слева-сверху-спереди. Даёт основную форму и главный блик.
-  // Высота подъёма (elevation) заодно задаёт, куда ляжет контактная тень: чем
-  // выше источник, тем ближе тень поджата к основанию. На 28° стакан отбрасывал
-  // тень почти в полкадра и выглядел висящим.
+  // Ключевой: крупный, справа-сверху-спереди. Даёт основную форму и главный
+  // блик. Высота подъёма (elevation) заодно задаёт, куда ляжет падающая тень:
+  // чем выше источник, тем короче тень и тем ближе она поджата к основанию.
+  //
   // Два угла ключевого софтбокса решают почти всё:
   //
   //   rotationY — насколько свет уведён вбок от камеры. Фронтальный свет
@@ -67,7 +100,11 @@ const SOFTBOXES = [
   //     становится белым пятном. Свет вскользь показывает форму: одна сторона
   //     светлая, другая уходит в полутон.
   //   elevation — высота. Чем ниже, тем длиннее падающая тень.
-  { name: 'key', width: 6, height: 8, distance: 6, rotationY: 62, elevation: 40, intensity: 5.2 },
+  //
+  // 52° против прежних 58° — терминатор сместился к центру стенки, и светлая
+  // сторона стала шире тёмной, как на предметной съёмке: тень должна быть
+  // меньшей частью кадра, иначе предмет читается «подвальным».
+  { name: 'key', width: 6.5, height: 7.5, distance: 5.4, rotationY: 58, elevation: 50, intensity: 5.4 },
 
   // Заполняющий: с противоположной стороны, крупнее и НАМНОГО слабее. Он лишь
   // не даёт теневой стороне провалиться в грязь.
@@ -75,11 +112,24 @@ const SOFTBOXES = [
   // Соотношение ключа и заполнения — это и есть светотень. Стоит поднять
   // заполнение — обе стороны освещаются одинаково, и предмет становится плоским
   // белым пятном. Для белого картона держим разницу примерно двадцатикратной.
-  { name: 'fill', width: 8, height: 8, distance: 7, rotationY: -68, elevation: 10, intensity: 0.9 },
+  { name: 'fill', width: 8, height: 7, distance: 6.5, rotationY: -108, elevation: 14, intensity: 4.0 },
+
+  // Отражатель перед предметом — белый лист, каким на съёмке «открывают»
+  // этикетку. Ключ стоит сзади-сбоку, и без этого листа печать на лицевой
+  // стенке уходила бы в полутень: страница существует ради согласования цвета,
+  // и лицевая сторона обязана быть читаемой.
+  //
+  // Держать СЛАБЫМ и КРУПНЫМ. Сильный фронтальный свет — это свет «из
+  // фотоаппарата»: он стирает светотень и возвращает ровное белое пятно, с
+  // которого всё начиналось.
+  { name: 'bounce', width: 10, height: 8, distance: 6, rotationY: 16, elevation: 22, intensity: 3.2 },
 
   // Контровой сзади-сверху: обводит силуэт светлым кантом и отделяет стакан
   // от фона. Смотрит в затылок, поэтому лицевую сторону не осветляет.
-  { name: 'rim', width: 5, height: 2.5, distance: 6, rotationY: 172, elevation: 46, intensity: 1.6 },
+  //
+  // На белом предмете кант — единственное, что отделяет его от светлого фона:
+  // без него силуэт совпадает с подложкой по яркости и предмет «тонет».
+  { name: 'rim', width: 4, height: 2.2, distance: 5.5, rotationY: -150, elevation: 34, intensity: 2.4 },
 
   // Узкие вертикальные полосы: на глянце они отражаются длинными чёткими
   // штрихами вдоль стенки — тот самый признак лощёной бумаги, на немелованном
@@ -88,26 +138,76 @@ const SOFTBOXES = [
   // Обе стоят СО СТОРОНЫ КЛЮЧА. Раньше вторая светила слева и при яркости 10
   // работала полноценным вторым источником: шероховатая бумага рассеивает
   // отражение по всей стенке, и теневая сторона переставала быть теневой.
-  { name: 'streak-near', width: 0.4, height: 8, distance: 5, rotationY: 80, elevation: 14, intensity: 1.5 },
-  { name: 'streak-far', width: 0.28, height: 6, distance: 5, rotationY: 40, elevation: 26, intensity: 1.1 },
+  { name: 'streak-near', width: 0.4, height: 7.5, distance: 4.6, rotationY: 62, elevation: 12, intensity: 3.6 },
+  { name: 'streak-far', width: 0.25, height: 6, distance: 4.6, rotationY: 138, elevation: 20, intensity: 2.6 },
 ];
+
+// Мягкий край панели.
+//
+// Прямоугольник ровной яркости отражается в глянце прямоугольником с РЕЗКОЙ
+// границей — так выглядит экран монитора, а не софтбокс. У настоящего софтбокса
+// по краю рассеивателя свет падает: ткань натянута на раму, и к периметру
+// доходит меньше. Эта маска и есть падение к краю; она же убирает «ступеньку»
+// на границе отражения, из-за которой блик читался наклейкой.
+//
+// Маска линейная (colorSpace не назначается намеренно): это не картинка, а
+// распределение яркости, и переводить её sRGB-кривой было бы неверно.
+let softboxMask = null;
+function panelFalloff() {
+  if (softboxMask) return softboxMask;
+
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(size, size);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // Расстояние до ближайшего края в долях половины стороны.
+      const u = Math.abs((x + 0.5) / size - 0.5) * 2;
+      const v = Math.abs((y + 0.5) / size - 0.5) * 2;
+      const edge = Math.max(u, v);
+      // Ровная середина, плавное падение на внешней четверти.
+      const t = Math.min(1, Math.max(0, (1 - edge) / 0.35));
+      const falloff = 0.42 + 0.58 * (t * t * (3 - 2 * t));
+      const value = Math.round(falloff * 255);
+      const i = (y * size + x) * 4;
+      image.data[i] = value;
+      image.data[i + 1] = value;
+      image.data[i + 2] = value;
+      image.data[i + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(image, 0, 0);
+  softboxMask = new THREE.CanvasTexture(canvas);
+  return softboxMask;
+}
 
 // Материал светящейся панели: обычный «безразличный к свету» материал, чей цвет
 // поднят выше единицы. Так же устроены студийные окружения в самом three.js.
 //
 // Принимает либо число (нейтральная панель такой яркости), либо готовый цвет —
 // им красятся стены и пол, когда их тонирует подложка.
-function panelMaterial(value) {
+function panelMaterial(value, { mask = false, gradient = false } = {}) {
   const material = new THREE.MeshBasicMaterial();
   if (typeof value === 'number') material.color.setScalar(value);
   else material.color.copy(value);
   material.side = THREE.DoubleSide;
+  if (mask) material.map = panelFalloff();
+  // Вертикальная растяжка стены задаётся цветами вершин (см. addSurround).
+  if (gradient) material.vertexColors = true;
   return material;
 }
 
 function addPanel(scene, box) {
   const { width, height, distance, rotationY, elevation, intensity } = box;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), panelMaterial(intensity));
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    panelMaterial(intensity, { mask: true }),
+  );
 
   const azimuth = THREE.MathUtils.degToRad(rotationY);
   const pitch = THREE.MathUtils.degToRad(elevation);
@@ -124,52 +224,102 @@ function addPanel(scene, box) {
   return mesh;
 }
 
-// Насколько цвет подложки передаётся окружению.
+// Насколько цвет подложки добавляется граням окружения.
 //
 // ПОЛ — это и есть фон страницы: предмет стоит прямо на нём, и отсвет снизу
-// повторяет его цвет один в один. СТЕНЫ тонируются наполовину: съёмка идёт в
-// лайтбоксе, стенки которого сами по себе светлые, но общий тон помещения фон
-// всё-таки задаёт. ПОТОЛОК не трогаем вовсе — это верхний свет студии, он
-// белый всегда; если увести в цвет фона и его, на тёмной подложке предмет
-// останется без света, а страница нужна для согласования цвета печати.
-const BACKDROP_TINT = { walls: 0.5, floor: 1 };
+// повторяет его цвет. ЗАДНЯЯ стена тоже видна в кадре за предметом. Боковые
+// панели — студийные: ключевая почти не зависит от фона, а теневая обязана
+// остаться тёмной, иначе флаг перестаёт работать и форма пропадает.
+//
+// ПОЧЕМУ ДОЛИ, А НЕ ЕДИНИЦА, КАК БЫЛО. Раньше пол получал цвет подложки один
+// в один: на светлом фоне (#eaf5ff — это линейная яркость около 0,9) пол
+// студии становился САМОЙ ЯРКОЙ панелью в комнате, ярче потолка и ярче
+// ключевого софтбокса по вкладу. Снизу предмет заливался ровно так же сильно,
+// как сверху, и вертикальная растяжка на стенке исчезала полностью: замер по
+// центру стакана давал 199 из 255 на протяжении 220 пикселей подряд — ровная
+// плашка. Подложка — рассеиватель, а не лампа: она возвращает долю того, что
+// на неё падает, и этой долей здесь и является коэффициент.
+const BACKDROP_TINT = {
+  floor: 0.5,
+  ceiling: 0,
+  key: 0.18,
+  shadow: 0.1,
+  front: 0.28,
+  back: 0.42,
+};
 
-// Цвет грани окружения: нейтральная яркость, подкрашенная подложкой.
+// Грань окружения: собственный уровень студии плюс отсвет подложки.
 //
 // Цвет подложки берётся в ЛИНЕЙНОМ пространстве и работает как яркость самой
-// поверхности: светлый фон отражает много, тёмный почти ничего. Тонмаппинг
-// выключен (см. config.renderer), поэтому экранный цвет фона и есть его
-// яркость в сцене — подложка светит ровно так, как выглядит.
-function faceColor(neutral, backdrop, tint) {
-  const base = new THREE.Color().setScalar(neutral);
-  if (!backdrop || tint <= 0) return base;
-  return base.lerp(backdrop.clone().multiplyScalar(neutral / SURROUND.walls), tint);
+// поверхности: светлый фон отражает много, тёмный почти ничего. Складывается,
+// а не подменяет: студия светит сама по себе, подложка добавляет свой отсвет.
+function faceColor(level, backdrop, tint) {
+  const color = new THREE.Color().setScalar(level);
+  if (backdrop && tint > 0) {
+    color.r += backdrop.r * tint;
+    color.g += backdrop.g * tint;
+    color.b += backdrop.b * tint;
+  }
+  return color;
 }
 
-// Коробка вокруг сцены. Грани разной яркости — отсюда градиент «светлее сверху».
-function addSurround(scene, backdrop) {
-  const { size, ceiling, walls, floor } = SURROUND;
+// Стена с вертикальной растяжкой: низ темнее верха. Растяжка живёт в цветах
+// вершин, поэтому стоит ноль дополнительных текстур и рисуется одним мешем.
+function gradientWall(size, color, drop) {
+  const geometry = new THREE.PlaneGeometry(size, size, 1, 8);
+  const position = geometry.attributes.position;
+  const colors = new Float32Array(position.count * 3);
   const half = size / 2;
 
-  // Пол принимает цвет подложки целиком, стены — наполовину.
-  const floorColor = backdrop
-    ? backdrop.clone().multiplyScalar(BACKDROP_TINT.floor)
-    : new THREE.Color().setScalar(floor);
-  const wallColor = (level) => faceColor(level, backdrop, BACKDROP_TINT.walls);
+  for (let i = 0; i < position.count; i++) {
+    // y идёт от −half (низ) до +half (верх) в локальных координатах плоскости.
+    const t = (position.getY(i) + half) / size;
+    const k = 1 - drop * (1 - t);
+    colors[i * 3] = k;
+    colors[i * 3 + 1] = k;
+    colors[i * 3 + 2] = k;
+  }
 
-  const faces = [
-    { color: ceiling, position: [0, half, 0], rotation: [Math.PI / 2, 0, 0] },
-    { color: floorColor, position: [0, -half, 0], rotation: [-Math.PI / 2, 0, 0] },
-    { color: wallColor(walls), position: [0, 0, -half], rotation: [0, 0, 0] },
-    { color: wallColor(walls * 0.85), position: [0, 0, half], rotation: [0, Math.PI, 0] },
-    { color: wallColor(walls * 1.1), position: [-half, 0, 0], rotation: [0, Math.PI / 2, 0] },
-    { color: wallColor(walls * 0.9), position: [half, 0, 0], rotation: [0, -Math.PI / 2, 0] },
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return new THREE.Mesh(geometry, panelMaterial(color, { gradient: true }));
+}
+
+// Коробка вокруг сцены. Грани разной яркости — отсюда и вертикальный градиент,
+// и разница между светлой и теневой стороной.
+function addSurround(scene, backdrop) {
+  const { size, ceiling, floor, wallKey, wallShadow, wallFront, wallBack, wallGradient } = SURROUND;
+  const half = size / 2;
+  const tint = BACKDROP_TINT;
+
+  // Потолок и пол — ровные: они смотрят на стакан «в торец», растяжка по ним
+  // всё равно не читается.
+  const flat = [
+    { level: ceiling, tint: tint.ceiling, position: [0, half, 0], rotation: [Math.PI / 2, 0, 0] },
+    { level: floor, tint: tint.floor, position: [0, -half, 0], rotation: [-Math.PI / 2, 0, 0] },
   ];
 
-  for (const face of faces) {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), panelMaterial(face.color));
+  for (const face of flat) {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size),
+      panelMaterial(faceColor(face.level, backdrop, face.tint)),
+    );
     mesh.position.set(...face.position);
     mesh.rotation.set(...face.rotation);
+    scene.add(mesh);
+  }
+
+  // Стены. Порядок: за предметом, за камерой, сторона тени, сторона ключа.
+  const walls = [
+    { level: wallBack, tint: tint.back, position: [0, 0, -half], rotation: [0, 0, 0] },
+    { level: wallFront, tint: tint.front, position: [0, 0, half], rotation: [0, Math.PI, 0] },
+    { level: wallShadow, tint: tint.shadow, position: [-half, 0, 0], rotation: [0, Math.PI / 2, 0] },
+    { level: wallKey, tint: tint.key, position: [half, 0, 0], rotation: [0, -Math.PI / 2, 0] },
+  ];
+
+  for (const wall of walls) {
+    const mesh = gradientWall(size, faceColor(wall.level, backdrop, wall.tint), wallGradient);
+    mesh.position.set(...wall.position);
+    mesh.rotation.set(...wall.rotation);
     scene.add(mesh);
   }
 }
@@ -197,7 +347,8 @@ function describeKeyLight() {
 
   // Отношение «ключ / общий уровень» задаёт плотность тени: у студии с мягким
   // заполнением тень не должна быть угольно-чёрной.
-  const ambient = (SURROUND.ceiling + SURROUND.walls * 4 + SURROUND.floor) / 6;
+  const { ceiling, floor, wallKey, wallShadow, wallFront, wallBack } = SURROUND;
+  const ambient = (ceiling + floor + wallKey + wallShadow + wallFront + wallBack) / 6;
 
   return {
     direction,
@@ -224,8 +375,8 @@ export function loadStudioEnvironment(scene, renderer, config, backdrop = null) 
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-  // sigma = 0: панели уже мягкие сами по себе, дополнительное размытие только
-  // съело бы чёткость узких полос-бликов.
+  // sigma = 0: панели уже мягкие сами по себе (см. panelFalloff), а
+  // дополнительное размытие съело бы чёткость узких полос-бликов.
   const envMap = pmrem.fromScene(studio, 0, 0.1, 100).texture;
   pmrem.dispose();
 
@@ -238,9 +389,11 @@ export function loadStudioEnvironment(scene, renderer, config, backdrop = null) 
   });
 
   scene.environment = envMap;
-  if ('environmentIntensity' in scene) {
-    scene.environmentIntensity = config.lighting.environmentIntensity;
-  }
+  // ВНИМАНИЕ: scene.environmentIntensity здесь НЕ ставится, хотя напрашивается.
+  // В three 0.160 такого свойства у сцены ещё нет — оно появилось позже, и
+  // присваивание молча ничего не делало. Яркость окружения задаётся на
+  // материалах (environment.js → applyEnvironmentIntensity), её ставит Viewer
+  // после загрузки модели.
 
   return { envMap, sun: describeKeyLight() };
 }

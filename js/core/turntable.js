@@ -297,7 +297,9 @@ class Turntable {
   // отрисовка.
   setHiddenForCapture(hidden) {
     this.capturing = hidden;
-    if (hidden) this.group.visible = false;
+    // Восстанавливаем сразу, в том числе при остановленном автоповороте.
+    // Закрепление и состояние плавного появления не меняются.
+    this.group.visible = !hidden && this.fade > 0.001 && !!this.metrics;
   }
 
   hide() {

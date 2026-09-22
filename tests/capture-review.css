@@ -1,0 +1,5 @@
+#capture-review { position: fixed; inset: 12px auto auto 12px; z-index: 99999; max-width: 94vw; max-height: 96vh; overflow: auto; background: white; padding: 12px; color: #111; font: 14px system-ui; border: 1px solid #aaa; }
+#capture-review button, #capture-review a { margin: 4px; padding: 8px; }
+#capture-review pre { white-space: pre-wrap; max-width: 720px; }
+#capture-review img, #capture-review video { display: block; width: 480px; max-width: 85vw; height: auto; }
+.capture-reference .stage { width: 900px; height: 600px; }
