@@ -46,42 +46,82 @@ const FRAGMENT_HOOK = {
   from: 'gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );',
   to: `float dist = length( vPlanePos );
     float reach = 1.0 - smoothstep( falloffStart, falloffEnd, dist );
-    gl_FragColor = vec4( color, opacity * reach * ( 1.0 - studioShadowMask(dist) ) );`,
+    gl_FragColor = vec4( color, opacity * reach * ( 1.0 - studioShadowMask() ) );`,
 };
 
 // Отдельная мягкость приёмника не размывает самозатенение ободка и стенки.
-// 48 распределённых выборок вместо редкой сетки PCF: у дна край собранный,
-// вдали широкая полутень. В фото-режиме сохраняется штатный getShadowMask().
+// PCSS: ширина полутени зависит от расстояния между заслоняющей
+// поверхностью и столом, а не от расстояния до центра стакана.
+// В фото-режиме сохраняется штатный getShadowMask().
 const STUDIO_SHADOW = `
 uniform vec2 studioPenumbra;
+uniform vec2 studioShadowCamera;
 uniform bool studioShadowEnabled;
-float studioShadowMask(float distanceFromBase) {
-  float result = getShadowMask();
+float studioLinearDepth(float depth) {
+  float near = studioShadowCamera.x;
+  float far = studioShadowCamera.y;
+  return near * far / (far - depth * (far - near));
+}
+#if defined(USE_SHADOWMAP) && NUM_SPOT_LIGHT_SHADOWS > 0
+float studioCompare(vec2 uv, float depth) {
+  vec2 size = spotLightShadows[0].shadowMapSize;
+  vec2 pixel = uv * size - 0.5;
+  vec2 weight = fract(pixel);
+  vec2 base = (floor(pixel) + 0.5) / size;
+  vec2 stepUV = 1.0 / size;
+  return mix(
+    mix(texture2DCompare(spotShadowMap[0], base, depth),
+        texture2DCompare(spotShadowMap[0], base + vec2(stepUV.x, 0.0), depth), weight.x),
+    mix(texture2DCompare(spotShadowMap[0], base + vec2(0.0, stepUV.y), depth),
+        texture2DCompare(spotShadowMap[0], base + stepUV, depth), weight.x), weight.y);
+}
+#endif
+float studioShadowMask() {
+  float result = 1.0;
   #if defined(USE_SHADOWMAP) && NUM_SPOT_LIGHT_SHADOWS > 0
     if (studioShadowEnabled && receiveShadow) {
       vec3 coord = vSpotLightCoord[0].xyz / vSpotLightCoord[0].w;
       coord.z += spotLightShadows[0].shadowBias;
       result = 1.0;
       if (coord.z <= 1.0 && coord.x >= 0.0 && coord.x <= 1.0 && coord.y >= 0.0 && coord.y <= 1.0) {
-      float spread = mix(studioPenumbra.x, studioPenumbra.y,
-        smoothstep(0.1, 0.65, distanceFromBase));
-      vec2 texel = spread / spotLightShadows[0].shadowMapSize;
-      float visibility = 0.0;
+      float blockerSum = 0.0;
+      float blockerCount = 0.0;
+      vec2 searchRadius = studioPenumbra.y / spotLightShadows[0].shadowMapSize;
       #pragma unroll_loop_start
-      for (int i = 0; i < 48; i++) {
+      for (int i = 0; i < 24; i++) {
         {
-        float t = (float(UNROLLED_LOOP_INDEX) + 0.5) / 48.0;
-        float radius = sqrt(-2.0 * log(1.0 - t * 0.98)) * 0.5;
+        float radius = sqrt((float(UNROLLED_LOOP_INDEX) + 0.5) / 24.0);
         float angle = float(UNROLLED_LOOP_INDEX) * 2.39996323;
-        vec2 offset = vec2(cos(angle), sin(angle)) * radius * texel;
-        visibility += texture2DCompare(spotShadowMap[0], coord.xy + offset, coord.z);
+        vec2 uv = coord.xy + vec2(cos(angle), sin(angle)) * radius * searchRadius;
+        float depth = unpackRGBAToDepth(texture2D(spotShadowMap[0], uv));
+        if (depth < coord.z) {
+          blockerSum += studioLinearDepth(depth);
+          blockerCount += 1.0;
+        }
         }
       }
       #pragma unroll_loop_end
-      result = visibility / 48.0;
+      float separation = max(0.0, studioLinearDepth(coord.z) - blockerSum / max(1.0, blockerCount));
+      float spread = mix(studioPenumbra.x, studioPenumbra.y,
+        smoothstep(0.0, 0.45, separation));
+      vec2 texel = spread / spotLightShadows[0].shadowMapSize;
+      float visibility = 0.0;
+      #pragma unroll_loop_start
+      for (int i = 0; i < 64; i++) {
+        {
+        float t = (float(UNROLLED_LOOP_INDEX) + 0.5) / 64.0;
+        float radius = sqrt(-2.0 * log(1.0 - t * 0.98)) * 0.5;
+        float angle = float(UNROLLED_LOOP_INDEX) * 2.39996323;
+        vec2 offset = vec2(cos(angle), sin(angle)) * radius * texel;
+        visibility += studioCompare(coord.xy + offset, coord.z);
+        }
+      }
+      #pragma unroll_loop_end
+      result = blockerCount > 0.0 ? visibility / 64.0 : 1.0;
       }
     }
   #endif
+  if (!studioShadowEnabled) result = getShadowMask();
   return result;
 }
 `;
@@ -111,6 +151,7 @@ export function createShadowCatcher(config) {
     falloffStart: { value: options.falloffStart ?? 0.2 },
     falloffEnd: { value: options.falloffEnd ?? 1 },
     studioPenumbra: { value: new THREE.Vector2(2, 42) },
+    studioShadowCamera: { value: new THREE.Vector2(config.lighting.shadow.near, config.lighting.shadow.far) },
     studioShadowEnabled: { value: false },
   };
 
@@ -118,6 +159,7 @@ export function createShadowCatcher(config) {
     shader.uniforms.falloffStart = uniforms.falloffStart;
     shader.uniforms.falloffEnd = uniforms.falloffEnd;
     shader.uniforms.studioPenumbra = uniforms.studioPenumbra;
+    shader.uniforms.studioShadowCamera = uniforms.studioShadowCamera;
     shader.uniforms.studioShadowEnabled = uniforms.studioShadowEnabled;
 
     if (!shader.vertexShader.includes(VERTEX_HOOK.from) || !shader.fragmentShader.includes(FRAGMENT_HOOK.from)) {

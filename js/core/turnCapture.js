@@ -100,15 +100,11 @@ const MAX_CAPTURE_STEP = 250;
 async function recordTurn({ compositor, type, settings, startAngle, setAngle, renderFrame, onProgress }) {
   const { fps, bitrate, duration } = settings;
 
-  // Кадр передаётся после отрисовки, без второго независимого таймера захвата.
-  // Иначе MediaRecorder может пропускать кадры между двумя частотами.
-  let stream = compositor.canvas.captureStream(0);
-  let track = stream.getVideoTracks()[0];
-  if (typeof track.requestFrame !== 'function') {
-    stream.getTracks().forEach((item) => item.stop());
-    stream = compositor.canvas.captureStream(fps);
-    track = stream.getVideoTracks()[0];
-  }
+  // Поток идёт с фиксированной частотой. В Chromium ручной requestFrame()
+  // иногда получает сжатые временные метки: реальная запись занимает 12 с,
+  // а MP4 сообщает 9–10 с. Таймер потока сохраняет честную длительность;
+  // холст всё равно обновляется перед каждым запланированным кадром ниже.
+  const stream = compositor.canvas.captureStream(fps);
   const recorder = new MediaRecorder(stream, {
     mimeType: type.mime,
     videoBitsPerSecond: bitrate,
@@ -137,7 +133,6 @@ async function recordTurn({ compositor, type, settings, startAngle, setAngle, re
   compositor.draw();
 
   recorder.start();
-  track.requestFrame?.();
   const frameMs = 1000 / fps;
   const total = duration * 1000;
 
@@ -178,7 +173,6 @@ async function recordTurn({ compositor, type, settings, startAngle, setAngle, re
       setAngle(startAngle + progress * 360);
       renderFrame();
       compositor.draw();
-      track.requestFrame?.();
       onProgress?.(progress);
 
       if (progress >= 1) {
