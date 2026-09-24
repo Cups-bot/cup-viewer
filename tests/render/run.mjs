@@ -85,6 +85,15 @@ async function shoot(page, base, frame) {
   return { png, meta: result.meta };
 }
 
+// Кадр сплошь чёрный — проверяем выборкой, каждый 997-й пиксель.
+function isBlank(png) {
+  const { data } = png;
+  for (let i = 0; i < data.length; i += 4 * 997) {
+    if (data[i] || data[i + 1] || data[i + 2]) return false;
+  }
+  return true;
+}
+
 async function captureAll(frames) {
   await bundle();
   const server = await serve();
@@ -102,7 +111,16 @@ async function captureAll(frames) {
       page.on('pageerror', (error) => errors.push(error.message));
       const started = Date.now();
       try {
-        shots.push({ frame, ...(await shoot(page, base, frame)) });
+        let shot = await shoot(page, base, frame);
+        // Изредка (раз на несколько прогонов) SwiftShader отдаёт первый кадр
+        // пустым — сплошь чёрным. Это сбой съёмки, а не рендера: такой кадр
+        // переснимается, иначе он ложно «краснит» проверку или портит эталон.
+        if (isBlank(shot.png)) {
+          console.log(`  ${frame.id}: пустой кадр, пересъёмка`);
+          shot = await shoot(page, base, frame);
+          if (isBlank(shot.png)) throw new Error(`${frame.id}: кадр пустой и после пересъёмки`);
+        }
+        shots.push({ frame, ...shot });
       } catch (error) {
         throw new Error(`${error.message}\n${errors.join('\n')}`);
       }
