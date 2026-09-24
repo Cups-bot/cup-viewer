@@ -11,11 +11,13 @@ render:check  npm run render:check   · для рефакторингов: npm r
 render:baseline  npm run render:baseline — только с «ок» человека
 
 ## Устройство
-- Движок: `js/Viewer.js` + `js/core/*` + `js/loaders/*`. Один renderer, одна сцена. Об UI не знает: получает каталог и `hooks`, сцену доводит `present({ model, material, designUrl })`.
-- Состояние: `js/state/viewerState.js` (§36), права: `js/state/modeController.js` (§37). Связка state → движок: `js/app/bindEngine.js`; намерения: `js/app/actions.js`.
+- Движок: `js/Viewer.js` + `js/core/*` + `js/loaders/*`. Один renderer, одна сцена. Об UI не знает: получает каталог и `hooks`, сцену доводит `present({ model, material, designUrl })`; пресеты камеры `setView()`, кадр для экспорта `renderStill()`.
+- Состояние: `js/state/viewerState.js` (§36), права: `js/state/modeController.js` (§37). Связка state → движок: `js/app/bindEngine.js`; намерения: `js/app/actions.js`; общий старт: `js/app/boot.js`.
 - Данные: `catalog/*.json`, сцены `catalog/scenes/<id>/`; проверка — `js/catalog/validate.js`.
-- Входы: `index.html` → `js/entries/design.js`; `view.html` → `js/entries/view.js`. Design-only код — только в `js/design/`.
-- render:check: `tests/render/` (capture.html + run.mjs), эталоны в `tests/render/baseline/`.
+- Входы: `index.html` → `js/entries/design.js` (+ `js/design/`), `view.html` → `js/entries/view.js` (+ `js/client/`). Экспорт — `js/export/`, по требованию.
+- Материалы печати: `ModelLoader.applyMaterial`; крафт — хук `js/core/printShading.js`, soft-touch — физическая копия материала.
+- Ссылки клиенту: dev — `scripts/snapshotApi.mjs` (контракт этапа 06).
+- render:check: `tests/render/` (capture.html + run.mjs), эталоны в `tests/render/baseline/`, кандидаты — `tests/render/candidates/`.
 
 ## Инварианты — нарушение = откат коммита
 - Рендер не деградирует (§58). Правка рендера, камеры, материалов, текстур, света, теней, сцен, порядка инициализации → `render:check` до и после, числа в отчёт. Пересъёмка эталонов (`render:baseline`) — только с явного «ок» человека в этой сессии.
@@ -41,6 +43,10 @@ render:baseline  npm run render:baseline — только с «ок» челов
 - Загрузка модели сбрасывает материалы и макет: `present()` кладёт их заново, в обход него не грузить.
 - Эмуляция вьюпорта во встроенном браузере снимает четверть кадра — визуальную проверку делать своим Playwright-скриптом.
 - В bash-heredoc длинные русские тексты с кавычками ломаются — скрипты правки писать файлом.
+- Python на Windows пишет CRLF — нормализует `.gitattributes`, но предупреждения git при коммите ожидаемы.
+- Меню, вложенные в скрытый контейнер (`display: none`), не показываются даже с `position: fixed` — на телефоне прятать кнопки, а не контейнер.
+- Правило `pointer: coarse` для кнопки должно стоять после её базового стиля: design.css грузится позже app.css.
+- Предупреждения ANGLE «glGetProgramiv: Program object expected» при первой смене фото-сцены кликом — побочный эффект параллельной компиляции шейдеров и освобождения PMREM; кадр корректный.
 
 ## Не делать
 - зависимости — только перечисленные в брифе этапа; любая другая — обоснуй и спроси

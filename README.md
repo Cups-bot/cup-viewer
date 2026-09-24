@@ -1,60 +1,82 @@
 # Cup Viewer
 
 Браузерный 3D-просмотрщик бумажных и пластиковых стаканов с дизайном заказчика.
-Концепция продукта — [`docs/CONCEPT.md`](docs/CONCEPT.md), этапы работ — [`docs/briefs/`](docs/briefs/),
-почему рендер устроен именно так — [`docs/rendering.md`](docs/rendering.md).
 
-> Проект в переработке по брифам этапов 00–08. Прежняя версия (клиентская страница
-> для Битрикса) лежит в ветке `stable/v1` и теге `v1-stable`.
+- **Design Mode** (`index.html`) — сотрудник выбирает стакан и материал, загружает макет
+  (JPG, PNG, PDF), смотрит развёртку и фото-сцены, экспортирует кадры и 360°, создаёт
+  ссылку для клиента.
+- **Client Mode** (`view.html?v=<token>`) — клиент по ссылке видит свой стакан в медленном
+  обороте, крутит, меняет фон, открывает развёртку и сцены, скачивает разрешённое.
+
+Один движок, одно состояние, две оболочки: выбора модели, материала и загрузки макета в
+клиентском бандле нет вовсе.
+
+Концепция — [`docs/CONCEPT.md`](docs/CONCEPT.md) · этапы — [`docs/briefs/`](docs/briefs/) ·
+рендер — [`docs/rendering.md`](docs/rendering.md) · материалы — [`docs/materials.md`](docs/materials.md) ·
+развёртывание — [`docs/deploy.md`](docs/deploy.md) · совместимость — [`docs/qa/compat.md`](docs/qa/compat.md) ·
+отчёт по этапам — [`docs/reports/2026-09-24.md`](docs/reports/2026-09-24.md).
+
+Прежняя версия (клиентская страница для Битрикса) — ветка `stable/v1`, тег `v1-stable`.
 
 ## Быстрый старт
 
 ```bash
 npm install
-npm run start          # сборка + локальный сервер http://localhost:8000
+npm run start          # сборка + сервер http://localhost:8000 (с локальным API ссылок)
 ```
 
 | Команда | Что делает |
 | --- | --- |
-| `npm run build` | проверка конфига + сборка `dist/` |
+| `npm run build` | проверка конфига + сборка `dist/` (design, view, чанки по требованию) |
 | `npm run watch` | пересборка при правке `js/` |
-| `npm run serve` | локальный сервер на :8000 |
+| `npm run serve` | dev-сервер :8000: статика, заголовки, кэш §51, локальный API ссылок |
 | `npm run test:unit` | unit-тесты (`node --test`) |
 | `npm run render:check` | сверка рендера с эталонами (`-- --strict` — любое отличие = провал) |
+| `npm run render:candidates` | кадры новых материалов для глаз — эталонами становятся после «ок» |
 | `npm run render:baseline` | переснять эталоны — **только с «ок» владельца** |
+
+Отладка (только localhost): `window.ViewerState`, `window.cupViewer`, оверлей `?debug=perf`.
+
+## Как добавить
+
+- **Стакан** — строка в `catalog/models.json`; размер развёртки и азимут шва:
+  `node scripts/measure-unwrap.mjs --catalog`.
+- **Материал, фон, бренд** — строка в `catalog/materials.json`, `backgrounds.json`, `brands.json`.
+  Фон с `"client": true` доступен клиенту.
+- **Фото-сцену** — папка `catalog/scenes/<id>/` (scene.json, снимки, env.hdr, тени) и строка
+  в `catalog/scenes/index.json`. Код не правится.
 
 ## Структура
 
 ```
-index.html            Design Mode (сотрудник) → dist/design.js
-view.html             Client Mode (клиент по ссылке) → dist/view.js
-catalog/              данные: модели, материалы, фоны, бренды, сцены (scenes/<id>/)
-js/Viewer.js          движок: сцена, камера, рендер-цикл, фото-сцена, снимок, 360
-js/core/              рендер: свет, тени, постобработка, окружение, запись оборота
-js/loaders/           модели и макеты
-js/state/             ViewerState (единственный источник истины) и ModeController (права)
-js/catalog/           загрузка и проверка каталогов
-js/app/               общий старт, связка состояния с движком, действия
-js/ui/                общий интерфейс сцены: вкладки, развёртка, панель, тосты
-js/design/            только Design Mode: выбор стакана и материала, загрузка макета
-js/entries/           входы design.js и view.js
-css/                  стили (style.css — база, stage.css — раскладка страницы)
-assets/               модели, иконки
-tests/render/         render:check — детерминированная съёмка и эталоны
-tests/unit/           unit-тесты
-scripts/              сборка, сервер, замер развёртки
-Cafe_Mockup_Blender_Pack/  исходники фото-сцены «Кофейня» (Blender)
+index.html, view.html   Design Mode и Client Mode
+catalog/                данные: модели, материалы, фоны, бренды, сцены
+js/Viewer.js            движок: сцена, камера и пресеты, фото-сцена, кадр для экспорта, 360
+js/core/ js/loaders/    рендер, материалы печати, загрузка моделей и макетов
+js/state/               ViewerState (§36) и ModeController (§37)
+js/catalog/             загрузка и проверка каталогов
+js/app/                 общий старт, связка состояния с движком, действия
+js/ui/                  общий интерфейс сцены: вкладки, развёртка, панель, тосты, тексты §42
+js/design/              только Design Mode: пикер, материал, загрузка макета, pdf.js, ссылка
+js/client/              только Client Mode: snapshot, загрузчик, бренд, ⓘ, «Скачать»
+js/export/              экспорт (грузится по требованию)
+js/entries/             входы design.js и view.js
+scripts/                сборка, dev-сервер, локальный API ссылок, замер развёртки
+tests/render/           render:check — детерминированная съёмка, эталоны, кандидаты
+tests/unit/             unit-тесты
 ```
 
-### Как добавить
+## Клиентские ссылки
 
-- **Стакан** — строка в `catalog/models.json`; размер развёртки: `node scripts/measure-unwrap.mjs --catalog`.
-- **Сцену** — папка `catalog/scenes/<id>/` (scene.json и ассеты) и строка в `catalog/scenes/index.json`.
-- **Фон, материал, бренд** — строка в соответствующем `catalog/*.json`. Код не правится.
+Бэкенд (Supabase, этап 06) пока отложен. Dev-сервер отдаёт тот же контракт
+(`scripts/snapshotApi.mjs`, файлы — в `.local-snapshots/`): уходят только производные растры,
+токен хранится как SHA-256, ссылки на растры подписаны и живут час. **Авторизации
+сотрудника в локальной замене нет — на бой её не выкладывать** (см. `docs/deploy.md`).
 
 ## render:check
 
-Headless Chromium на SwiftShader снимает фиксированную матрицу кадров (1600×1200, DPR 1)
-и сравнивает с эталонами в `tests/render/baseline/`. Отчёт — `tests/render/out/report.json`,
-для глаз — `tests/render/out/contact-sheet.png` (эталон | текущий | тепловая карта ΔE00).
-Пороги (§58): доля отличающихся пикселей ≤ 0,1 %, mean ΔE00 ≤ 0,5, p99 ΔE00 ≤ 2,0.
+Headless Chromium на SwiftShader снимает 9 кадров (1600×1200, DPR 1) — бумага coated/uncoated,
+PP, фото-сцена, развёртка, экспорт — и сравнивает с `tests/render/baseline/`. Рендер
+детерминирован бит в бит. Пороги §58: доля отличающихся пикселей ≤ 0,1 %, mean ΔE00 ≤ 0,5,
+p99 ΔE00 ≤ 2,0. Отчёт — `tests/render/out/report.json`, для глаз — `contact-sheet.png`
+(эталон | текущий | тепловая карта ΔE00).
