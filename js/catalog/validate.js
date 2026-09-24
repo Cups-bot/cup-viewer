@@ -64,6 +64,7 @@ function modelRules(materialIds) {
     ['name', isString, 'непустая строка'],
     ['type', (v) => MODEL_TYPES.includes(v), MODEL_TYPES.join(' | ')],
     ['volumeMl', isPositive, 'число > 0'],
+    ['fullVolumeMl', (v) => v === undefined || isPositive(v), 'число > 0 или без поля'],
     ['file', isString, 'путь к .glb'],
     ['size.heightMm', isPositive, 'число > 0'],
     ['size.topMm', isPositive, 'число > 0'],

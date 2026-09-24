@@ -19,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const FRAMES = {
   'HB80-280': ['coated', 'uncoated', 'soft-touch', 'kraft'],
-  'PP-500': ['pp-frosted', 'pp-clear', 'pet-clear'],
+  'BM90-500': ['pp-frosted', 'pet-clear'],
 };
 const FILE = {
   coated: 'paper-coated-front',
@@ -27,7 +27,6 @@ const FILE = {
   'soft-touch': 'paper-softtouch-front',
   kraft: 'paper-kraft-front',
   'pp-frosted': 'pp-frosted-front',
-  'pp-clear': 'pp-clear-front',
   'pet-clear': 'pet-clear-front',
 };
 
