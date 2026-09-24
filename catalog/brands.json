@@ -7,15 +7,15 @@
       "title": "Formacia — ваш стакан",
       "logo": "catalog/brands/formacia.svg",
       "favicon": "catalog/brands/formacia-favicon.svg",
-      "accent": "#1f6f5c"
+      "accent": "#1d2fad"
     },
     {
       "id": "mycups",
       "name": "MyCups",
       "title": "MyCups — ваш стакан",
       "logo": "catalog/brands/mycups.svg",
-      "favicon": "catalog/brands/mycups-favicon.svg",
-      "accent": "#e8290c"
+      "favicon": "catalog/brands/mycups-favicon.png",
+      "accent": "#ee1e16"
     }
   ]
 }

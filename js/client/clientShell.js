@@ -67,7 +67,11 @@ export function applyBrand(brand, title) {
   }
   document.documentElement.style.setProperty('--accent', brand.accent);
   const favicon = document.getElementById('favicon');
-  if (favicon) favicon.href = brand.favicon;
+  if (favicon) {
+    // Иконка бренда бывает и PNG: заявленный image/svg+xml браузер бы отверг.
+    favicon.removeAttribute('type');
+    favicon.href = brand.favicon;
+  }
   document.title = title ? `${title} — ${brand.name}` : brand.title;
 }
 
