@@ -458,7 +458,7 @@ button {
   inset: 0;
   z-index: 60;
   background: rgba(0, 0, 0, 0.36);
-  animation: fade-in 0.16s ease both;
+  backdrop-filter: blur(4px) saturate(120%);
 }
 
 @keyframes fade-in {
@@ -482,7 +482,6 @@ button {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-l);
   transform: translate(-50%, -50%);
-  animation: dialog-in 0.18s var(--ease) both;
 }
 
 @keyframes dialog-in {
@@ -520,7 +519,7 @@ button {
   border-radius: 12px;
   box-shadow: var(--shadow);
   transform: translateX(-50%);
-  animation: toast-in 0.2s var(--ease) both;
+  animation: toast-in 0.5s var(--spring-soft) both;
 }
 
 .toast--error {
@@ -534,13 +533,16 @@ button {
 
 .toast.is-leaving {
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transform: translate(-50%, 10px) scale(0.96);
+  transition:
+    opacity 0.25s ease,
+    transform 0.3s var(--ease);
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 8px);
+    transform: translate(-50%, 16px) scale(0.94);
   }
 }
 
@@ -575,6 +577,160 @@ button {
   to {
     transform: rotate(360deg);
   }
+}
+
+
+/* ── Движение (js/ui/motion.js) ─────────────────────────────────────────
+   Пружины посчитаны заранее: --spring — без перелёта, --spring-soft —
+   с перелётом ~1 %. Где linear() не поддерживается — близкие кривые. */
+
+:root {
+  --spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-soft: cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring: linear(0, 0.0294, 0.0991, 0.1889, 0.2856, 0.3812, 0.4709, 0.5524, 0.6245, 0.6873, 0.7412, 0.787, 0.8254, 0.8575, 0.8841, 0.906, 0.924, 0.9387, 0.9507, 0.9604, 0.9683, 0.9746, 0.9798, 0.9839, 0.9871, 0.9898, 0.9919, 0.9936, 0.9949, 0.996, 0.9968, 0.9975, 1);
+    --spring-soft: linear(0, 0.0278, 0.0968, 0.1893, 0.2927, 0.3977, 0.4985, 0.5912, 0.6736, 0.7451, 0.8056, 0.8557, 0.8962, 0.9285, 0.9535, 0.9724, 0.9863, 0.9963, 1.003, 1.0073, 1.0098, 1.0109, 1.0111, 1.0106, 1.0097, 1.0087, 1.0075, 1.0064, 1.0053, 1.0043, 1.0034, 1.0026, 1);
+  }
+}
+
+/* Отклик — в момент нажатия, а не после отпускания. */
+.btn,
+.pill-btn,
+.icon-btn,
+.stage-tab,
+.segmented__item,
+.theme-toggle__btn,
+.swatch,
+.choice,
+.cup-current,
+.upload-zone,
+.action-bar__item {
+  transition-property: background, border-color, box-shadow, color, filter, transform, opacity;
+  transition-duration: 0.18s;
+  transition-timing-function: var(--ease);
+}
+
+.btn:not(:disabled):active,
+.pill-btn:active,
+.icon-btn:not(:disabled):active,
+.choice:active,
+.cup-current:active,
+.upload-zone:not(:disabled):active,
+.action-bar__item:not(:disabled):active {
+  transform: scale(0.97);
+  transition-duration: 0.08s;
+}
+
+.stage-tab:active,
+.segmented__item:not(:disabled):active,
+.theme-toggle__btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.08s;
+}
+
+.swatch:active {
+  transform: scale(0.88);
+  transition-duration: 0.08s;
+}
+
+/* Бегущая подложка сегментов: одна на переключатель, едет пружиной. */
+.has-thumb {
+  position: relative;
+  isolation: isolate;
+}
+
+.seg-thumb {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background: var(--segment-on);
+  border-radius: 8px;
+  box-shadow: var(--segment-shadow);
+  transition:
+    transform 0.5s var(--spring-soft),
+    width 0.5s var(--spring-soft),
+    height 0.3s var(--spring),
+    opacity 0.2s ease;
+}
+
+.theme-toggle .seg-thumb {
+  border-radius: 7px;
+}
+
+.has-thumb > .stage-tab.is-active,
+.has-thumb > .segmented__item[aria-checked='true'],
+.has-thumb > .segmented__item[aria-pressed='true'],
+.has-thumb > .theme-toggle__btn[aria-pressed='true'] {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Кольцо выбранного фона появляется, а не вспыхивает. */
+.swatch.is-active::after {
+  animation: ring-in 0.45s var(--spring-soft) both;
+}
+
+@keyframes ring-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Слои, которые показываются сменой display, — с проявлением. */
+.unwrap:not([hidden]),
+.empty-state:not([hidden]) {
+  animation: layer-in 0.42s var(--spring) backwards;
+}
+
+@keyframes layer-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+.loader:not([hidden]) {
+  animation: loader-in 0.3s var(--spring) backwards;
+}
+
+@keyframes loader-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+/* Готово: кнопка скачивания на миг зелёная с галочкой. */
+.btn.is-done {
+  color: #fff;
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.btn.is-done::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* Смена темы — круг из кнопки (View Transitions): старый кадр стоит,
+   новый раскрывается поверх. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

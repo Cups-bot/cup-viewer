@@ -5,6 +5,7 @@
 
 import { ANGLE_VIEWS, PHOTO_SIZE, createExporter } from './exporter.js';
 import { initLottie, playLottie } from '../ui/lottie.js';
+import { hideLayer, initSegments, reducedMotion, showLayer, SPRING } from '../ui/motion.js';
 
 const VIEW_LABELS = { front: 'Спереди', right: 'Справа', back: 'Сзади', left: 'Слева' };
 
@@ -63,6 +64,7 @@ export function createExportCenter(app) {
   const exporter = createExporter(app);
   const { fps, duration, photoStep } = viewer.config.turnExport;
   let opener = null;
+  let open = false;
 
   // ── разметка ───────────────────────────────────────────────────────────
   const backdrop = el('div', { class: 'dialog-backdrop', hidden: '' });
@@ -122,6 +124,7 @@ export function createExportCenter(app) {
     kind.node, photoPanel, videoPanel, progress, go);
   document.body.append(backdrop, dialog);
   initLottie(dialog);
+  initSegments(dialog);
 
   // ── поведение ──────────────────────────────────────────────────────────
   function render() {
@@ -166,22 +169,35 @@ export function createExportCenter(app) {
     }
   });
 
-  go.addEventListener('click', () => {
-    if (kind.value === 'video') exporter.turn({ photos: photos.checked });
-    else if (photoValue === 'angles') exporter.angles();
-    else exporter.photo();
+  go.addEventListener('click', async () => {
+    const task = kind.value === 'video' ? exporter.turn({ photos: photos.checked }) : photoValue === 'angles' ? exporter.angles() : exporter.photo();
+    if (await task) celebrate();
   });
+
+  // Готово: кнопка на миг становится «Готово» с галочкой — видно, что файл
+  // ушёл, даже если браузер скачал его молча.
+  function celebrate() {
+    const label = go.textContent;
+    go.classList.add('is-done');
+    go.textContent = 'Готово';
+    if (!reducedMotion()) go.animate([{ scale: '0.96' }, { scale: '1' }], SPRING);
+    setTimeout(() => {
+      go.classList.remove('is-done');
+      go.textContent = label;
+    }, 1600);
+  }
 
   const hide = () => {
     // Запись оборота идёт по часам: закрыть окно можно, отменить — нет.
-    dialog.hidden = true;
-    backdrop.hidden = true;
+    open = false;
+    hideLayer(dialog);
+    hideLayer(backdrop);
     opener?.focus?.();
   };
   close.addEventListener('click', hide);
   backdrop.addEventListener('click', hide);
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !dialog.hidden) hide();
+    if (event.key === 'Escape' && open) hide();
   });
 
   return {
@@ -190,13 +206,14 @@ export function createExportCenter(app) {
     open(from, tab) {
       opener = from ?? document.activeElement;
       if (tab && !exporter.busy) kind.set(tab);
-      dialog.hidden = false;
-      backdrop.hidden = false;
+      open = true;
+      showLayer(backdrop);
+      showLayer(dialog);
       render();
       close.focus();
     },
     get isOpen() {
-      return !dialog.hidden;
+      return open;
     },
   };
 }

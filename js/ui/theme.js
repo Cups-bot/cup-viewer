@@ -2,6 +2,8 @@
 // модулей ставится в js/ui/themeBoot.js; здесь — кнопки и слежение за
 // системой, пока человек не выбрал сам.
 
+import { transitionTheme } from './motion.js';
+
 const KEY = 'cv.theme';
 
 function stored() {
@@ -28,12 +30,14 @@ export function initTheme() {
   for (const button of document.querySelectorAll('[data-theme-set]')) {
     button.addEventListener('click', () => {
       const theme = button.dataset.themeSet;
+      if (document.documentElement.dataset.theme === theme) return;
       try {
         localStorage.setItem(KEY, theme);
       } catch {
         // Не сохранилось — тема всё равно сменится до перезагрузки.
       }
-      apply(theme);
+      const rect = button.getBoundingClientRect();
+      transitionTheme(() => apply(theme), { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     });
   }
 }

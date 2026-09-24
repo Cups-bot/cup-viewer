@@ -167,15 +167,17 @@ export function createPublishDialog({ state, mode, catalog, feedback }) {
   });
 
   let opener = null;
+  let shown = false;
   const hide = () => {
-    dialog.hidden = true;
-    backdrop.hidden = true;
+    shown = false;
+    hideLayer(dialog);
+    hideLayer(backdrop);
     opener?.focus?.();
   };
   close.addEventListener('click', hide);
   backdrop.addEventListener('click', hide);
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !dialog.hidden) hide();
+    if (event.key === 'Escape' && shown) hide();
   });
 
   return {
@@ -183,8 +185,9 @@ export function createPublishDialog({ state, mode, catalog, feedback }) {
       opener = from;
       result.hidden = true;
       status.textContent = '';
-      dialog.hidden = false;
-      backdrop.hidden = false;
+      shown = true;
+      showLayer(backdrop);
+      showLayer(dialog);
       titleInput.focus();
     },
   };

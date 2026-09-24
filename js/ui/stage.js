@@ -3,6 +3,7 @@
 // показывает state и передаёт намерения в actions.
 
 import { UnwrapView } from './unwrap.js';
+import { hideLayer, showLayer } from './motion.js';
 
 export function initStage({ state, viewer, catalog, actions }) {
   initTabs(state, actions);
@@ -143,20 +144,23 @@ function initHelp() {
   if (!button || !dialog) return;
 
   let opener = null;
-  const open = () => {
+  let open = false;
+  const show = () => {
     opener = document.activeElement;
-    dialog.hidden = false;
-    if (backdrop) backdrop.hidden = false;
+    open = true;
+    showLayer(backdrop);
+    showLayer(dialog);
     closeBtn?.focus();
   };
   const close = () => {
-    if (dialog.hidden) return;
-    dialog.hidden = true;
-    if (backdrop) backdrop.hidden = true;
+    if (!open) return;
+    open = false;
+    hideLayer(dialog);
+    hideLayer(backdrop);
     opener?.focus?.();
   };
 
-  button.addEventListener('click', open);
+  button.addEventListener('click', show);
   closeBtn?.addEventListener('click', close);
   backdrop?.addEventListener('click', close);
   window.addEventListener('keydown', (event) => {

@@ -21,6 +21,7 @@
 // Силуэт — js/design/cupArt.js.
 
 import { artScale, drawCup } from './cupArt.js';
+import { flip, hideLayer, showLayer, snapshot, stagger } from '../ui/motion.js';
 
 // Разделы окна (§10) — как их называет производство: однослойные,
 // двухслойные, эмбо (двухслойные с рельефом) и пластиковые BM. Пустой раздел
@@ -102,7 +103,7 @@ export class CupPicker {
   }
 
   get isOpen() {
-    return this.root.hidden === false;
+    return this.root.hidden === false && !this.closing;
   }
 
   #build() {
@@ -316,6 +317,8 @@ export class CupPicker {
   }
 
   #filter(query) {
+    // Карточки переезжают на новые места, а не перескакивают (FLIP).
+    const before = this.isOpen ? snapshot(this.cards.map(({ card }) => card)) : null;
     const q = norm(query).trim();
     let visible = 0;
 
@@ -340,6 +343,10 @@ export class CupPicker {
     for (const { card } of this.cards) card.tabIndex = -1;
     const start = shown.find(({ cup }) => cup.id === this.activeId) ?? shown[0];
     if (start) start.card.tabIndex = 0;
+    if (before) {
+      flip(before);
+      stagger(shown.filter(({ card }) => !before.has(card)).map(({ card }) => card), { step: 16 });
+    }
   }
 
   // Отмечает модель, которая стоит в сцене. null — модель не из каталога.
@@ -355,8 +362,9 @@ export class CupPicker {
   open(opener = null) {
     if (this.isOpen) return;
     this.opener = opener;
-    this.root.hidden = false;
-    if (this.backdrop) this.backdrop.hidden = false;
+    this.closing = false;
+    showLayer(this.backdrop);
+    showLayer(this.root);
 
     if (this.search) this.search.value = '';
     // Открывается ВЕСЬ каталог, а не раздел текущего стакана: раздел скрыл бы
@@ -372,13 +380,24 @@ export class CupPicker {
     }
 
     active?.card.scrollIntoView({ block: 'nearest' });
+    // Карточки, что видны в окне, проявляются по очереди.
+    const listTop = this.list.getBoundingClientRect();
+    stagger(
+      this.#visibleCards()
+        .map(({ card }) => card)
+        .filter((card) => {
+          const rect = card.getBoundingClientRect();
+          return rect.bottom > listTop.top && rect.top < listTop.bottom;
+        }),
+    );
     this.onToggle?.(true);
   }
 
   close() {
     if (!this.isOpen) return;
-    this.root.hidden = true;
-    if (this.backdrop) this.backdrop.hidden = true;
+    this.closing = true;
+    hideLayer(this.root);
+    hideLayer(this.backdrop);
     this.opener?.focus();
     this.opener = null;
     this.onToggle?.(false);

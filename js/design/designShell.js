@@ -4,6 +4,7 @@
 
 import { CONFIG } from '../config.js';
 import { artScale, drawCup } from './cupArt.js';
+import { swapText } from '../ui/motion.js';
 import { saveSession } from './session.js';
 import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
@@ -189,10 +190,10 @@ function initPageHead({ state, catalog }) {
       sub.textContent = 'Затем загрузите макет — он ляжет на развёртку сам.';
       return;
     }
-    title.textContent = `${model.volumeMl} мл · ${model.name}`;
+    swapText(title, `${model.volumeMl} мл · ${model.name}`);
     const material = catalog.material(materialId)?.name?.toLowerCase();
     const size = `Ø${Math.round(model.size.topMm)} × ${Math.round(model.size.heightMm)} мм`;
-    sub.textContent = [kindOf(model), material, size].filter(Boolean).join(' · ');
+    swapText(sub, [kindOf(model), material, size].filter(Boolean).join(' · '));
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());

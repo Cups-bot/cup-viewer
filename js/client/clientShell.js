@@ -3,6 +3,7 @@
 // бандле нет вовсе.
 
 import { MESSAGES } from '../ui/messages.js';
+import { hideLayer, showLayer } from '../ui/motion.js';
 
 // Проверка до загрузки ассетов (§42): без WebGL — экран с объяснением, а не
 // чёрный холст.
@@ -112,18 +113,21 @@ function initInfo({ state, catalog }) {
         return row;
       }),
   );
+  let shown = false;
   const set = (open) => {
-    drawer.hidden = !open;
+    shown = open;
+    if (open) showLayer(drawer);
+    else hideLayer(drawer);
     button.setAttribute('aria-expanded', String(open));
     if (open) document.getElementById('info-close')?.focus();
   };
-  button.addEventListener('click', () => set(drawer.hidden));
+  button.addEventListener('click', () => set(!shown));
   document.getElementById('info-close')?.addEventListener('click', () => {
     set(false);
     button.focus();
   });
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !drawer.hidden) set(false);
+    if (event.key === 'Escape' && shown) set(false);
   });
 }
 

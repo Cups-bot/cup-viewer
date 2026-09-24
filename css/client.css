@@ -105,7 +105,6 @@ body.client {
   background: var(--surface);
   border-radius: var(--radius-l);
   box-shadow: var(--shadow-l);
-  animation: pop-in 0.16s var(--ease) both;
 }
 
 .drawer__head {
@@ -410,7 +409,6 @@ body.client {
     width: auto;
     padding-bottom: max(20px, env(safe-area-inset-bottom));
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    animation: sheet-in 0.22s var(--ease) both;
   }
 
   /* Окно «Скачать» — нижний лист. */
@@ -425,7 +423,6 @@ body.client {
     padding: 16px 16px max(16px, env(safe-area-inset-bottom));
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     transform: none;
-    animation: sheet-in 0.24s var(--ease) both;
   }
 }
 
@@ -454,5 +451,22 @@ body.client {
 @keyframes sheet-in {
   from {
     transform: translateY(100%);
+  }
+}
+
+/* Появление после загрузки: шапка и карточка сцены. */
+.client.is-revealed .client-header,
+.client.is-revealed .stage-card {
+  animation: page-in 0.7s var(--spring) backwards;
+}
+
+.client.is-revealed .stage-card {
+  animation-delay: 80ms;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
 }
