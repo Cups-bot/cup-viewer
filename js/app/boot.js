@@ -85,6 +85,11 @@ function publishDebugApi({ catalog, state, mode, viewer }) {
     // Показать только карту затенения складок: так удобно подбирать
     // quality.ambientOcclusion.radius и scale в js/config.js.
     debugAO: (on = true) => viewer.pipeline.showAmbientOcclusionOnly(on),
+    setAO: (options) => {
+      viewer.pipeline.setAmbientOcclusion(options);
+      viewer.invalidate();
+    },
+    setCavity: (value) => viewer.setCavityStrength(value),
   };
 }
 

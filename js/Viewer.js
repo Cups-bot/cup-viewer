@@ -8,6 +8,7 @@ import { createControls } from './core/controls.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createAmbientContactShadow } from './core/ambientContactShadow.js';
 import { createTurntable } from './core/turntable.js';
+import { computeCavityOcclusion, installCavityShading, setCavityStrength } from './core/cavityOcclusion.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
 import { RenderPipeline } from './core/postprocessing.js';
@@ -941,8 +942,30 @@ export class Viewer {
         shown.designUrl = url;
         continue;
       }
+      this.#shadeCavity();
       return { updated, model: shown.model };
     }
+  }
+
+  // Затенение полости (core/cavityOcclusion.js): атрибут считается один раз на
+  // геометрию, хук ставится на каждый новый материал — смена материала
+  // подменяет их копиями.
+  #shadeCavity() {
+    const model = this.modelLoader.currentModel;
+    if (!model || this.config.cavityOcclusion?.enabled === false) return;
+    if (!model.userData.cavityDone) {
+      model.userData.cavityDone = computeCavityOcclusion(model) || 'none';
+    }
+    model.traverse((object) => {
+      if (object.isMesh) installCavityShading(object);
+    });
+    this.invalidateModel();
+  }
+
+  // Подбор силы затенения полости вживую (отладочный API).
+  setCavityStrength(value) {
+    setCavityStrength(value);
+    this.invalidate();
   }
 
   #applyMaterial(material) {

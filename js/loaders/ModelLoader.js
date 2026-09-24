@@ -23,6 +23,74 @@ const FRONT_FACES_ORDER = 2;
 // предсказуемого размера, включает тени, находит материалы под текстуру и
 // перекадрирует камеру. Владеет текущей моделью и освобождает её перед загрузкой
 // новой, чтобы смена модели не текла по памяти GPU.
+// Нормали там, где они расходятся с треугольниками. У бумажных моделей нижняя
+// полоса внутренней стенки (у шва дна) выгружена с нормалями, вывернутыми
+// наружу, при правильно ориентированных гранях. Материал двусторонний, и при
+// взгляде сверху полоса освещалась как изнанка — у дна стояло чёрное кольцо.
+//
+// Лечится пересчётом нормали в вершинах таких треугольников — по всем
+// прилегающим граням, с весом по площади. Остальные вершины не трогаются:
+// общий computeVertexNormals сгладил бы и те рёбра, что в модели сделаны
+// жёсткими. Возвращает число исправленных вершин.
+export function repairInvertedNormals(geometry) {
+  const index = geometry.index;
+  const pos = geometry.attributes.position;
+  const nor = geometry.attributes.normal;
+  if (!index || !pos || !nor) return 0;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const m = new THREE.Vector3();
+  const faceNormal = (t, target) => {
+    a.fromBufferAttribute(pos, index.getX(t));
+    b.fromBufferAttribute(pos, index.getX(t + 1)).sub(a);
+    c.fromBufferAttribute(pos, index.getX(t + 2)).sub(a);
+    // Без нормировки: длина — удвоенная площадь, это и есть вес.
+    return target.crossVectors(b, c);
+  };
+
+  const broken = new Set();
+  for (let t = 0; t < index.count; t += 3) {
+    faceNormal(t, n);
+    m.fromBufferAttribute(nor, index.getX(t))
+      .add(a.fromBufferAttribute(nor, index.getX(t + 1)))
+      .add(b.fromBufferAttribute(nor, index.getX(t + 2)));
+    if (n.dot(m) < 0) {
+      for (let k = 0; k < 3; k++) broken.add(index.getX(t + k));
+    }
+  }
+  if (broken.size === 0) return 0;
+
+  const sums = new Map([...broken].map((i) => [i, new THREE.Vector3()]));
+  for (let t = 0; t < index.count; t += 3) {
+    const ids = [index.getX(t), index.getX(t + 1), index.getX(t + 2)];
+    if (!ids.some((i) => sums.has(i))) continue;
+    faceNormal(t, n);
+    for (const i of ids) sums.get(i)?.add(n);
+  }
+
+  // Модели квантованы: нормаль может лежать в целочисленном атрибуте —
+  // тогда он заменяется float-копией.
+  let target = nor;
+  if (!(nor.array instanceof Float32Array) || nor.isInterleavedBufferAttribute) {
+    const array = new Float32Array(nor.count * 3);
+    for (let i = 0; i < nor.count; i++) {
+      array[i * 3] = nor.getX(i);
+      array[i * 3 + 1] = nor.getY(i);
+      array[i * 3 + 2] = nor.getZ(i);
+    }
+    target = new THREE.BufferAttribute(array, 3);
+    geometry.setAttribute('normal', target);
+  }
+  for (const [i, sum] of sums) {
+    sum.normalize();
+    target.setXYZ(i, sum.x, sum.y, sum.z);
+  }
+  target.needsUpdate = true;
+  return broken.size;
+}
+
 export class ModelLoader {
   constructor({ scene, camera, controls, config, maxAnisotropy = 1 }) {
     this.scene = scene;
@@ -77,6 +145,9 @@ export class ModelLoader {
 
     this.cup = cup;
     this.print = cup?.textureMapping ?? DEFAULT_PRINT;
+    model.traverse((node) => {
+      if (node.isMesh) repairInvertedNormals(node.geometry);
+    });
     this.#prepareMaterials(model);
     // Сквозь пластиковую стенку видно заднюю: её рисует отдельный проход.
     if (cup && cup.type !== 'paper') this.#addBackfacePass(model);
