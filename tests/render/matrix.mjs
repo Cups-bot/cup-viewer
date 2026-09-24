@@ -2,12 +2,6 @@
 // нет) × материалы, которые реально есть у каждой × 2 ракурса; плюс кадр
 // фото-сцены и кадр развёртки.
 
-// Размер развёртки в мм — из scripts/measure-unwrap.mjs.
-export const FIXTURE_MODELS = [
-  { id: 'HB80-280', unwrapMm: [300, 209.6] },
-  { id: 'PP-500', unwrapMm: [202.4, 100.6] },
-];
-
 // front — студийный вид по умолчанию; top — сверху-сбоку: кромка и контактная тень.
 export const FRAMES = [
   { id: 'paper-coated-front', model: 'HB80-280', material: 'coated', view: 'front', fixture: 'patches' },

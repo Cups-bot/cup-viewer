@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "backgrounds": [
+    { "id": "studio", "name": "Студия", "color": "#eaf5ff", "sweep": 0.07 },
+    { "id": "white", "name": "Белый", "color": "#ffffff", "sweep": 0.07 },
+    { "id": "gray", "name": "Серый L*50", "color": "#777777", "sweep": 0.07 },
+    { "id": "dark", "name": "Тёмный", "color": "#1c1c1e", "sweep": 0.07 }
+  ]
+}

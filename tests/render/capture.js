@@ -4,7 +4,7 @@ import './seed.js';
 import * as THREE from 'three';
 import { CONFIG } from '../../js/config.js';
 import { Viewer } from '../../js/Viewer.js';
-import { findCup } from '../../js/data/models.js';
+import { loadCatalog } from '../../js/catalog/catalog.js';
 import { UnwrapView } from '../../js/ui/unwrap.js';
 import { FRAMES, CANVAS } from './matrix.mjs';
 import { fixtureName } from './fixtures/names.mjs';
@@ -71,7 +71,8 @@ async function capture() {
 
   const fixture = `tests/render/fixtures/${fixtureName(frame.model, frame.fixture)}`;
   const container = document.getElementById('canvas-container');
-  const viewer = new Viewer(container, config);
+  const catalog = await loadCatalog();
+  const viewer = new Viewer(container, config, { catalog });
   const meta = { renderer: glRenderer(viewer.renderer), three: THREE.REVISION, userAgent: navigator.userAgent };
 
   if (frame.view === 'unwrap') {
@@ -80,10 +81,11 @@ async function capture() {
   }
 
   await viewer.startEnvironment();
-  const cup = findCup(frame.model);
-  await viewer.loadModel(cup.file, cup);
-  if (cup.finish === 'paper') viewer.selectPaper(frame.material);
-  await viewer.applyTexture(fixture);
+  await viewer.present({
+    model: catalog.model(frame.model),
+    material: catalog.material(frame.material),
+    designUrl: fixture,
+  });
 
   if (frame.view === 'top') aimTopView(viewer);
   if (frame.view === 'scene') await viewer.enterPhotoScene(frame.scene);

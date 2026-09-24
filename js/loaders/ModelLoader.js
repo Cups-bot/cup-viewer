@@ -3,8 +3,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { disposeObject, measure, frameObject } from '../utils/helpers.js';
 import { applyPaperSurface } from '../core/paperSurface.js';
-import { PLASTIC_FINISH, defaultPaperFinish } from '../data/catalog.js';
-import { DEFAULT_PRINT } from '../data/models.js';
+
+// Правила печати для модели без записи каталога: макет ложится на материалы,
+// у которых в файле уже есть карта цвета.
+const DEFAULT_PRINT = Object.freeze({ materials: [], uv: 0, sheet: false });
 
 // Порядок отрисовки полупрозрачной стенки. Обе очереди идут ПОСЛЕ плоскостей
 // тени: иначе тень под стаканом не была бы видна сквозь него, а прозрачный
@@ -46,13 +48,13 @@ export class ModelLoader {
   }
 
   // Грузит модель, заменяя текущую. onProgress получает 0–100 или -1, если
-  // размер неизвестен. cup — позиция каталога: из неё берутся отделка и правила
-  // печати; для чужого файла (перетащенного на страницу) её нет.
-  load(url, onProgress, cup = null) {
+  // размер неизвестен. cup — запись catalog/models.json (правила печати —
+  // textureMapping), material — запись catalog/materials.json.
+  load(url, onProgress, cup = null, material = null) {
     return new Promise((resolve, reject) => {
       this.loader.load(
         url,
-        (gltf) => resolve(this.#onLoaded(gltf.scene, cup)),
+        (gltf) => resolve(this.#onLoaded(gltf.scene, cup, material)),
         (event) => onProgress?.(event.total > 0 ? (event.loaded / event.total) * 100 : -1),
         (error) => reject(new Error(`Не удалось загрузить модель "${url}": ${error.message ?? error}`)),
       );
@@ -60,38 +62,32 @@ export class ModelLoader {
   }
 
   // Нормализует свежий граф сцены и добавляет его в мир.
-  #onLoaded(model, cup) {
+  #onLoaded(model, cup, material) {
     this.dispose();
 
     this.cup = cup;
-    this.print = cup?.print ?? DEFAULT_PRINT;
+    this.print = cup?.textureMapping ?? DEFAULT_PRINT;
     this.#prepareMaterials(model);
-    if (this.cup?.finish === 'plastic') this.#addBackfacePass(model);
+    // Сквозь пластиковую стенку видно заднюю: её рисует отдельный проход.
+    if (cup && cup.type !== 'paper') this.#addBackfacePass(model);
     const pivot = this.#normalizeTransform(model);
 
     this.scene.add(pivot);
     this.currentModel = pivot;
 
-    this.applySurfaceFinish();
+    this.applyMaterial(material);
     this.frameCurrentModel();
     return pivot;
   }
 
-  // Задаёт отделку материалов, на которые ложится макет. Значение null
-  // оставляет свойство как есть. Возвращает число обновлённых материалов.
-  //
-  // Без аргумента берётся отделка картона по умолчанию из справочника
-  // (js/data/catalog.js). Она живёт доли секунды — до применения заказа, — но
-  // задавать её вторым набором чисел в конфиге нельзя: они разъезжаются
-  // с справочником и потом никто не может понять, какое из значений работает.
-  applySurfaceFinish(finish = defaultPaperFinish()) {
-    const kind = this.cup?.finish ?? 'paper';
-    // Материал из файла трогать не велено.
-    if (kind === 'own') return 0;
-    // Пластик картонной отделки не принимает НИ ОТ КОГО — ни от заказа, ни от
-    // отладочного API: тип бумаги к полипропилену отношения не имеет.
-    if (kind === 'plastic') return this.#applyPlasticFinish();
-    if (!finish) return 0;
+  // Кладёт материал каталога (catalog/materials.json) на материалы, куда
+  // ложится макет. Значение null в параметрах оставляет свойство как есть.
+  // Возвращает число обновлённых материалов.
+  applyMaterial(material) {
+    this.material = material ?? null;
+    if (!material) return 0;
+    if (material.kind === 'plastic') return this.#applyPlasticFinish(material.params);
+    const finish = material.params;
 
     // Картон глухой: лист для него кладётся без прозрачности.
     this.wallOpacity = 1;
@@ -102,8 +98,8 @@ export class ModelLoader {
       if (!('roughness' in material)) continue;
       if (finish.roughness != null) material.roughness = finish.roughness;
       if (finish.metalness != null) material.metalness = finish.metalness;
-      // Фактура картона: сила рельефа и крупность зерна приходят из типа
-      // бумаги (см. js/data/catalog.js). Если у модели есть своя карта
+      // Фактура картона: сила рельефа и крупность зерна приходят из
+      // материала каталога. Если у модели есть своя карта
       // рельефа — тиснение, волокно, — меняется только её сила.
       if (finish.relief != null) {
         applyPaperSurface(material, finish.relief, finish.reliefScale, finish.normalScale ?? 1);
@@ -114,30 +110,30 @@ export class ModelLoader {
     return updated;
   }
 
-  // Молочный полипропилен из справочника (js/data/catalog.js).
+  // Пластик из каталога материалов.
   //
   // Стенка полупрозрачна обычным альфа-смешением, а не «стеклом» из файла
   // модели: сквозь стекло видно только фон, и на светлом фоне стакан исчезал
-  // целиком. Подробный разбор — рядом с PLASTIC_FINISH.
-  #applyPlasticFinish() {
+  // целиком. Подробный разбор — docs/rendering.md, «Молочный пластик».
+  #applyPlasticFinish(finish) {
     let updated = 0;
 
     for (const material of this.printMaterials) {
       if (!('roughness' in material)) continue;
-      material.color.set(PLASTIC_FINISH.color);
-      material.roughness = PLASTIC_FINISH.roughness;
-      material.metalness = PLASTIC_FINISH.metalness;
+      material.color.set(finish.color);
+      material.roughness = finish.roughness;
+      material.metalness = finish.metalness;
 
       // Эти свойства есть только у физического материала: у обычного
       // MeshStandardMaterial их нет вовсе.
       if ('transmission' in material) {
         material.transmission = 0;
         material.thickness = 0;
-        material.clearcoat = PLASTIC_FINISH.clearcoat;
-        material.clearcoatRoughness = PLASTIC_FINISH.clearcoatRoughness;
-        material.sheen = PLASTIC_FINISH.sheen;
-        material.sheenRoughness = PLASTIC_FINISH.sheenRoughness;
-        material.sheenColor.set(PLASTIC_FINISH.color);
+        material.clearcoat = finish.clearcoat;
+        material.clearcoatRoughness = finish.clearcoatRoughness;
+        material.sheen = finish.sheen;
+        material.sheenRoughness = finish.sheenRoughness;
+        material.sheenColor.set(finish.color);
       }
 
       material.transparent = true;
@@ -161,7 +157,7 @@ export class ModelLoader {
       updated++;
     }
 
-    this.wallOpacity = PLASTIC_FINISH.opacity;
+    this.wallOpacity = finish.opacity;
     return updated;
   }
 
@@ -324,6 +320,7 @@ export class ModelLoader {
     this.currentModel = null;
     this.sourceSize = null;
     this.cup = null;
+    this.material = null;
     this.print = DEFAULT_PRINT;
     this.printMaterials = [];
     this.wallOpacity = 1;

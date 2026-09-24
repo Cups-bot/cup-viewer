@@ -4,14 +4,18 @@
 Этапы: `docs/briefs/NN-*.md`. Журнал: `.claude/journal.md`. Аудит текущего кода: `docs/audit/00-current.md`.
 
 ## Команды
-<!-- вставляется человеком по итогам этапа 00 -->
-dev:          …
-build:        …
-unit:         node --test tests/unit        (появится на этапе 02)
-render:check  …                             (появится на этапе 01)
+dev:          npm run watch  (+ npm run serve в соседнем терминале, :8000)
+build:        npm run build   → dist/design.js, dist/view.js, dist/chunks/*
+unit:         npm run test:unit   (= node --test "tests/unit/*.test.mjs")
+render:check  npm run render:check   · для рефакторингов: npm run render:check -- --strict
+render:baseline  npm run render:baseline — только с «ок» человека
 
 ## Устройство
-<!-- вставляется человеком по итогам этапа 00 -->
+- Движок: `js/Viewer.js` + `js/core/*` + `js/loaders/*`. Один renderer, одна сцена. Об UI не знает: получает каталог и `hooks`, сцену доводит `present({ model, material, designUrl })`.
+- Состояние: `js/state/viewerState.js` (§36), права: `js/state/modeController.js` (§37). Связка state → движок: `js/app/bindEngine.js`; намерения: `js/app/actions.js`.
+- Данные: `catalog/*.json`, сцены `catalog/scenes/<id>/`; проверка — `js/catalog/validate.js`.
+- Входы: `index.html` → `js/entries/design.js`; `view.html` → `js/entries/view.js`. Design-only код — только в `js/design/`.
+- render:check: `tests/render/` (capture.html + run.mjs), эталоны в `tests/render/baseline/`.
 
 ## Инварианты — нарушение = откат коммита
 - Рендер не деградирует (§58). Правка рендера, камеры, материалов, текстур, света, теней, сцен, порядка инициализации → `render:check` до и после, числа в отчёт. Пересъёмка эталонов (`render:baseline`) — только с явного «ок» человека в этой сессии.
@@ -30,6 +34,13 @@ render:check  …                             (появится на этапе 
 
 ## Грабли
 <!-- растёт от боли: каждая поправка агента → строка сюда, между сессиями -->
+- Node 24: `node --test tests/unit` (каталог) падает — только маска `tests/unit/*.test.mjs`.
+- `toneMappingExposure` при `toneMapping: 'none'` ни на что не влияет — «экспозицию» проверять через `lighting.environmentIntensity`.
+- Пороги §58 не ловят roughness бумаги +0,1 (p99 ≈ 1,7): рефакторинги проверять `render:check -- --strict` (рендер детерминирован бит в бит).
+- Рендер по требованию: после изменения сцены — `viewer.invalidate()`/`invalidateModel()`, иначе кадр не обновится.
+- Загрузка модели сбрасывает материалы и макет: `present()` кладёт их заново, в обход него не грузить.
+- Эмуляция вьюпорта во встроенном браузере снимает четверть кадра — визуальную проверку делать своим Playwright-скриптом.
+- В bash-heredoc длинные русские тексты с кавычками ломаются — скрипты правки писать файлом.
 
 ## Не делать
 - зависимости — только перечисленные в брифе этапа; любая другая — обоснуй и спроси

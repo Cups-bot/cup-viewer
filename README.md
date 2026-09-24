@@ -26,19 +26,31 @@ npm run start          # сборка + локальный сервер http://l
 ## Структура
 
 ```
-index.html            страница
-css/                  стили (style.css — база, stage.css — раскладка страницы)
-js/Viewer.js          движок: сцена, камера, рендер-цикл, фото-сцена, экспорт
+index.html            Design Mode (сотрудник) → dist/design.js
+view.html             Client Mode (клиент по ссылке) → dist/view.js
+catalog/              данные: модели, материалы, фоны, бренды, сцены (scenes/<id>/)
+js/Viewer.js          движок: сцена, камера, рендер-цикл, фото-сцена, снимок, 360
 js/core/              рендер: свет, тени, постобработка, окружение, запись оборота
 js/loaders/           модели и макеты
-js/data/              каталоги стаканов, картона, сцен
-js/ui/                интерфейс вокруг сцены
-assets/               модели, сцены, иконки
+js/state/             ViewerState (единственный источник истины) и ModeController (права)
+js/catalog/           загрузка и проверка каталогов
+js/app/               общий старт, связка состояния с движком, действия
+js/ui/                общий интерфейс сцены: вкладки, развёртка, панель, тосты
+js/design/            только Design Mode: выбор стакана и материала, загрузка макета
+js/entries/           входы design.js и view.js
+css/                  стили (style.css — база, stage.css — раскладка страницы)
+assets/               модели, иконки
 tests/render/         render:check — детерминированная съёмка и эталоны
 tests/unit/           unit-тесты
-scripts/              сборка, сервер, замеры развёртки
+scripts/              сборка, сервер, замер развёртки
 Cafe_Mockup_Blender_Pack/  исходники фото-сцены «Кофейня» (Blender)
 ```
+
+### Как добавить
+
+- **Стакан** — строка в `catalog/models.json`; размер развёртки: `node scripts/measure-unwrap.mjs --catalog`.
+- **Сцену** — папка `catalog/scenes/<id>/` (scene.json и ассеты) и строка в `catalog/scenes/index.json`.
+- **Фон, материал, бренд** — строка в соответствующем `catalog/*.json`. Код не правится.
 
 ## render:check
 

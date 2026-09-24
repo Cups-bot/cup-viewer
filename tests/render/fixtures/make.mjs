@@ -4,13 +4,14 @@
 //   (b) patches  — плашки sRGB (белый, чёрный, C, M, Y, R, G, B, серый 50 %);
 //   (c) gradient — горизонтальный градиент чёрный → белый.
 //
-// Размер — под развёртку каждой модели матрицы (tests/render/matrix.mjs), 300 dpi.
+// Размер — под развёртку каждой модели матрицы: textureMapping.unwrapMm из
+// catalog/models.json, 300 dpi.
 //   node tests/render/fixtures/make.mjs
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
-import { FIXTURE_MODELS } from '../matrix.mjs';
+import { FRAMES } from '../matrix.mjs';
 import { fixtureName } from './names.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -136,7 +137,10 @@ export const FIXTURES = { lines, patches, gradient };
 
 async function main() {
   await mkdir(here, { recursive: true });
-  for (const { id, unwrapMm } of FIXTURE_MODELS) {
+  const catalog = JSON.parse(await readFile(resolve(here, '../../../catalog/models.json'), 'utf8'));
+  const ids = new Set(FRAMES.map((frame) => frame.model));
+  for (const { id, textureMapping } of catalog.models.filter((model) => ids.has(model.id))) {
+    const { unwrapMm } = textureMapping;
     const width = Math.round(unwrapMm[0] * PX_PER_MM);
     const height = Math.round(unwrapMm[1] * PX_PER_MM);
     for (const [kind, draw] of Object.entries(FIXTURES)) {

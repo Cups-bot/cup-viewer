@@ -1,24 +1,37 @@
-// Интерактив вокруг вьювера: режимы просмотра, фото-сцены, развёртка,
-// поворотный круг и подсказка по управлению. Логики рендера не касается.
+// Сцена вокруг холста: вкладки, выбор фото-сцены, развёртка, поворотный круг,
+// сброс вида и подсказка. Источник истины — ViewerState: DOM только
+// показывает state и передаёт намерения в actions.
 
 import { UnwrapView } from './unwrap.js';
-import { blankSheetUrl } from '../utils/blankSheet.js';
-import { DEFAULT_SCENE_ID, PHOTO_SCENES } from '../data/scenes.js';
-import { CONFIG } from '../config.js';
-import { getViewer, whenViewer, setUnwrap } from '../appState.js';
+
+export function initStage({ state, viewer, catalog, actions }) {
+  initTabs(state, actions);
+  initScenes(state, catalog, actions);
+  const unwrap = initUnwrap();
+  initTurntable(viewer);
+  initHelp();
+  document.getElementById('stage')?.addEventListener('dblclick', () => actions.resetView());
+  return { unwrap };
+}
 
 // Переключение режимов сцены: 3D и развёртка живут в одном контейнере, поэтому
 // показываем нужный слой и прячем лишние элементы управления.
-function initTabs() {
+function initTabs(state, actions) {
   const tabs = Array.from(document.querySelectorAll('.stage-tab'));
+  const stage = document.querySelector('.stage');
   const unwrapEl = document.getElementById('unwrap');
   const controls = document.querySelector('.stage-controls');
   const swatches = document.querySelector('.stage-swatches');
   const scenes = document.getElementById('scene-picker');
 
-  const stage = document.querySelector('.stage');
+  tabs.forEach((tab) => tab.addEventListener('click', () => actions.setTab(tab.dataset.tab)));
 
-  const show = (mode) => {
+  const render = ({ tab: mode }) => {
+    for (const tab of tabs) {
+      const active = tab.dataset.tab === mode;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
     // Фото-сцену панели не перекрывают: холст сжимается до области между ними
     // (см. .stage.is-photo в stage.css), и снимок вписывается уже туда.
     stage?.classList.toggle('is-photo', mode === 'scene');
@@ -32,131 +45,73 @@ function initTabs() {
     // фото-сцене фон — это снятая комната, плоский цвет там выбирать нечего.
     if (swatches) swatches.hidden = mode !== '3d';
     if (scenes) scenes.hidden = mode !== 'scene';
-    // Автоповорот в фоне только жрёт кадры, пока смотрят картинку.
-    getViewer()?.setManualRotate(mode === 'unwrap');
   };
-
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const mode = tab.dataset.tab;
-
-      tabs.forEach((t) => {
-        const active = t === tab;
-        t.classList.toggle('is-active', active);
-        t.setAttribute('aria-selected', String(active));
-      });
-      show(mode);
-
-      // Фото-сцена грузится с первым открытием вкладки и дальше остаётся в
-      // памяти: возвращаться к ней можно бесплатно.
-      const viewer = getViewer();
-      if (!viewer) return;
-      if (mode === 'scene') openScene(viewer, currentSceneId);
-      else viewer.exitPhotoScene();
-    });
-  });
+  state.subscribe(['tab'], render);
+  render(state.get());
 }
 
-// Какая сцена выбрана. Между открытиями вкладки помним: клиент вернулся к 3D
-// и обратно — показываем ту же комнату, а не начинаем сначала.
-let currentSceneId = DEFAULT_SCENE_ID;
-
-async function openScene(viewer, id) {
-  currentSceneId = id;
-  markScene(id);
-  await viewer.enterPhotoScene(id);
-  // Пока сцена грузилась, клиент мог уйти на другую вкладку: выход тогда
-  // уже отработал вхолостую, и сцена встала бы поверх 3D.
-  if (!document.querySelector('.stage')?.classList.contains('is-photo')) {
-    viewer.exitPhotoScene();
-  }
-}
-
-function markScene(id) {
-  for (const button of document.querySelectorAll('.scene-chip')) {
-    const active = button.dataset.scene === id;
-    button.classList.toggle('is-active', active);
-    button.setAttribute('aria-pressed', String(active));
-  }
-}
-
-// Кнопки выбора сцены. Строятся один раз из каталога js/data/scenes.js.
-function initPhotoScenes() {
+// Ряд выбора сцены — со второй сцены в каталоге: одна кнопка, которую некуда
+// переключить, была бы лишним элементом.
+function initScenes(state, catalog, actions) {
   const box = document.getElementById('scene-picker');
   if (!box) return;
 
-  // Режим выключен настройкой — вкладки нет вовсе: показывать её и отвечать
-  // «недоступно» хуже, чем не показывать.
-  if (CONFIG.ui.photoScene === false) {
+  if (catalog.scenes.length === 0) {
     document.querySelector('.stage-tab[data-tab="scene"]')?.remove();
     box.remove();
     return;
   }
-
-  // Выбирать не из чего — ряда кнопок нет. Сцена при этом работает: она
-  // откроется по DEFAULT_SCENE_ID, как только нажмут вкладку.
-  if (PHOTO_SCENES.length < 2) {
+  if (catalog.scenes.length < 2) {
     box.remove();
     return;
   }
 
   box.replaceChildren();
-  for (const scene of PHOTO_SCENES) {
+  const buttons = catalog.scenes.map((scene) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'scene-chip';
     button.dataset.scene = scene.id;
-    button.setAttribute('aria-pressed', String(scene.id === currentSceneId));
     button.title = scene.note ?? '';
-
     const label = document.createElement('span');
     label.className = 'scene-chip__label';
-    label.textContent = scene.label;
+    label.textContent = scene.name;
     button.appendChild(label);
-
-    button.addEventListener('click', () => {
-      const viewer = getViewer();
-      if (viewer) openScene(viewer, scene.id);
-    });
+    button.addEventListener('click', () => actions.selectScene(scene.id));
     box.appendChild(button);
-  }
-  markScene(currentSceneId);
+    return button;
+  });
+
+  const render = ({ sceneId }) => {
+    for (const button of buttons) {
+      const active = button.dataset.scene === sceneId;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+  };
+  state.subscribe(['sceneId'], render);
+  render(state.get());
 }
 
-// Просмотр развёртки.
 function initUnwrap() {
   const root = document.getElementById('unwrap');
-  if (!root) return;
-
-  const view = new UnwrapView(root);
-  setUnwrap(view);
-
-  // Макета нет — показываем тот же чистый лист, что лежит на модели: пустая
-  // вкладка выглядела бы как не загрузившаяся страница.
-  view.setSource(blankSheetUrl());
+  return root ? new UnwrapView(root) : null;
 }
 
-// Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
-// наведению, закрепление кнопкой и сброс вида двойным кликом.
-function initStage() {
-  const stage = document.getElementById('stage');
+// Круг показывается ТОЛЬКО кнопкой — по наведению на сцену он не появляется.
+// Совсем выключить его можно флагом turntable.enabled в js/config.js.
+function initTurntable(viewer) {
   const button = document.getElementById('turntable-btn');
-  if (!stage) return;
-
-  whenViewer((viewer) => {
-    const turntable = viewer.turntable;
-    if (!turntable) return;
-
-    // Круг показывается ТОЛЬКО этой кнопкой — по наведению на сцену он больше
-    // не появляется. Совсем выключить его можно флагом turntable.enabled
-    // в js/config.js, там же radiusScale задаёт его размер.
-    button?.addEventListener('click', () => {
-      const pinned = turntable.togglePinned();
-      button.classList.toggle('is-active', pinned);
-      button.setAttribute('aria-pressed', String(pinned));
-    });
-
-    stage.addEventListener('dblclick', () => viewer.resetView());
+  const turntable = viewer.turntable;
+  if (!button) return;
+  if (!turntable) {
+    button.hidden = true;
+    return;
+  }
+  button.addEventListener('click', () => {
+    const pinned = turntable.togglePinned();
+    button.classList.toggle('is-active', pinned);
+    button.setAttribute('aria-pressed', String(pinned));
   });
 }
 
@@ -212,11 +167,10 @@ function initHelp() {
     }, 180);
   };
 
-  const toggle = () => (popover.hidden ? open() : close());
-
   button.addEventListener('click', (event) => {
     event.stopPropagation();
-    toggle();
+    if (popover.hidden) open();
+    else close();
   });
   closeBtn?.addEventListener('click', close);
   backdrop?.addEventListener('click', close);
@@ -226,29 +180,13 @@ function initHelp() {
     if (popover.contains(event.target) || button.contains(event.target)) return;
     close();
   });
-
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !popover.hidden) close();
   });
-
   window.addEventListener('resize', () => {
     if (!popover.hidden) place();
   });
   window.addEventListener('scroll', () => {
     if (!popover.hidden) place();
   }, { passive: true });
-}
-
-function init() {
-  initTabs();
-  initPhotoScenes();
-  initUnwrap();
-  initStage();
-  initHelp();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init, { once: true });
-} else {
-  init();
 }

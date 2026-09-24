@@ -12,23 +12,13 @@
       #canvas-container canvas { display: block; }
       .unwrap { position: absolute; inset: 0; background: #eaf5ff; }
       .unwrap__canvas { width: 100%; height: 100%; display: block; }
-      [hidden], .ui { display: none !important; }
+      [hidden] { display: none !important; }
     </style>
   </head>
   <body>
     <div class="stage" id="stage">
       <div id="canvas-container"></div>
       <div class="unwrap" id="unwrap" hidden><canvas class="unwrap__canvas"></canvas></div>
-    </div>
-    <!-- Узлы, которых ждёт оболочка движка. На кадр не влияют. -->
-    <div class="ui">
-      <div id="loader"><span id="loader-text"></span></div>
-      <div id="drop-overlay"></div>
-      <input type="file" id="texture-input" />
-      <div id="bg-swatches"></div>
-      <button id="bg-btn"></button><button id="autorotate-btn"></button>
-      <button id="screenshot-btn"></button><button id="fullscreen-btn"></button>
-      <button id="texture-btn"></button>
     </div>
     <script type="module" src="tests/render/.build/capture.js"></script>
   </body>

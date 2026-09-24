@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { analyzeSun } from './environment.js';
-import { SCENES_ROOT } from '../data/scenes.js';
+import { sceneFolder } from '../catalog/catalog.js';
 
 // Фото-сцена: стакан стоит в настоящей снятой сцене, а не в студии из
 // софтбоксов.
@@ -74,7 +74,7 @@ function lightProbe(url, renderer, onProgress) {
 }
 
 async function fetchScene(id, renderer, onProgress) {
-  const folder = `${SCENES_ROOT}/${id}`;
+  const folder = sceneFolder(id);
 
   const response = await fetch(`${folder}/scene.json`, { credentials: 'same-origin' });
   if (!response.ok) throw new Error(`описание сцены ${id}: HTTP ${response.status}`);
@@ -109,8 +109,8 @@ export function loadPhotoScene(id, renderer, onProgress) {
 // он нужен не всегда (у бумажных стаканов его нет) и меняется вместе с моделью.
 const shadows = new Map();
 
-// Ключ слоя тени — номенклатура модели, как в каталоге: экспортёр называет
-// файлы её же именем (shadow-HB80-280.webp).
+// Ключ слоя тени — id модели из каталога: экспортёр называет файлы её же
+// именем (shadow-<id>.webp).
 export function shadowKeyFor(cup) {
   return cup?.id ?? null;
 }
@@ -123,7 +123,7 @@ export function loadShadowLayer(sceneId, data, key, frame = 'wide') {
   const file = typeof entry === 'string' ? (frame === 'wide' ? entry : null) : entry?.[frame];
   if (!file) return Promise.resolve(null);
 
-  const url = `${SCENES_ROOT}/${sceneId}/${file}`;
+  const url = `${sceneFolder(sceneId)}/${file}`;
   if (!shadows.has(url)) {
     shadows.set(
       url,
@@ -183,7 +183,7 @@ export function frameSizeOf(aspect, frameAspect) {
 // Высота модели в единицах сцены. Каталог хранит габариты изделия в
 // миллиметрах, сцена — сколько миллиметров в её единице.
 export function heightInScene(data, cup) {
-  const mm = cup?.size?.height;
+  const mm = cup?.size?.heightMm;
   const perUnit = data.floor?.mmPerUnit;
   if (!(mm > 0) || !(perUnit > 0)) return null;
   return mm / perUnit;

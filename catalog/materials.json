@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "materials": [
+    {
+      "id": "coated",
+      "name": "Мелованный",
+      "short": "Глянец",
+      "note": "Гладкий, собранный блик",
+      "kind": "paper",
+      "swatch": "#d8dee6",
+      "params": { "roughness": 0.18, "metalness": 0, "relief": 0.1, "reliefScale": 42, "normalScale": 0.3 }
+    },
+    {
+      "id": "uncoated",
+      "name": "Немелованный",
+      "short": "Мат",
+      "note": "Матовый, видно волокно",
+      "kind": "paper",
+      "swatch": "#efe9de",
+      "params": { "roughness": 0.85, "metalness": 0, "relief": 0.55, "reliefScale": 16, "normalScale": 1.4 }
+    },
+    {
+      "id": "pp-frosted",
+      "name": "Матовый пластик",
+      "short": "PP матовый",
+      "note": "Молочный полипропилен",
+      "kind": "plastic",
+      "swatch": "#e9ecef",
+      "params": {
+        "color": "#ffffff",
+        "opacity": 0.65,
+        "roughness": 0.62,
+        "metalness": 0,
+        "clearcoat": 0.35,
+        "clearcoatRoughness": 0.3,
+        "sheen": 0.5,
+        "sheenRoughness": 0.6
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 // Окно выбора стакана: карточки моделей с силуэтом, разделы каталога кнопками,
-// поиск и подсветка того, что сейчас стоит в сцене. Каталог — js/data/models.js,
+// поиск и подсветка того, что сейчас стоит в сцене. Каталог — catalog/models.json,
 // оттуда же берутся габариты для силуэта.
 //
 // ПОЧЕМУ НЕ ВЫПАДАЮЩИЙ СПИСОК, с которого всё начиналось. В нём видно только
@@ -21,7 +21,26 @@
 // Силуэт рисуется по числам из каталога, а не картинкой из assets/: новая
 // модель не требует ни рендера, ни выкладки файла — только строчку размеров.
 
-import { CUP_MODELS, WALL_KINDS, cupGroups } from '../data/models.js';
+// Подписи типов стенки: по ним же разделы окна и поиск.
+const WALL_KINDS = Object.freeze({
+  single: { label: 'Однослойный', group: 'Однослойные' },
+  double: { label: 'Двухслойный', group: 'Двухслойные' },
+  embossed: { label: 'С тиснением', group: 'С тиснением' },
+  plastic: { label: 'Полипропилен', group: 'Пластиковые' },
+});
+
+const groupOf = (model) => WALL_KINDS[model.wall]?.group ?? '';
+
+// Модели, разложенные по разделам в порядке каталога.
+function modelGroups(models) {
+  const groups = new Map();
+  for (const model of models) {
+    const name = groupOf(model);
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(model);
+  }
+  return [...groups].map(([group, cups]) => ({ group, cups }));
+}
 
 // Поле рисунка карточки в единицах SVG. Ширина с запасом: самый широкий
 // стакан каталога — 89 мм по верху.
@@ -41,8 +60,8 @@ const norm = (value) => String(value ?? '').toLowerCase().replace(/ё/g, 'е');
 
 // Общий масштаб: самый высокий стакан каталога занимает поле целиком,
 // остальные — пропорционально своему росту.
-function artScale() {
-  const tallest = Math.max(...CUP_MODELS.map((cup) => cup.size?.height ?? 0), 1);
+function artScale(models) {
+  const tallest = Math.max(...models.map((cup) => cup.size.heightMm), 1);
   return (ART.height - ART.padding * 2) / (tallest * RIM_HEADROOM);
 }
 
@@ -55,7 +74,8 @@ function svgEl(name, attrs) {
 // Силуэт стакана: тень под дном, стенка, приметы типа и эллипс ободка.
 //
 // Геометрия честная — из size каталога, — поэтому карточки сравнимы между
-// собой: у HB62-120 стенка почти отвесная и низкая, у PP-650 высокая и узкая.
+// собой: у самого маленького бумажного стенка почти отвесная и низкая, у
+// пластикового на 650 мл — высокая и узкая.
 function drawCup(cup, scale) {
   const svg = svgEl('svg', {
     class: `cup-card__art cup-card__art--${cup.wall ?? 'single'}`,
@@ -64,11 +84,9 @@ function drawCup(cup, scale) {
   });
 
   const size = cup.size;
-  if (!size) return svg;
-
-  const h = size.height * scale;
-  const topR = (size.top / 2) * scale;
-  const botR = (size.bottom / 2) * scale;
+  const h = size.heightMm * scale;
+  const topR = (size.topMm / 2) * scale;
+  const botR = (size.bottomMm / 2) * scale;
   const cx = ART.width / 2;
   // Все стаканы стоят на одной линии — иначе сравнивать их по росту нельзя.
   const baseY = ART.height - ART.padding;
@@ -160,8 +178,9 @@ export class CupPicker {
   // root — карточка окна, backdrop — затемнение под ней. onSelect получает id
   // выбранной модели, onToggle — состояние окна: закрыть его можно и мимо
   // кнопки (Escape, щелчок по затемнению), а кнопке об этом знать нужно.
-  constructor(root, { backdrop, onSelect, onToggle } = {}) {
+  constructor(root, { models, backdrop, onSelect, onToggle } = {}) {
     this.root = root;
+    this.models = models;
     this.backdrop = backdrop ?? null;
     this.onSelect = onSelect ?? null;
     this.onToggle = onToggle ?? null;
@@ -190,13 +209,13 @@ export class CupPicker {
   }
 
   #build() {
-    const scale = artScale();
+    const scale = artScale(this.models);
     this.list.replaceChildren();
     this.filters?.replaceChildren();
 
-    const groups = cupGroups();
+    const groups = modelGroups(this.models);
     if (this.filters) {
-      this.#addFilter('', 'Все', CUP_MODELS.length);
+      this.#addFilter('', 'Все', this.models.length);
       for (const { group, cups } of groups) this.#addFilter(group, group, cups.length);
     }
 
@@ -227,20 +246,18 @@ export class CupPicker {
 
         const name = document.createElement('span');
         name.className = 'cup-card__name';
-        name.textContent = cup.label ?? cup.id;
+        name.textContent = cup.name;
 
         // Объём и рост — то, чем позиции различаются на деле. Номенклатура их
-        // повторяет (HB80-280 — это Ø80 и 280 мл), но читается как код, а
-        // выбирают «на 300 мл, повыше».
+        // повторяет (диаметр и объём в коде), но читается как код, а выбирают
+        // «на 300 мл, повыше».
         const meta = document.createElement('span');
         meta.className = 'cup-card__meta';
         const volume = document.createElement('b');
         volume.className = 'cup-card__volume';
-        volume.textContent = cup.volume ? `${cup.volume} мл` : '';
+        volume.textContent = `${cup.volumeMl} мл`;
         meta.appendChild(volume);
-        if (cup.size?.height) {
-          meta.append(document.createTextNode(` · ${Math.round(cup.size.height)} мм`));
-        }
+        meta.append(document.createTextNode(` · ${Math.round(cup.size.heightMm)} мм`));
 
         card.append(drawCup(cup, scale), name, meta);
         card.addEventListener('click', () => this.#choose(cup.id));
@@ -399,9 +416,9 @@ export class CupPicker {
     for (const { cup, card } of this.cards) {
       const wall = WALL_KINDS[cup.wall]?.label ?? '';
       const haystack = norm(
-        `${cup.id} ${cup.label} ${cup.note} ${cup.group} ${wall} ${cup.volume ?? ''} мл`,
+        `${cup.id} ${cup.name} ${groupOf(cup)} ${wall} ${cup.volumeMl} мл ${cup.searchTerms.join(' ')}`,
       );
-      const hit = (q === '' || haystack.includes(q)) && (this.group === '' || cup.group === this.group);
+      const hit = (q === '' || haystack.includes(q)) && (this.group === '' || groupOf(cup) === this.group);
       card.hidden = !hit;
       if (hit) visible += 1;
     }

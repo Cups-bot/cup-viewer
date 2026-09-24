@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "scenes": [
+    { "id": "cafe", "name": "Кофейня", "note": "Утренний свет из окна" }
+  ]
+}

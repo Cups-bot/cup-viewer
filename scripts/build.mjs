@@ -1,18 +1,23 @@
-// Сборка страницы.
+// Сборка страниц.
 //
 // Делает три вещи:
-//   1. собирает весь JS в один файл dist/cup-viewer.js;
+//   1. собирает два входа — dist/design.js (Design Mode, index.html) и
+//      dist/view.js (Client Mode, view.html). Общий движок уходит в чанк
+//      dist/chunks/*-<хеш>.js, модули «по требованию» — в свои чанки;
 //   2. кладёт рядом декодер Draco (vendor/draco/) — свою копию, а не с gstatic;
-//   3. проставляет в index.html метку версии ?v=<хеш> у скриптов и стилей.
+//   3. проставляет в HTML метку версии ?v=<хеш> у входов и стилей.
 //
-// Зачем сборка, а не import map, как было раньше:
+// Зачем сборка, а не import map:
 //
 //   • Карта импорта тянула three.js с unpkg.com. Для клиентской страницы это
 //     и точка отказа (упал CDN — упала страница), и канал подмены кода:
 //     подписать карту импорта хешами (SRI) нельзя в принципе.
 //   • Карты импорта не поддерживаются Safari до 16.4. На iPhone с iOS 15–16.3
 //     страница не показывала НИЧЕГО и молча.
-//   • Двадцать с лишним модулей превращаются в один запрос.
+//
+// Два входа, а не флаг режима: код выбора модели, материала и загрузки
+// макета импортируется только из design-входа и в клиентский бандл не
+// попадает вовсе (§37).
 //
 // Результат сборки (dist/) лежит в репозитории: сайт разворачивается копированием
 // файлов, Node на сервере не нужен. Node нужен только тому, кто правит js/.
@@ -28,39 +33,43 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const watch = process.argv.includes('--watch');
 
-const ENTRY = resolve(root, 'js/main.js');
-const OUTFILE = resolve(root, 'dist/cup-viewer.js');
-const INDEX = resolve(root, 'index.html');
+const OUTDIR = resolve(root, 'dist');
 
-// Файлы, у которых index.html должен получить метку версии.
-const VERSIONED = ['css/style.css', 'css/stage.css', 'dist/cup-viewer.js'];
+// Страница → файлы, которые получают метку версии.
+const PAGES = {
+  'index.html': ['css/style.css', 'css/stage.css', 'dist/design.js'],
+  'view.html': ['css/style.css', 'css/stage.css', 'dist/view.js'],
+};
 
 const options = {
-  entryPoints: [ENTRY],
+  entryPoints: {
+    design: resolve(root, 'js/entries/design.js'),
+    view: resolve(root, 'js/entries/view.js'),
+  },
   bundle: true,
+  splitting: true,
   format: 'esm',
-  // Цель — браузеры, которые точно встретятся у клиентов типографии.
-  // Safari 15 здесь принципиален: именно он не понимает карты импорта.
+  outdir: OUTDIR,
+  // Хеш в имени чанка: его можно кэшировать навсегда (§51). Входы — без
+  // хеша, их версию несёт ?v= в HTML.
+  entryNames: '[name]',
+  chunkNames: 'chunks/[name]-[hash]',
   target: ['es2020', 'chrome90', 'firefox90', 'safari15', 'edge90'],
-  outfile: OUTFILE,
-  // Карта исходников только в режиме слежения: в репозитории она весила бы
-  // 2,7 МБ при 650 КБ самой сборки, а исходники и так лежат рядом, в js/.
   sourcemap: watch,
   minify: !watch,
   legalComments: 'none',
+  // Модульные скрипты браузер всегда читает как UTF-8: кириллица остаётся
+  // кириллицей, а не escape-последовательностями — бандл короче и по нему
+  // работает grep.
+  charset: 'utf8',
   logLevel: 'info',
+  metafile: true,
   banner: {
     js: '/* cup-viewer — собрано npm run build. Исходники в js/, править нужно там. */',
   },
 };
 
-// Декодер Draco. Грузится лениво и только если модель действительно сжата,
-// но лежать обязан на своём домене.
-//
-// Берём ровно те три файла, которые запрашивает DRACOLoader: wasm-декодер, его
-// обёртку и js-вариант на случай браузера без WebAssembly. Подпапка gltf/ из
-// поставки three — второй такой же комплект под другой путь декодера, нам он не
-// нужен; кодировщик на клиенте не нужен тем более.
+// Декодер Draco: из пакета three — ровно той версии, с которой собран вьювер.
 const DRACO_FILES = ['draco_decoder.wasm', 'draco_wasm_wrapper.js', 'draco_decoder.js', 'README.md'];
 
 async function vendorDraco() {
@@ -75,28 +84,26 @@ async function vendorDraco() {
   console.log(`vendor/draco — декодер на месте (${DRACO_FILES.length} файла)`);
 }
 
-// Метка версии в адресе файла. Без неё браузеры и кеш Битрикса продолжают
-// отдавать старый bundle после выкладки, и «у меня не обновилось» становится
-// постоянным сопровождением каждого релиза.
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-async function stampIndex() {
-  let html = await readFile(INDEX, 'utf8');
-
-  for (const file of VERSIONED) {
-    const content = await readFile(resolve(root, file));
-    const hash = createHash('sha256').update(content).digest('hex').slice(0, 8);
-    // Ловим и адрес без метки, и адрес с уже проставленной.
-    const pattern = new RegExp(`${escapeRegExp(file)}(\\?v=[a-f0-9]+)?`, 'g');
-    html = html.replace(pattern, `${file}?v=${hash}`);
+// Метка версии — хеш содержимого: браузер берёт новый файл ровно тогда, когда
+// он действительно изменился.
+async function stampPages() {
+  for (const [page, files] of Object.entries(PAGES)) {
+    const path = resolve(root, page);
+    let html = await readFile(path, 'utf8');
+    for (const file of files) {
+      const content = await readFile(resolve(root, file));
+      const hash = createHash('sha256').update(content).digest('hex').slice(0, 8);
+      const pattern = new RegExp(`${escapeRegExp(file)}(\\?v=[a-f0-9]+)?`, 'g');
+      html = html.replace(pattern, `${file}?v=${hash}`);
+    }
+    await writeFile(path, html);
   }
-
-  await writeFile(INDEX, html);
-  console.log('index.html — метки версий обновлены');
+  console.log(`${Object.keys(PAGES).join(', ')} — метки версий обновлены`);
 }
 
 async function run() {
-  await mkdir(dirname(OUTFILE), { recursive: true });
   await vendorDraco();
 
   if (watch) {
@@ -106,9 +113,12 @@ async function run() {
     return;
   }
 
-  await build(options);
-  await stampIndex();
-  console.log('Готово: dist/cup-viewer.js');
+  // Старые чанки с прежними хешами убираем: иначе dist/ копил бы их вечно.
+  await rm(OUTDIR, { recursive: true, force: true });
+  const result = await build(options);
+  await writeFile(resolve(OUTDIR, 'meta.json'), JSON.stringify(result.metafile));
+  await stampPages();
+  console.log('Готово: dist/design.js, dist/view.js');
 }
 
 run().catch((error) => {

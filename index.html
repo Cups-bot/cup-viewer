@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Cup Viewer</title>
     <link rel="stylesheet" href="css/style.css?v=36909ce9" />
-    <link rel="stylesheet" href="css/stage.css?v=c524ebcf" />
+    <link rel="stylesheet" href="css/stage.css?v=82d01b33" />
   </head>
   <body class="viewer">
     <main class="page">
@@ -39,7 +39,7 @@
           </div>
 
           <!-- Выбор фото-сцены. Кнопки строит js/ui/stage.js из каталога
-               js/data/scenes.js; блок показывается только на вкладке
+               catalog/scenes/index.json; блок показывается только на вкладке
                «Фото-сцена», вместо кружочков фона: там фон — снятая сцена. -->
           <div class="stage-scenes" id="scene-picker" role="group" aria-label="Фото-сцена" hidden></div>
 
@@ -60,16 +60,15 @@
           <!-- Плавающая панель управления. Подпись у каждой кнопки — в
                data-tip: всплывает над панелью и объясняет, что она делает. -->
           <nav class="controls-panel stage-controls" aria-label="Управление просмотром">
-            <!-- Выбор стакана: открывает окно с карточками моделей (каталог —
-                 js/data/models.js). Прячется флагом ui.modelPicker в
-                 js/config.js. -->
+            <!-- Выбор стакана: окно с карточками моделей (catalog/models.json).
+                 Только Design Mode. -->
             <button class="btn" id="cup-btn" type="button" data-tip="Выбрать стакан" aria-label="Выбрать стакан" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
               <img class="btn__icon" src="assets/icons/cup.svg" alt="" aria-hidden="true" />
             </button>
 
             <!-- Замена дизайна. То же самое умеет перетаскивание файла на
                  страницу, но кнопка работает и на телефоне, где бросить файл
-                 некуда. Прячется флагом ui.uploadButton в js/config.js. -->
+                 некуда. Только Design Mode; прячется флагом ui.uploadButton. -->
             <button class="btn" id="texture-btn" type="button" data-tip="Заменить дизайн" aria-label="Заменить дизайн">
               <img class="btn__icon" src="assets/icons/upload.svg" alt="" aria-hidden="true" />
             </button>
@@ -168,8 +167,8 @@
     </div>
     <div class="help-backdrop" id="help-backdrop" hidden></div>
 
-    <!-- Окно выбора стакана. Карточки строит js/ui/cupPicker.js из каталога
-         js/data/models.js — здесь только рамка и постоянные тексты.
+    <!-- Окно выбора стакана. Карточки строит js/design/modelPicker.js из
+         catalog/models.json — здесь только рамка и постоянные тексты.
          Лежит вне сцены по той же причине, что и подсказка выше: у
          сцены overflow: hidden, и окно обрезалось бы её краем. -->
     <div class="cup-dialog" id="cup-dialog" role="dialog" aria-modal="true" aria-labelledby="cup-dialog-title" hidden>
@@ -203,7 +202,7 @@
       <span class="loader-text" id="loader-text">Загрузка…</span>
     </div>
     <div class="drop-overlay" id="drop-overlay" hidden>
-      <div class="drop-overlay__message">Перетащите изображение или .glb-модель</div>
+      <div class="drop-overlay__message">Перетащите изображение макета</div>
     </div>
 
     <!-- Собранный просмотрщик. Исходники в js/, сборка — npm run build.
@@ -211,6 +210,6 @@
          сторонний CDN на клиентской странице — и точка отказа, и канал подмены
          кода. Заодно ушла карта импорта, которую не понимает Safari до 16.4:
          на таких iPhone страница не показывала ничего. -->
-    <script type="module" src="dist/cup-viewer.js?v=ff3d42a4"></script>
+    <script type="module" src="dist/design.js?v=44462668"></script>
   </body>
 </html>

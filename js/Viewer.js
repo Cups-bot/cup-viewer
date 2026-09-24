@@ -29,14 +29,10 @@ import {
   pickFrame,
   shadowKeyFor,
 } from './core/photoScene.js';
-import { DEFAULT_PAPER, PAPER_TYPES, defaultPaperFinish, paperFinish } from './data/catalog.js';
-import { findCup } from './data/models.js';
-import { DEFAULT_SCENE_ID } from './data/scenes.js';
 import { blankSheetUrl } from './utils/blankSheet.js';
 import { createZip } from './utils/zip.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
-import { UIManager } from './ui/UIManager.js';
 
 // Максимальный шаг кадра, который учитывает анимация (сек).
 const MAX_FRAME_DELTA = 0.1;
@@ -54,14 +50,23 @@ function aspectOf(width, height) {
   return Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
 }
 
-// Собирает ядро рендера, загрузчики и UI, владеет циклом отрисовки и реализует
-// действия, которые UI ему делегирует.
+// Движок: ядро рендера и загрузчики, цикл отрисовки, фото-сцена, снимок и
+// запись оборота. Об интерфейсе не знает — оболочка передаёт каталог и hooks
+// и управляет сценой через present(), setBackground() и соседей.
+//
+// hooks (все необязательны):
+//   onLoading(label, percent|null) — идёт загрузка; percent — только реальный;
+//   onLoaded()                     — загрузка закончилась;
+//   onToast(message, type)         — сообщение человеку ('success' | 'error');
+//   onExportBusy(busy)             — запись оборота началась / закончилась;
+//   onFullscreen(on)               — полный экран включили или выключили.
 export class Viewer {
-  constructor(container, config) {
+  constructor(container, config, { catalog, hooks = {} } = {}) {
     this.container = container;
     this.config = config;
+    this.catalog = catalog;
+    this.hooks = hooks;
 
-    this.backgroundIndex = 0;
     this.frameId = null;
     this.autoRotate = config.autoRotate.enabled;
     // Пока пользователь вручную крутит слайдером — автоповорот на паузе.
@@ -79,7 +84,7 @@ export class Viewer {
 
     this.#initCore();
     this.#initModules();
-    this.#trackAsync(['loadHDRI', 'loadModel', 'applyTexture', 'enterPhotoScene', 'exitPhotoScene', 'selectCup']);
+    this.#trackAsync(['loadHDRI', 'loadModel', 'applyTexture', 'enterPhotoScene', 'exitPhotoScene', 'present']);
   }
 
   // Незавершённые загрузки. whenReady() ждёт, пока их не останется: без этого
@@ -192,31 +197,13 @@ export class Viewer {
     });
     this.#applyShadingProfile();
 
-    this.ui = new UIManager(this.config);
-
-    this.ui.bind({
-      onChangeBackground: () => this.cycleBackground(),
-      onSelectBackground: (index) => this.selectBackground(index),
-      onToggleAutoRotate: () => this.toggleAutoRotate(),
-      onManualRotateStart: () => this.setManualRotate(true),
-      onManualRotateEnd: () => this.setManualRotate(false),
-      onManualRotate: (degrees) => this.rotateModelTo(degrees),
-      onScreenshot: () => this.takeScreenshot(),
-      onExportTurn: (options) => this.exportTurn(options),
-      onToggleFullscreen: () => this.toggleFullscreen(),
-      onImageFile: (file) => this.replaceTextureFromFile(file),
-      onModelFile: (file) => this.loadModelFromFile(file),
-      onSelectCup: (id) => this.selectCup(id),
-      onSelectPaper: (key) => this.selectPaper(key),
-    });
-
-    // Через selectBackground, а не setActiveBackground: заодно задаёт тему
-    // поворотного круга под стартовый фон.
-    this.selectBackground(this.backgroundIndex);
+    // Стартовый фон — первый в каталоге: кадр не должен ждать оболочку.
+    const background = this.catalog?.backgrounds[0];
+    if (background) this.setBackground(background);
   }
 
   // Поднимает сцену: наблюдатели, цикл отрисовки и освещение. Модель и дизайн
-  // сюда не входят — они приходят из данных заказа (см. js/main.js).
+  // сюда не входят — их ставит present().
   async startEnvironment() {
     this.#observeResize();
     this.#watchFullscreen();
@@ -234,7 +221,7 @@ export class Viewer {
   // чужими логотипами, и клиент принимает её за свой макет.
   //
   // Сбой загрузки страницу ронять не должен: модель останется с тем, что на
-  // ней уже есть.
+  // ней уже есть. Возвращает число материалов с макетом; null — сбой.
   async applyTexture(url) {
     try {
       const updated = await this.textureManager.replaceTexture(url || blankSheetUrl());
@@ -242,8 +229,20 @@ export class Viewer {
       return updated;
     } catch (error) {
       console.warn(`Дизайн не загружен: ${error.message}`);
-      return 0;
+      return null;
     }
+  }
+
+  #emit(name, ...args) {
+    this.hooks[name]?.(...args);
+  }
+
+  #loading(label, percent = null) {
+    this.#emit('onLoading', label, percent);
+  }
+
+  #toast(message, type = 'success') {
+    this.#emit('onToast', message, type);
   }
 
   // Помечает кадр устаревшим: в следующем тике сцена перерисуется.
@@ -385,12 +384,12 @@ export class Viewer {
     canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
       this.#stopRenderLoop();
-      this.ui.showToast('Контекст WebGL потерян — восстановление…', 'error');
+      this.#toast('Контекст WebGL потерян — восстановление…', 'error');
     });
     canvas.addEventListener('webglcontextrestored', () => {
       this.invalidateModel();
       this.#startRenderLoop();
-      this.ui.showToast('Контекст WebGL восстановлен');
+      this.#toast('Контекст WebGL восстановлен');
     });
   }
 
@@ -398,14 +397,14 @@ export class Viewer {
   async loadHDRI() {
     // Студия собирается в памяти мгновенно — индикатор нужен только файлу.
     const fromFile = this.config.lighting.environment === 'hdri';
-    if (fromFile) this.ui.showLoader('Загрузка окружения…');
+    if (fromFile) this.#loading('Загрузка окружения…');
     try {
       await this.loadEnvironmentMap();
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Не удалось загрузить окружение', 'error');
+      this.#toast('Не удалось загрузить окружение', 'error');
     } finally {
-      if (fromFile) this.ui.hideLoader();
+      if (fromFile) this.#emit('onLoaded');
     }
   }
 
@@ -419,7 +418,7 @@ export class Viewer {
     const { envMap, sun } =
       this.config.lighting.environment === 'hdri'
         ? await loadEnvironment(this.scene, this.renderer, this.config, (percent) =>
-            this.ui.updateProgress(percent, 'Загрузка окружения…'),
+            this.#loading('Загрузка окружения…', percent),
           )
         : loadStudioEnvironment(this.scene, this.renderer, this.config, this.backdrop?.base);
 
@@ -450,13 +449,12 @@ export class Viewer {
 
   // Загрузка модели по URL с индикацией прогресса и обработкой ошибок.
   //
-  // cup — позиция каталога (js/data/models.js), если модель пришла оттуда:
-  // из неё берутся отделка и правила печати. У файла, брошенного на страницу,
-  // её нет.
-  async loadModel(url, cup = null) {
-    this.ui.showLoader('Загрузка модели…');
+  // model — запись catalog/models.json: из неё берутся правила печати
+  // (textureMapping); material — запись catalog/materials.json.
+  async loadModel(url, model = null, material = null) {
+    this.#loading('Загрузка модели…');
     try {
-      await this.modelLoader.load(url, (percent) => this.ui.updateProgress(percent), cup);
+      await this.modelLoader.load(url, (percent) => this.#loading('Загрузка модели…', percent), model, material);
       // Текстуры, которые сделал менеджер, принадлежали уходящей модели, и её
       // уже нет. Видеопамять за них отдаёт сам разбор модели, а вот
       // распакованный растр в обычной памяти (до 12 МБ на макет) держала ссылка
@@ -480,17 +478,13 @@ export class Viewer {
         this.#placeGround();
         this.#measureTurntable();
       }
-      this.ui.setActiveCup(cup?.id ?? null);
-      // Переключатель картона касается только бумажных: у пластика своя
-      // отделка из справочника, и тип бумаги ей не указ.
-      this.ui.setPaperAvailable(this.cupTakesPaper());
       this.invalidateModel();
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Не удалось загрузить модель', 'error');
+      this.#toast('Не удалось загрузить модель', 'error');
       throw error;
     } finally {
-      this.ui.hideLoader();
+      this.#emit('onLoaded');
     }
   }
 
@@ -510,20 +504,20 @@ export class Viewer {
   // Стакан переезжает из студии в настоящую снятую сцену: фон приходит
   // картинкой, свет — панорамой из точки, где стакан стоял при съёмке, камера
   // встаёт ровно туда, где была в Blender. Подробности — в js/core/photoScene.js.
-  async enterPhotoScene(id = DEFAULT_SCENE_ID) {
-    this.ui.showLoader('Загрузка сцены…');
+  async enterPhotoScene(id) {
+    this.#loading('Загрузка сцены…');
     try {
       const photo = await loadPhotoScene(id, this.renderer, (percent) =>
-        this.ui.updateProgress(percent, 'Загрузка сцены…'),
+        this.#loading('Загрузка сцены…', percent),
       );
       this.#applyPhotoScene(photo);
       return photo;
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Не удалось открыть сцену', 'error');
+      this.#toast('Не удалось открыть сцену', 'error');
       return null;
     } finally {
-      this.ui.hideLoader();
+      this.#emit('onLoaded');
     }
   }
 
@@ -797,7 +791,7 @@ export class Viewer {
     this.resize();
     this.#restoreStudioView();
 
-    this.selectBackground(this.backgroundIndex);
+    this.setBackground(this.background);
     await this.loadEnvironmentMap();
     applyEnvironmentIntensity(
       this.modelLoader.currentModel,
@@ -806,149 +800,81 @@ export class Viewer {
     this.invalidateModel();
   }
 
-  // Смена стакана выпадающим списком в сцене.
-  //
-  // ДИЗАЙН НА НОВУЮ МОДЕЛЬ НЕ ПЕРЕНОСИТСЯ. У каждого стакана своя развёртка:
-  // та же картинка на соседней модели съезжает, растёт или обрезается — и это
-  // выглядит как брак печати, хотя виноват просмотр. Поэтому новая модель
-  // приезжает с чистым листом А4, а дизайн кладётся на неё уже осознанно —
-  // кнопкой «Заменить дизайн» (см. js/utils/blankSheet.js).
+  // Доводит сцену до цели: модель, материал, макет (модель и материал — записи
+  // каталога, макет — URL или null для чистого листа).
   //
   // ПЕРЕКЛЮЧЕНИЯ ИДУТ ПО ОДНОМУ. Загрузчик кладёт модель в сцену, когда она
-  // доехала, а не когда её выбрали: два быстрых клика давали две параллельные
+  // доехала, а не когда её выбрали: два быстрых выбора давали две параллельные
   // загрузки, и в сцене оставалась та, что пришла последней, — не обязательно
-  // выбранная. Поэтому выбор, сделанный во время загрузки, только запоминается;
-  // промежуточные пропускаются, и после текущей грузится последний.
-  selectCup(id) {
-    this.pendingCupId = id;
-    if (!this.cupSwitch) {
-      this.cupSwitch = (async () => {
-        while (this.pendingCupId) {
-          const next = this.pendingCupId;
-          this.pendingCupId = null;
-          await this.#switchCup(next);
-        }
-      })().finally(() => {
-        this.cupSwitch = null;
+  // выбранная. Поэтому цель, заданная во время загрузки, только запоминается;
+  // промежуточные пропускаются, и после текущего шага сцена идёт к последней.
+  //
+  // Возвращает { updated, model } — число материалов, получивших макет, и
+  // модель, которая реально стоит в сцене (при сбое загрузки — прежняя).
+  present(target) {
+    this.target = { ...this.target, ...target };
+    if (!this.presenting) {
+      this.presenting = this.#reconcile().finally(() => {
+        this.presenting = null;
       });
     }
-    return this.cupSwitch;
+    return this.presenting;
   }
 
-  async #switchCup(id) {
-    const cup = findCup(id);
-    if (!cup) return;
-
-    // Тень новой модели грузится одновременно с ней: иначе под новым стаканом
-    // лежала бы тень прежнего, пока не догрузится своя.
-    const shadow = this.photo ? this.#fetchPhotoShadow(cup) : null;
-
-    try {
-      await this.loadModel(cup.file, cup);
-    } catch {
-      // Сообщение уже показано загрузчиком; список возвращаем к тому стакану,
-      // который на самом деле стоит в сцене.
-      this.ui.setActiveCup(this.modelLoader.cup?.id ?? null);
-      return;
-    }
-    if (shadow) this.#setPhotoShadow(await shadow);
-
-    // Загрузка модели сбрасывает материалы — возвращаем выбранный картон.
-    // Пластик его не примет: каталог велит ему держать собственный материал
-    // (см. ModelLoader.applySurfaceFinish).
-    this.#applyPaper();
-
-    const sheet = blankSheetUrl();
-    await this.applyTexture(sheet);
-    // Развёртка показывает то же, что лежит на модели, — значит, тоже лист.
-    this.unwrap?.setSource(sheet);
-  }
-
-  // Перетаскивание .glb на страницу: модель встаёт с выбранным картоном и
-  // чистым листом. Работает только при включённом ui.dragAndDrop.
-  async loadModelFromFile(file) {
-    const url = URL.createObjectURL(file);
-    try {
-      await this.loadModel(url);
-      this.#applyPaper();
-      await this.applyTexture(null);
-      this.ui.showToast(`Модель загружена: ${file.name}`);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      // Формат .gltf догружает .bin и текстуры ОТНОСИТЕЛЬНО этого адреса, причём
-      // уже после того, как разрешился основной промис. Отзыв откладываем на
-      // следующий тик после полной обработки, иначе догрузка упирается в
-      // отозванный URL.
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+  async #reconcile() {
+    this.shown ??= { model: null, material: null, designUrl: undefined };
+    const shown = this.shown;
+    let updated = null;
+    for (;;) {
+      const target = this.target;
+      if (target.model && target.model !== shown.model) {
+        // Тень новой модели грузится одновременно с ней: иначе под новым
+        // стаканом лежала бы тень прежнего, пока не догрузится своя.
+        const shadow = this.photo ? this.#fetchPhotoShadow(target.model) : null;
+        try {
+          await this.loadModel(target.model.file, target.model, target.material);
+        } catch {
+          // Сообщение уже показано; цель откатываем к тому, что стоит в сцене.
+          this.target = { ...this.target, model: shown.model, material: shown.material };
+          continue;
+        }
+        if (shadow) this.#setPhotoShadow(await shadow);
+        shown.model = target.model;
+        shown.material = target.material;
+        // Загрузка сбрасывает материалы: в файле модели лежит техническая
+        // развёртка, и макет надо положить заново.
+        shown.designUrl = undefined;
+        continue;
+      }
+      if (target.material && target.material !== shown.material) {
+        this.#applyMaterial(target.material);
+        shown.material = target.material;
+        continue;
+      }
+      if (shown.model && target.designUrl !== shown.designUrl) {
+        const url = target.designUrl;
+        updated = await this.applyTexture(url);
+        shown.designUrl = url;
+        continue;
+      }
+      return { updated, model: shown.model };
     }
   }
 
-  // Перетаскивание картинки: дизайн меняется и на модели, и в развёртке.
-  async replaceTextureFromFile(file) {
-    try {
-      const texture = await this.textureManager.loadFromFile(file);
-      const updated = this.textureManager.applyTexture(texture);
-      this.invalidateModel();
-      // Развёртка сама создаёт и отзывает свой blob-URL: раньше он создавался
-      // здесь и не отзывался никогда.
-      this.unwrap?.setSourceFromFile(file);
-      this.ui.showToast(
-        updated > 0 ? `Дизайн применён: ${file.name}` : 'В модели нет поверхности для дизайна',
-        updated > 0 ? 'success' : 'error',
-      );
-    } catch (error) {
-      console.error(error);
-      this.ui.showToast('Не удалось применить дизайн', 'error');
-    }
-  }
-
-  // Показать тот же макет на другом картоне: на мелованном краска собраннее и
-  // ярче, на немелованном садится в волокно (см. js/data/catalog.js).
-  selectPaper(key) {
-    if (!PAPER_TYPES[key]) return;
-    this.paperKey = key;
-    this.ui.setActivePaper(key);
-    this.#applyPaper();
-  }
-
-  // Кладёт выбранный картон на материалы модели и решает, показывать ли сам
-  // переключатель: у пластикового стакана картона нет.
-  #applyPaper() {
-    const paper = this.cupTakesPaper();
-    this.ui.setPaperAvailable(paper);
-    if (!paper) return 0;
-    return this.setSurfaceFinish(paperFinish(this.paperKey ?? DEFAULT_PAPER));
-  }
-
-  // Принимает ли текущая модель картонную отделку.
-  cupTakesPaper() {
-    const kind = this.modelLoader.cup?.finish ?? 'paper';
-    return kind === 'paper';
-  }
-
-  // Подключает вкладку «Развёртка», чтобы перетащенный файл менял и её.
-  attachUnwrap(view) {
-    this.unwrap = view;
-  }
-
-  // Меняет отделку поверхности с текстурой на лету. Возвращает число
-  // обновлённых материалов.
-  setSurfaceFinish(finish) {
-    const updated = this.modelLoader.applySurfaceFinish({
-      ...defaultPaperFinish(),
-      ...finish,
-    });
+  #applyMaterial(material) {
+    const updated = this.modelLoader.applyMaterial(material);
     if (updated > 0) this.invalidate();
     return updated;
   }
 
-  cycleBackground() {
-    const { backgrounds } = this.config;
-    this.selectBackground((this.backgroundIndex + 1) % backgrounds.length);
+  // Подбор отделки вживую из консоли: параметры поверх текущего материала.
+  setSurfaceFinish(params) {
+    const material = this.modelLoader.material;
+    if (!material) return 0;
+    return this.#applyMaterial({ ...material, params: { ...material.params, ...params } });
   }
 
-  // Ставит конкретный фон по индексу (выбор кружочком).
+  // Ставит фон — запись catalog/backgrounds.json.
   //
   // Фон ставится в ДВУХ местах одним значением: в сцену и в CSS страницы.
   //
@@ -959,12 +885,12 @@ export class Viewer {
   // Это не заливка, а СВЁРТКА — лист со слабой растяжкой по высоте, как на
   // предметной съёмке (см. core/backdrop.js). Ровная заливка спорила с
   // направленной тенью: тень говорит, что есть стол, а стола в кадре нет.
-  selectBackground(index) {
-    this.backgroundIndex = index;
-    const value = this.config.backgrounds[index];
+  setBackground(background) {
+    this.background = background;
+    const value = background.color;
 
     // Цвета фона держим у себя: тот же фон подкладывается под снимок сцены.
-    this.backdrop = backdropColors(value, this.config.backgroundSweep);
+    this.backdrop = backdropColors(value, background.sweep);
     this.backdropScreen.setColors(this.backdrop);
     // В фото-сцене свёртки нет: её место занимает снятый кадр.
     this.backdropScreen.mesh.visible = !this.photo;
@@ -977,7 +903,6 @@ export class Viewer {
 
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
     this.turntable?.setBackground(new THREE.Color(value));
-    this.ui.setActiveBackground(index);
 
     // И, главное, пересобирается окружение: подложка светит в сам предмет.
     this.#refreshStudio();
@@ -1005,17 +930,14 @@ export class Viewer {
     previous?.dispose();
   }
 
-  toggleAutoRotate() {
-    this.autoRotate = !this.autoRotate;
-    this.ui.setToggleState('autorotate', this.autoRotate);
+  setAutoRotate(on) {
+    this.autoRotate = on;
     this.invalidate();
   }
 
-  // Наведение на слайдер приостанавливает автоповорот; при открытии бегунок
-  // подгоняется под текущий угол модели.
+  // Пока человек крутит модель кругом под ней — автоповорот на паузе.
   setManualRotate(active) {
     this.manualRotate = active;
-    if (active) this.#syncRotationSlider();
   }
 
   // Поворачивает модель на заданный угол (градусы) вокруг вертикальной оси.
@@ -1072,13 +994,6 @@ export class Viewer {
     this.turntable.setMetrics({ center, baseY: box.min.y, radius });
   }
 
-  // Синхронизирует бегунок слайдера с текущим углом модели (0–360°).
-  #syncRotationSlider() {
-    const model = this.modelLoader.currentModel;
-    if (!model) return;
-    this.ui.setRotationSlider(this.getModelRotation());
-  }
-
   // Снимок сцены.
   //
   // Обычный путь — скачать файл ссылкой с атрибутом download. Так ждёт человек
@@ -1112,13 +1027,13 @@ export class Viewer {
       this.invalidate();
     }
     if (!blob) {
-      this.ui.showToast('Не удалось сделать снимок', 'error');
+      this.#toast('Не удалось сделать снимок', 'error');
       return;
     }
 
     const how = await this.#deliver(blob, name, 'image/png');
     if (how === 'shared') return; // системное окно само отчиталось перед пользователем
-    this.ui.showToast(how === 'opened' ? 'Снимок открыт в новой вкладке' : 'Снимок сохранён');
+    this.#toast(how === 'opened' ? 'Снимок открыт в новой вкладке' : 'Снимок сохранён');
   }
 
   // Отдаёт готовый файл пользователю — снимок, ролик или архив.
@@ -1217,12 +1132,12 @@ export class Viewer {
 
     const model = this.modelLoader.currentModel;
     if (!model) {
-      this.ui.showToast('Модель ещё не загружена', 'error');
+      this.#toast('Модель ещё не загружена', 'error');
       return;
     }
     // Записывать нечем и фотографии не просили — выгружать нечего.
     if (!pickVideoType() && !photos) {
-      this.ui.showToast('Браузер не умеет записывать видео', 'error');
+      this.#toast('Браузер не умеет записывать видео', 'error');
       return;
     }
 
@@ -1230,8 +1145,8 @@ export class Viewer {
     const startAngle = this.getModelRotation();
 
     this.exporting = true;
-    this.ui.setExportBusy(true);
-    this.ui.showLoader('Выгрузка оборота');
+    this.#emit('onExportBusy', true);
+    this.#loading('Выгрузка оборота');
     // Обычный цикл останавливаем: дальше углом и кадрами распоряжается выгрузка,
     // и автоповорот, доехавший между кадрами, сбил бы и ролик, и углы фотографий.
     this.#stopRenderLoop();
@@ -1256,21 +1171,21 @@ export class Viewer {
           this.pipeline.render();
         },
         photos,
-        onProgress: (value, label) => this.ui.updateProgress(value * 100, label),
+        onProgress: (value, label) => this.#loading(label, value * 100),
       });
 
       await this.#deliverTurn(result, settings);
     } catch (error) {
       console.error(error);
-      this.ui.showToast('Не удалось выгрузить оборот', 'error');
+      this.#toast('Не удалось выгрузить оборот', 'error');
     } finally {
       // Стакан возвращается туда, где стоял: выгрузка не должна менять кадр,
       // который клиент только что рассматривал.
       model.rotation.y = THREE.MathUtils.degToRad(startAngle);
       this.turntable?.setHiddenForCapture(false);
       this.exporting = false;
-      this.ui.setExportBusy(false);
-      this.ui.hideLoader();
+      this.#emit('onExportBusy', false);
+      this.#emit('onLoaded');
       this.invalidateModel();
       this.#startRenderLoop();
     }
@@ -1281,7 +1196,7 @@ export class Viewer {
     const base = settings.name;
 
     if (!video && photos.length === 0) {
-      this.ui.showToast('Не удалось выгрузить оборот', 'error');
+      this.#toast('Не удалось выгрузить оборот', 'error');
       return;
     }
 
@@ -1290,7 +1205,7 @@ export class Viewer {
     if (video && photos.length === 0) {
       const how = await this.#deliver(video, `${base}.${videoExt}`, video.type);
       if (how === 'shared') return;
-      this.ui.showToast(how === 'opened' ? 'Ролик открыт в новой вкладке' : 'Ролик сохранён');
+      this.#toast(how === 'opened' ? 'Ролик открыт в новой вкладке' : 'Ролик сохранён');
       return;
     }
 
@@ -1305,13 +1220,13 @@ export class Viewer {
     const how = await this.#deliver(createZip(files), `${base}.zip`, 'application/zip');
     if (how === 'shared') return;
     if (how === 'opened') {
-      this.ui.showToast('Архив открыт в новой вкладке');
+      this.#toast('Архив открыт в новой вкладке');
       return;
     }
 
     // Отдельно проговариваем случай, когда ролика в архиве нет: человек ставил
     // галочку «плюс фото», то есть ждал и видео тоже.
-    this.ui.showToast(
+    this.#toast(
       video
         ? `Архив сохранён: ролик и ${photos.length} фото`
         : `Браузер не записал видео — сохранены только фото (${photos.length})`,
@@ -1343,10 +1258,15 @@ export class Viewer {
     if (request) Promise.resolve(request()).catch(() => {});
   }
 
+  setFullscreen(on) {
+    const target = this.container.closest('.stage') ?? this.container;
+    if (target.classList.contains('is-fullscreen') !== on) this.toggleFullscreen();
+  }
+
   #setStageFullscreen(target, on) {
     target.classList.toggle('is-fullscreen', on);
     document.body.classList.toggle('has-fullscreen-stage', on);
-    this.ui.setToggleState('fullscreen', on);
+    this.#emit('onFullscreen', on);
     // Холст слушает размер контейнера сам (ResizeObserver), но на iOS смена
     // раскладки приходит с задержкой — подталкиваем следующим кадром.
     requestAnimationFrame(() => this.resize());
