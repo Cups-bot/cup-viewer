@@ -221,6 +221,9 @@ class Turntable {
       this.snap = null;
       this.domElement.setPointerCapture?.(event.pointerId);
       // Пока тянем бегунок, орбита камеры не должна перехватывать тот же жест.
+      // Прежнее состояние запоминаем: в фото-сцене орбита выключена и после
+      // жеста включаться не должна.
+      this.controlsWereEnabled = this.controls.enabled;
       this.controls.enabled = false;
       this.onDragStart?.();
       this.#rotateToPointer(event);
@@ -261,7 +264,7 @@ class Turntable {
     if (!this.dragging) return;
     this.dragging = false;
     this.domElement.releasePointerCapture?.(event.pointerId);
-    this.controls.enabled = true;
+    this.controls.enabled = this.controlsWereEnabled ?? true;
     this.domElement.style.cursor = '';
     this.onDragEnd?.();
     if (!this.pinned) this.hide();

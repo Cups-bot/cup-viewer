@@ -72,6 +72,8 @@ export class Viewer {
     this.autoRotate = config.autoRotate.enabled;
     // Пока пользователь вручную крутит слайдером — автоповорот на паузе.
     this.manualRotate = false;
+    // Скорость докручивания стакана после жеста в фото-сцене, °/с.
+    this.spin = 0;
     // Идёт выгрузка оборота: углом модели и отрисовкой распоряжается она, а не
     // обычный цикл (см. exportTurn).
     this.exporting = false;
@@ -173,6 +175,65 @@ export class Viewer {
         onDragStart: () => this.setManualRotate(true),
         onDragEnd: () => this.setManualRotate(false),
       });
+    }
+    this.#bindSceneSpin();
+  }
+
+  // В фото-сцене облёт камерой выключен (фон плоский, см. #placePhotoCamera),
+  // поэтому перетаскивание по кадру вращает сам стакан — как поворотный круг,
+  // только без круга. После отпускания стакан докатывается по инерции.
+  #bindSceneSpin() {
+    const el = this.renderer.domElement;
+    // Полная ширина холста — пол-оборота: так мелкий доворот делается
+    // коротким движением, а весь оборот — двумя.
+    const degreesPerWidth = 180;
+    let drag = null;
+
+    el.addEventListener('pointerdown', (event) => {
+      // Бегунок поворотного круга обрабатывает жест сам (turntable.js).
+      if (!this.photo || event.defaultPrevented || !event.isPrimary) return;
+      if (!this.modelLoader.currentModel) return;
+      drag = { id: event.pointerId, x: event.clientX, time: event.timeStamp };
+      this.spin = 0;
+      this.cameraTween = null;
+      this.setManualRotate(true);
+      el.setPointerCapture?.(event.pointerId);
+      el.style.cursor = 'grabbing';
+    });
+    el.addEventListener('pointermove', (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const width = el.clientWidth || 1;
+      const degrees = ((event.clientX - drag.x) / width) * degreesPerWidth;
+      const seconds = Math.max((event.timeStamp - drag.time) / 1000, 1 / 240);
+      this.rotateModelTo(this.getModelRotation() + degrees);
+      // Скорость для инерции — сглаженная, иначе последнее дрожание пальца
+      // решало бы, куда укатится стакан.
+      this.spin = this.spin * 0.6 + (degrees / seconds) * 0.4;
+      drag.x = event.clientX;
+      drag.time = event.timeStamp;
+    });
+    const end = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const lastMove = drag.time;
+      drag = null;
+      el.releasePointerCapture?.(event.pointerId);
+      el.style.cursor = '';
+      // Палец остановился перед отпусканием — значит, катить не нужно.
+      if (event.timeStamp - lastMove > 80) this.spin = 0;
+      if (this.spin === 0) this.setManualRotate(false);
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  // Инерция после жеста в фото-сцене: скорость гаснет экспонентой.
+  #stepSpin(delta) {
+    if (!this.spin) return;
+    this.rotateModelTo(this.getModelRotation() + this.spin * delta);
+    this.spin *= Math.exp(-delta * 5);
+    if (Math.abs(this.spin) < 5) {
+      this.spin = 0;
+      this.setManualRotate(false);
     }
   }
 
@@ -284,14 +345,16 @@ export class Viewer {
       // после возврата отдал бы весь простой одной дельтой — модель дёрнулась бы.
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
 
+      this.#stepSpin(delta);
       if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
         this.invalidateModel();
       }
 
       if (this.cameraTween) {
+        if (this.cameraTween.rotatesModel) this.invalidateModel();
+        else this.invalidate();
         if (this.cameraTween.step()) this.cameraTween = null;
-        this.invalidate();
       }
 
       // Обе возвращают true, пока продолжают что-то двигать: controls —
@@ -775,6 +838,8 @@ export class Viewer {
   async exitPhotoScene() {
     if (!this.photo) return;
     this.photo = null;
+    this.spin = 0;
+    this.setManualRotate(false);
     this.#applyShadingProfile();
 
     this.renderer.toneMapping = this.baseToneMapping;
@@ -983,42 +1048,61 @@ export class Viewer {
     this.setView('front');
   }
 
-  // Камера пресета (§12) для текущей модели: { position, target } или null.
-  // Дистанция одна для всех пресетов — та, что даёт кадрирование модели:
-  // на ней же снимаются 4 ракурса экспорта (§20).
+  // Ракурс (§12) для текущей модели: { rotation, position, target } или null.
+  // rotation — угол стакана в градусах: к камере встаёт нужная сторона.
+  // Камера — на лицевой точке студии на дистанции кадрирования (на ней же
+  // снимаются 4 ракурса экспорта, §20); в фото-сцене она стоит в съёмочной
+  // точке, и position/target — null.
+  //
+  // Поворачивается стакан, а не камера: свет и тень остаются на месте, и
+  // у всех четырёх ракурсов одна и та же тень.
   viewCamera(name) {
     const view = VIEWS[name];
     const model = this.modelLoader.currentModel;
     const framing = this.modelLoader.framing;
     if (!view || !model || !framing) return null;
     const seam = this.modelLoader.cup?.textureMapping?.seamDeg ?? 180;
+    const side = view.azimuth === 'seam' ? seam : view.azimuth;
+    const rotation = (((-side % 360) + 360) % 360);
+    if (this.photo) return { rotation, position: null, target: null };
     const base = orbitOf(new THREE.Vector3().copy(this.config.camera.position), new THREE.Vector3());
-    const azimuth = (view.azimuth === 'seam' ? seam : view.azimuth) + THREE.MathUtils.radToDeg(model.rotation.y);
     const elevation = view.elevation ?? base.elevation;
     return {
+      rotation,
       target: framing.target.clone(),
-      position: orbitPosition(framing.target, framing.distance, azimuth, elevation),
+      position: orbitPosition(framing.target, framing.distance, 0, elevation),
     };
   }
 
-  // Переводит камеру в пресет. animate: false — сразу, без перехода (экспорт).
-  // В фото-сцене камера стоит в съёмочной точке, и пресетов нет.
+  // Переводит сцену в ракурс. animate: false — сразу, без перехода.
   setView(name, { animate = true } = {}) {
-    if (this.photo) return false;
     const goal = this.viewCamera(name);
     if (!goal) return false;
     this.cameraTween = null;
     if (!animate) {
+      this.#applyView(goal);
+      return true;
+    }
+    this.cameraTween = createCameraTween({
+      camera: this.camera,
+      controls: this.controls,
+      model: this.modelLoader.currentModel,
+      to: goal,
+    });
+    this.invalidateModel();
+    return true;
+  }
+
+  #applyView(goal) {
+    const model = this.modelLoader.currentModel;
+    if (model) model.rotation.y = THREE.MathUtils.degToRad(goal.rotation);
+    if (goal.position) {
       this.controls.target.copy(goal.target);
       this.camera.position.copy(goal.position);
       this.camera.lookAt(goal.target);
       this.controls.update();
-      this.invalidate();
-      return true;
     }
-    this.cameraTween = createCameraTween({ camera: this.camera, controls: this.controls, to: goal });
-    this.invalidate();
-    return true;
+    this.invalidateModel();
   }
 
   // Меряет след модели для поворотного круга — один раз на загрузку. Замер
@@ -1062,17 +1146,23 @@ export class Viewer {
   // view — пресет камеры (§12) или null (текущий вид).
   renderStill({ width, height, view = null }) {
     const { renderer, camera, controls } = this;
+    const model = this.modelLoader.currentModel;
     const saved = {
       position: camera.position.clone(),
       target: controls.target.clone(),
       ratio: renderer.getPixelRatio(),
+      rotation: model?.rotation.y ?? 0,
     };
     this.cameraTween = null;
     this.turntable?.setHiddenForCapture(true);
     try {
-      if (view && !this.photo) {
-        const goal = this.viewCamera(view);
-        if (goal) {
+      const goal = view ? this.viewCamera(view) : null;
+      if (goal) {
+        if (model) {
+          model.rotation.y = THREE.MathUtils.degToRad(goal.rotation);
+          model.updateMatrixWorld(true);
+        }
+        if (goal.position) {
           controls.target.copy(goal.target);
           camera.position.copy(goal.position);
           camera.lookAt(goal.target);
@@ -1098,6 +1188,10 @@ export class Viewer {
       ctx.drawImage(renderer.domElement, 0, 0, width, height);
       return canvas;
     } finally {
+      if (model) {
+        model.rotation.y = saved.rotation;
+        model.updateMatrixWorld(true);
+      }
       camera.position.copy(saved.position);
       controls.target.copy(saved.target);
       camera.lookAt(saved.target);
