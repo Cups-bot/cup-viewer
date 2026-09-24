@@ -1,251 +1,324 @@
-/* Раскладка Design Mode (§7, §8): верхняя панель, под ней сцена на всю
-   оставшуюся площадь. Пикеры открываются поверх и закрываются. */
+/* Раскладка Design Mode — по системе colorcups.ru: шапка с материалом по
+   центру, слева панель шагов, справа заголовок и карточка сцены. Узкий экран:
+   панель шагов уезжает в нижнюю панель действий, материал — второй строкой
+   шапки. */
+
+:root {
+  --header-h: 56px;
+  --rail-w: 272px;
+  --rail-bg: #fbfbfd;
+  --action-bar-h: 64px;
+}
+
+:root[data-theme='dark'] {
+  --rail-bg: #151517;
+}
 
 .app {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: var(--header-h) minmax(0, 1fr);
+  grid-template-areas:
+    'header header'
+    'rail main';
   height: 100dvh;
   overflow: hidden;
 }
 
-/* ── Верхняя панель ─────────────────────────────────────────────────────── */
+/* ── Шапка ──────────────────────────────────────────────────────────────── */
 
-.topbar {
+.site-header {
   position: relative;
   z-index: 30;
-  display: flex;
+  grid-area: header;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   gap: 16px;
-  height: 60px;
-  padding: 0 14px 0 18px;
-  background: var(--surface);
+  padding: 0 16px 0 20px;
+  background: var(--header-bg);
   border-bottom: 1px solid var(--line);
+  backdrop-filter: saturate(180%) blur(20px);
 }
 
-/* Края — поровну гибкие: вкладки стоят по центру, пока кнопкам справа
-   хватает места, и сдвигаются влево, но не наезжают, когда не хватает. */
-.brand {
-  display: flex;
-  flex: 1 1 0;
+.site-logo {
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  min-width: max-content;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
-.brand .icon {
-  width: 22px;
-  height: 22px;
+/* Пропорции логотипа — 967 × 221 (assets/brand/logo.svg). */
+.site-logo__full {
+  width: 123px;
+  height: 28px;
 }
 
-.brand__mode {
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  background: var(--surface-2);
-  border-radius: 999px;
-}
-
-.topbar__actions {
+.site-header__actions {
   display: flex;
-  flex: 1 1 0;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  min-width: max-content;
 }
 
-.topbar__sep {
-  width: 1px;
-  height: 26px;
-  margin: 0 4px;
-  background: var(--line);
+/* Материал — как выбор картона на colorcups: сегменты по центру шапки. */
+.material-switch {
+  justify-self: center;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-/* Кнопка-выбор: подпись поля мелко, значение крупно, стрелка вниз. */
-.picker-btn {
+.material-switch::-webkit-scrollbar {
+  display: none;
+}
+
+.material-switch__item {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: 42px;
-  max-width: 240px;
-  padding: 0 10px 0 10px;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.material-switch__item .swatch-dot {
+  width: 14px;
+  height: 14px;
+}
+
+/* Один материал (BM): показан как факт, не как выбор. */
+.material-switch__item:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* ── Левая панель шагов ─────────────────────────────────────────────────── */
+
+.rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 20px 14px 16px;
+  overflow-y: auto;
+  background: var(--rail-bg);
+  border-right: 1px solid var(--line);
+}
+
+.rail__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rail__label:first-child {
+  margin-top: 0;
+}
+
+/* Результат — внизу панели, как «Моя палитра / Скачать PDF» у colorcups. */
+.rail__label:nth-of-type(3) {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.rail__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--action);
+  background: var(--brand-soft);
+  border-radius: 50%;
+}
+
+.cup-current {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px 8px 8px;
   text-align: left;
   cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  border-radius: 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 @media (hover: hover) {
-  .picker-btn:not(:disabled):hover {
+  .cup-current:hover {
     border-color: var(--line-strong);
-    background: var(--surface-2);
+    box-shadow: var(--shadow-s);
   }
 }
 
-.picker-btn[aria-expanded='true'] {
-  border-color: var(--ink);
+.cup-current[aria-expanded='true'] {
+  border-color: var(--action);
 }
 
-.picker-btn:disabled {
-  cursor: default;
+.cup-current__art {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 64px;
+  background: var(--surface-2);
+  border-radius: 12px;
 }
 
-.picker-btn:disabled .picker-btn__chevron {
-  visibility: hidden;
+.cup-current__art .cup-card__art {
+  height: 60px;
 }
 
-.picker-btn__text {
+.cup-current__text {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  line-height: 1.15;
 }
 
-.picker-btn__label {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.picker-btn__value {
+.cup-current__name {
   overflow: hidden;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 650;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.picker-btn__chevron {
+.cup-current__meta {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.cup-current__chevron {
   width: 16px;
   height: 16px;
-  margin-left: 2px;
-  color: var(--muted);
+  color: var(--faint);
 }
 
-.picker-btn.is-empty {
-  color: #fff;
-  background: var(--primary);
-  border-color: var(--primary);
+.cup-current.is-empty {
+  border-style: dashed;
 }
 
-.picker-btn.is-empty .picker-btn__label,
-.picker-btn.is-empty .picker-btn__chevron {
-  color: rgba(255, 255, 255, 0.7);
+.cup-current.is-empty .cup-current__name {
+  color: var(--action);
 }
 
-.menu-anchor {
-  position: relative;
-}
-
-.material-menu {
-  top: calc(100% + 6px);
-  left: 0;
-  width: 260px;
-}
-
-.export-menu {
-  top: calc(100% + 6px);
-  right: 0;
-  width: 300px;
-}
-
-.export-option {
+.upload-zone {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 6px 10px 10px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.export-option input {
-  margin-top: 2px;
-}
-
-.export-option small {
-  display: block;
-  color: var(--muted);
-}
-
-/* ── Рабочая область ────────────────────────────────────────────────────── */
-
-.workspace {
-  position: relative;
-  min-height: 0;
-  padding: 12px;
-}
-
-.workspace .stage {
-  height: 100%;
-  box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.05);
-}
-
-/* Строка сведений о модели в левом нижнем углу сцены. */
-.model-meta {
-  position: absolute;
-  z-index: 5;
-  left: 16px;
-  bottom: 16px;
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 120px);
-  padding: 6px 12px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  background: rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
-  box-shadow: var(--shadow-s);
-  backdrop-filter: blur(8px);
+  gap: 6px;
+  width: 100%;
+  padding: 18px 14px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 16px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.model-meta b {
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.model-meta__dot {
-  width: 3px;
-  height: 3px;
-  background: var(--faint);
+.upload-zone .icon {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  color: var(--action);
+  background: var(--brand-soft);
   border-radius: 50%;
 }
 
-/* На развёртке и в фото-сцене сведения не нужны: там свой нижний ряд. */
-.stage.is-unwrap .model-meta,
-.stage.is-photo .model-meta {
-  display: none;
+.upload-zone__title {
+  font-size: 14px;
+  font-weight: 600;
 }
 
-/* Панель занимает место справа: фото-сцена вписывается левее неё. */
+.upload-zone__hint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .upload-zone:not(:disabled):hover {
+    background: var(--brand-soft);
+    border-color: var(--action);
+  }
+}
+
+.upload-zone:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.rail__result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Основная область ───────────────────────────────────────────────────── */
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px 24px 20px;
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.page-head__title {
+  overflow: hidden;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.page-head__sub {
+  overflow: hidden;
+  font-size: 15px;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.view-presets {
+  flex-wrap: nowrap;
+}
+
+.view-presets .segmented__item {
+  white-space: nowrap;
+}
+
+/* Фото-сцена: панель инструментов справа, снимок вписывается левее неё. */
 .stage.is-photo {
-  --stage-right: 64px;
-  --stage-bottom: 40px;
+  --stage-right: 60px;
 }
 
-/* ── Узкие окна ─────────────────────────────────────────────────────────── */
+/* ── Нижняя панель действий (узкий экран) ───────────────────────────────── */
 
-@media (max-width: 1280px) {
-  .btn__text--long {
-    display: none;
-  }
-}
-
-@media (max-width: 980px) {
-  .brand__name,
-  .brand__mode {
-    display: none;
-  }
-
-  .picker-btn {
-    max-width: 180px;
-  }
+.action-bar {
+  display: none;
 }
 
 /* ── Ссылка клиенту (§31) ───────────────────────────────────────────────── */
@@ -269,7 +342,7 @@
 
 .text-input:focus {
   background: var(--surface);
-  border-color: var(--ink);
+  border-color: var(--action);
   outline: none;
 }
 
@@ -283,166 +356,147 @@
   text-decoration: none;
 }
 
-/* ── Телефон и планшет в портрете (§45, §46) ────────────────────────────────
-   Точки перелома (в @media var() не работает — числа повторены вручную):
-     --bp-phone: 760px            телефон
-     --bp-tablet: 1100px          планшет: в портрете — мобильные контролы,
-                                  в ландшафте — десктопная раскладка. */
+/* ── Средняя ширина ─────────────────────────────────────────────────────── */
 
-:root {
-  --bp-phone: 760px;
-  --bp-tablet: 1100px;
-  --mobile-nav-h: 64px;
+@media (max-width: 1280px) {
+  :root {
+    --rail-w: 240px;
+  }
+
+  .main {
+    padding: 16px 18px 18px;
+  }
+
+  .page-head__title {
+    font-size: 24px;
+  }
 }
 
-.mobile-nav,
-.mobile-only {
-  display: none;
-}
-
-@media (max-width: 760px), (max-width: 1100px) and (orientation: portrait) {
-  .app {
-    grid-template-rows: auto minmax(0, 1fr) calc(var(--mobile-nav-h) + env(safe-area-inset-bottom));
-  }
-
-  .topbar {
-    height: 54px;
-    padding: 0 10px;
-  }
-
-  .brand {
-    flex: 0 0 auto;
-    min-width: 0;
-  }
-
-  .brand__name,
-  .brand__mode {
+@media (max-width: 1180px) {
+  .pill-btn__text {
     display: none;
   }
 
-  /* Кнопки верхней панели прячутся, а их меню остаются: лист материала
-     вложен сюда и открывается из нижней панели. */
-  .topbar__actions {
-    position: absolute;
-    flex: none;
-    width: 0;
-    min-width: 0;
-  }
-
-  .topbar__actions > .picker-btn,
-  .topbar__actions > .btn,
-  .topbar__actions .menu-anchor > .picker-btn,
-  .topbar__sep {
-    display: none;
-  }
-
-  .topbar .tabs {
-    flex: 1;
-  }
-
-  .topbar .stage-tab {
-    flex: 1;
+  .pill-btn {
+    width: 34px;
+    padding: 0;
     justify-content: center;
-    min-height: 44px;
+  }
+}
+
+/* ── Узкий экран: планшет в портрете и телефон (§45, §46) ──────────────────
+   Точка перелома — 1024 px: уже 240 px панели шагов забирают у сцены
+   слишком много. */
+
+@media (max-width: 1023px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) calc(var(--action-bar-h) + env(safe-area-inset-bottom));
+    grid-template-areas:
+      'header'
+      'main'
+      'bar';
   }
 
-  .empty-state .btn {
-    height: 48px;
+  .site-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'logo actions'
+      'material material';
+    gap: 8px 12px;
+    padding: 10px 12px 10px 14px;
   }
 
-  .workspace {
-    padding: 8px;
+  .site-logo {
+    grid-area: logo;
   }
 
-  .model-meta {
+  .site-header__actions {
+    grid-area: actions;
+  }
+
+  .material-switch {
+    grid-area: material;
+    justify-self: stretch;
+  }
+
+  .material-switch[hidden] + .site-header__actions {
+    grid-row: 1;
+  }
+
+  .material-switch__item {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+
+  /* Кнопки панели шагов остаются в DOM: нижняя панель нажимает их. */
+  .rail {
     display: none;
   }
 
-  .mobile-only {
-    display: block;
+  .main {
+    gap: 10px;
+    padding: 12px;
   }
 
-  /* «•••» на сцене не нужен: его место — в нижней панели. */
-  #more-btn,
-  .toolbar__sep {
-    display: none;
-  }
-
-  .toolbar {
-    top: auto;
-    right: 10px;
-    bottom: 10px;
-    transform: none;
-  }
-
-  .toolbar .icon-btn {
-    width: 44px;
-    height: 44px;
-  }
-
-  /* Панель стоит в разметке после .app — прибита к низу окна, а третья
-     строка сетки .app держит под неё место. */
-  .mobile-nav {
-    position: fixed;
-    z-index: 25;
-    left: 0;
-    right: 0;
-    bottom: 0;
+  .action-bar {
+    grid-area: bar;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    padding-bottom: env(safe-area-inset-bottom);
-    background: var(--surface);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--header-bg);
     border-top: 1px solid var(--line);
+    backdrop-filter: saturate(180%) blur(20px);
   }
 
-  .mobile-nav__item {
+  .action-bar__item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    min-height: 56px;
+    gap: 3px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 0 4px;
     font-size: 11.5px;
     font-weight: 600;
     color: var(--ink-2);
     cursor: pointer;
-    background: transparent;
+    background: var(--fill);
     border: none;
+    border-radius: 14px;
   }
 
-  .mobile-nav__item:disabled {
-    opacity: 0.4;
+  .action-bar__item--accent {
+    color: #fff;
+    background: var(--action);
   }
 
-  .mobile-nav__item .icon,
-  .mobile-nav__item .swatch-dot {
-    width: 22px;
-    height: 22px;
+  .action-bar__item:disabled {
+    opacity: 0.45;
   }
 
-  /* Меню и окна — нижние листы на всю ширину. */
-  .more-menu,
-  .material-menu {
-    position: fixed;
-    z-index: 65;
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: auto;
-    max-height: 80dvh;
-    overflow-y: auto;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    transform: none;
-    animation: sheet-up 0.22s var(--ease) both;
+  .action-bar__item .icon {
+    width: 20px;
+    height: 20px;
   }
 
-  .material-menu .menu-item,
-  .more-menu .menu-item {
-    min-height: 48px;
+  .action-bar__text {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
+  .action-bar__art {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 20px;
+  }
+
+  /* Окна — нижние листы на всю ширину. */
   .dialog {
     top: auto;
     left: 0;
@@ -456,36 +510,162 @@
     animation: sheet-up 0.24s var(--ease) both;
   }
 
-  /* Пикер и экспорт — на весь экран (§45). */
   .cup-dialog,
   .export-dialog {
     height: 94dvh;
     overflow-y: auto;
   }
-
-  .cup-grid {
-    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  }
-
-  .cup-filter {
-    height: 38px;
-  }
 }
 
-/* Планшет в портрете: листы крупнее и по центру, а не во всю ширину. */
-@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
-  .dialog,
-  .more-menu,
-  .material-menu {
+/* Планшет: листы по центру, а не во всю ширину. */
+@media (min-width: 700px) and (max-width: 1023px) {
+  .dialog {
     left: 50%;
     right: auto;
     width: min(720px, 100vw);
     transform: translateX(-50%);
+    animation: fade-in 0.18s ease both;
+  }
+}
+
+/* Телефон. */
+@media (max-width: 600px) {
+  .site-logo__full {
+    width: 105px;
+    height: 24px;
   }
 
-  .more-menu,
-  .material-menu {
-    animation: none;
+  .material-switch__item .swatch-dot {
+    display: none;
+  }
+
+  .material-switch__item {
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+
+  .main {
+    padding: 10px 8px 8px;
+  }
+
+  .page-head {
+    padding: 0 6px;
+  }
+
+  .page-head__title {
+    font-size: 20px;
+  }
+
+  .page-head__sub {
+    font-size: 13px;
+  }
+
+  .stage-card {
+    border-radius: 16px;
+  }
+
+  .stage-card__bar,
+  .stage-card__foot {
+    padding: 8px;
+  }
+
+  .stage-card__bar .tabs {
+    flex: 1 1 auto;
+  }
+
+  .stage-card__bar .stage-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 0 8px;
+  }
+
+  .stage-card__label {
+    display: none;
+  }
+
+  .stage.is-photo {
+    --stage-right: 0px;
+    --stage-bottom: 56px;
+  }
+}
+
+/* Панель инструментов строкой внизу сцены: столбик из пяти кнопок по 44 px
+   на телефоне закрывает половину стакана. */
+@media (max-width: 600px), (max-height: 620px) and (max-width: 1023px) {
+  .toolbar {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    flex-direction: row;
+    padding: 4px;
+    transform: none;
+  }
+
+  .toolbar__sep {
+    width: 1px;
+    height: auto;
+    margin: 6px 3px;
+  }
+}
+
+/* Очень узкий телефон (320–360 px). */
+@media (max-width: 360px) {
+  .site-header {
+    padding: 8px 10px;
+  }
+
+  .theme-toggle__btn {
+    width: 28px;
+  }
+
+  .action-bar {
+    gap: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
+
+/* Низкое окно (телефон в ландшафте, ноутбук с панелями): сцене — всё,
+   заголовок и ракурсы убираются. */
+@media (max-height: 620px) and (max-width: 1023px), (max-height: 520px) {
+  .page-head,
+  .stage-card__foot {
+    display: none;
+  }
+}
+
+@media (max-height: 620px) and (min-width: 700px) and (max-width: 1023px) {
+  .site-header {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-areas: 'logo material actions';
+    padding: 6px 12px;
+  }
+
+  .material-switch {
+    justify-self: center;
+  }
+
+  .stage-card__bar {
+    padding: 6px 8px;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 1023px), (max-height: 520px) {
+
+  .action-bar {
+    --action-bar-h: 52px;
+  }
+
+  .action-bar__item {
+    flex-direction: row;
+    gap: 6px;
+    min-height: 40px;
+  }
+}
+
+@media (max-height: 520px) and (min-width: 1024px) {
+  .rail {
+    padding-top: 12px;
   }
 }
 
@@ -495,15 +675,20 @@
   }
 }
 
-@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
-  .dialog {
-    animation: fade-in 0.18s ease both;
-  }
-}
-
-/* Сенсорный экран (§47): кнопки-выбора тоже не меньше 44 px. */
+/* Сенсорный экран (§47): цели не меньше 44 px. */
 @media (pointer: coarse) {
-  .picker-btn {
-    height: 46px;
+  .theme-toggle__btn {
+    width: 40px;
+    height: 38px;
+  }
+
+  .pill-btn {
+    height: 44px;
+    min-width: 44px;
+  }
+
+  .material-switch__item,
+  .view-presets .segmented__item {
+    min-height: 40px;
   }
 }

@@ -40,9 +40,11 @@ test('таблица capabilities заморожена и не содержит 
 test('экспорт: design — full, client — limited', () => {
   const design = createModeController('design');
   const client = createModeController('client');
-  assert.ok(design.canExport('image') && design.canExport('angles'));
-  assert.ok(!client.canExport('image') && !client.canExport('angles'));
-  for (const kind of ['current', 'unwrap', 'turn', 'preview']) assert.ok(client.canExport(kind), kind);
+  for (const kind of ['photo', 'angles', 'turn', 'unwrap']) {
+    assert.ok(design.canExport(kind), kind);
+    assert.ok(client.canExport(kind), kind);
+  }
+  assert.ok(!client.canExport('source') && !design.canExport('source'));
 });
 
 test('неизвестный режим — ошибка', () => {

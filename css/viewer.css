@@ -66,9 +66,9 @@ body.has-fullscreen-stage {
   background: var(--surface);
   border-radius: calc(var(--photo-radius) + var(--photo-mat));
   box-shadow:
-    0 0 0 1px rgba(16, 24, 40, 0.04),
-    0 2px 5px rgba(16, 24, 40, 0.06),
-    0 24px 48px -18px rgba(16, 24, 40, 0.28);
+    0 0 0 1px var(--line),
+    0 2px 5px rgba(0, 0, 0, 0.06),
+    0 24px 48px -18px rgba(0, 0, 0, 0.3);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -123,12 +123,13 @@ body.has-fullscreen-stage {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  background: var(--surface);
+  background: var(--glass);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--pill);
   box-shadow: var(--shadow);
   transform: translateX(-50%);
   cursor: default;
+  backdrop-filter: blur(12px);
 }
 
 .unwrap-bar .icon-btn {
@@ -166,7 +167,7 @@ body.has-fullscreen-stage {
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass);
   border-radius: 999px;
   transform: translateX(-50%);
   pointer-events: none;
@@ -178,43 +179,109 @@ body.has-fullscreen-stage {
   opacity: 0;
 }
 
-/* ── Вкладки: сегментированный переключатель ────────────────────────────── */
+/* ── Сегментированный переключатель — как на colorcups.ru ────────────────
+   Один вид для вкладок, материала, ракурсов, фильтров пикера и экспорта. */
 
-.tabs {
+.tabs,
+.segmented {
   display: inline-flex;
   gap: 2px;
   padding: 3px;
   background: var(--surface-3);
-  border-radius: 12px;
+  border-radius: 11px;
 }
 
-.stage-tab {
+.stage-tab,
+.segmented__item {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 32px;
+  height: 30px;
   padding: 0 14px;
   font-size: 13px;
-  font-weight: 550;
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--ink-2);
   white-space: nowrap;
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 9px;
+  border-radius: 8px;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 @media (hover: hover) {
-  .stage-tab:not(.is-active):hover {
+  .stage-tab:not(.is-active):hover,
+  .segmented__item:not(:disabled):not([aria-checked='true']):not([aria-pressed='true']):hover {
     color: var(--ink);
+    background: var(--fill);
   }
 }
 
-.stage-tab.is-active {
+.stage-tab.is-active,
+.segmented__item[aria-checked='true'],
+.segmented__item[aria-pressed='true'] {
+  font-weight: 600;
   color: var(--ink);
+  background: var(--segment-on);
+  box-shadow: var(--segment-shadow);
+}
+
+.segmented.is-locked {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.segmented__item:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* ── Карточка сцены: сверху вкладки и фон, снизу ракурсы или действия ── */
+
+.stage-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   background: var(--surface);
-  box-shadow: var(--shadow-s), 0 0 0 1px rgba(16, 24, 40, 0.04);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.stage-card__bar,
+.stage-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+}
+
+.stage-card__bar {
+  justify-content: space-between;
+}
+
+.stage-card__foot {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stage-card__foot::-webkit-scrollbar {
+  display: none;
+}
+
+.stage-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stage-card .stage {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0;
 }
 
 /* ── Панель инструментов (вертикальная, у правого края сцены) ───────────── */
@@ -228,12 +295,12 @@ body.has-fullscreen-stage {
   flex-direction: column;
   gap: 2px;
   padding: 5px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(16, 24, 40, 0.06);
-  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 16px;
   box-shadow: var(--shadow);
   transform: translateY(-50%);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 
 .toolbar__sep {
@@ -242,66 +309,43 @@ body.has-fullscreen-stage {
   background: var(--line);
 }
 
-.more-menu {
-  top: 50%;
-  right: 76px;
-  width: 300px;
-  transform: translateY(-50%);
-  animation: none;
-}
-
-/* Кружки фонов. */
+/* Кружки фонов — в «пилюле», как выбор фона образца на colorcups. */
 .swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-swatches .swatches {
+  flex-wrap: nowrap;
+  padding: 4px 6px;
+  background: var(--surface-3);
+  border-radius: var(--pill);
 }
 
 .swatch {
   position: relative;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   cursor: pointer;
   border: none;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+}
+
+/* Тёмный фон на тёмной теме не должен пропадать. */
+:root[data-theme='dark'] .swatch {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .swatch.is-active::after {
   content: '';
   position: absolute;
   inset: -4px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--action);
   border-radius: 50%;
-}
-
-/* Сетка пресетов ракурса. */
-.view-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-}
-
-.view-btn {
-  height: 34px;
-  font-size: 12.5px;
-  font-weight: 550;
-  cursor: pointer;
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius-s);
-}
-
-@media (hover: hover) {
-  .view-btn:hover {
-    border-color: var(--line-strong);
-  }
-}
-
-.view-btn.is-active {
-  color: #fff;
-  background: var(--primary);
 }
 
 .menu-item .switch {
@@ -350,7 +394,7 @@ body.has-fullscreen-stage {
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--glass);
   border-radius: 12px;
   box-shadow: var(--shadow);
   transform: translateX(-50%);
@@ -369,8 +413,9 @@ body.has-fullscreen-stage {
 }
 
 .scene-chip.is-active {
-  color: #fff;
-  background: var(--primary);
+  color: var(--ink);
+  background: var(--segment-on);
+  box-shadow: var(--segment-shadow);
 }
 
 /* ── Пустое состояние (§11) ─────────────────────────────────────────────── */
@@ -393,20 +438,22 @@ body.has-fullscreen-stage {
 }
 
 .empty-state__art {
-  width: 84px;
-  height: 84px;
+  width: 96px;
+  height: 96px;
   margin-bottom: 6px;
-  color: var(--line-strong);
 }
 
 .empty-state__title {
-  font-size: 20px;
-  font-weight: 650;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1d1d1f;
 }
 
+/* Текст пустой сцены стоит на цвете фона сцены, а не на теме страницы. */
 .empty-state__text {
-  max-width: 340px;
-  color: var(--muted);
+  max-width: 360px;
+  color: #6e6e73;
 }
 
 .empty-state .btn {
@@ -449,8 +496,8 @@ body.has-fullscreen-stage {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(47, 111, 237, 0.08);
-  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--action) 8%, transparent);
+  border: 2px dashed var(--action);
   border-radius: var(--radius-xl);
   pointer-events: none;
 }
@@ -467,7 +514,23 @@ body.has-fullscreen-stage {
 /* ── Подсказка «как управлять» ──────────────────────────────────────────── */
 
 .help-dialog {
-  width: min(460px, calc(100vw - 32px));
+  width: min(500px, calc(100vw - 32px));
+  overflow-y: auto;
+}
+
+.help-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px 14px 34px;
+  font-size: 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-l);
+}
+
+.help-steps li::marker {
+  font-weight: 700;
+  color: var(--action);
 }
 
 .help-list {
@@ -509,6 +572,23 @@ body.has-fullscreen-stage {
 
 /* ── Пикер стакана (§10) ────────────────────────────────────────────────── */
 
+.dialog__sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.cup-dialog__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cup-dialog__tools .search-field {
+  flex: 1 1 220px;
+}
+
 .search-field {
   position: relative;
 }
@@ -524,14 +604,14 @@ body.has-fullscreen-stage {
 
 .cup-search {
   width: 100%;
-  height: 42px;
+  height: 38px;
   padding: 0 14px 0 38px;
   font: inherit;
   font-size: 14px;
   color: var(--ink);
-  background: var(--surface-2);
+  background: var(--surface-3);
   border: 1.5px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--pill);
 }
 
 .cup-search::placeholder {
@@ -540,59 +620,25 @@ body.has-fullscreen-stage {
 
 .cup-search:focus {
   background: var(--surface);
-  border-color: var(--ink);
+  border-color: var(--action);
   outline: none;
 }
 
 .cup-filters {
-  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-
-.cup-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 550;
-  color: var(--muted);
-  white-space: nowrap;
-  cursor: pointer;
-  background: var(--surface-2);
-  border: 1px solid transparent;
-  border-radius: 999px;
 }
 
 .cup-filter__count {
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-}
-
-@media (hover: hover) {
-  .cup-filter:not(:disabled):hover {
-    color: var(--ink);
-    background: var(--surface-3);
-  }
-}
-
-.cup-filter.is-active {
-  color: #fff;
-  background: var(--primary);
-}
-
-.cup-filter:disabled {
-  cursor: default;
-  opacity: 0.45;
+  color: var(--faint);
 }
 
 .cup-list {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
   min-height: 200px;
   margin: -4px;
   padding: 4px;
@@ -600,18 +646,27 @@ body.has-fullscreen-stage {
   overscroll-behavior: contain;
 }
 
-.cup-group__title {
+.cup-group__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   margin-bottom: 10px;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+}
+
+.cup-group__title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.cup-group__note {
+  font-size: 13px;
   color: var(--muted);
 }
 
 .cup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
   gap: 10px;
 }
 
@@ -620,25 +675,26 @@ body.has-fullscreen-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 12px 10px 11px;
+  gap: 1px;
+  padding: 10px 8px 12px;
   text-align: center;
   cursor: pointer;
-  background: var(--surface);
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius-l);
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: 16px;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s var(--ease);
 }
 
 @media (hover: hover) {
   .cup-card:hover {
-    border-color: var(--line-strong);
-    transform: translateY(-1px);
+    background: var(--surface-3);
+    transform: translateY(-2px);
   }
 }
 
 .cup-card.is-active {
-  border-color: var(--ink);
+  background: var(--brand-soft);
+  border-color: var(--action);
 }
 
 .cup-card.is-active::after {
@@ -646,72 +702,95 @@ body.has-fullscreen-stage {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 18px;
-  height: 18px;
-  background: var(--ink)
+  width: 20px;
+  height: 20px;
+  background: var(--action)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / 11px no-repeat;
+    center / 12px no-repeat;
   border-radius: 50%;
 }
 
 .cup-card__art {
   width: 100%;
-  height: 96px;
+  height: 112px;
+  margin-bottom: 6px;
+}
+
+/* Цвета силуэта — токенами: в тёмной теме бумага не должна светиться. */
+:root {
+  --cup-body: #d9dee5;
+  --cup-rim: #b9c2cd;
+  --cup-sleeve: #c6ced8;
+  --cup-edge: rgba(60, 72, 88, 0.35);
+  --cup-shadow: rgba(0, 0, 0, 0.09);
+  --cup-floor: rgba(0, 0, 0, 0.1);
+  --cup-plastic: #eaf0f6;
+}
+
+:root[data-theme='dark'] {
+  --cup-body: #5a5a5f;
+  --cup-rim: #7c7c82;
+  --cup-sleeve: #4a4a4f;
+  --cup-shadow: rgba(0, 0, 0, 0.45);
+  --cup-floor: rgba(255, 255, 255, 0.1);
+  --cup-plastic: #6b7280;
+  --cup-edge: rgba(255, 255, 255, 0.25);
 }
 
 .cup-card__shadow {
-  fill: rgba(16, 24, 40, 0.09);
+  fill: var(--cup-shadow);
 }
 
 .cup-card__floor {
-  stroke: rgba(16, 24, 40, 0.1);
+  stroke: var(--cup-floor);
   stroke-width: 1;
 }
 
 .cup-card__body {
-  fill: #dfe3e9;
+  fill: var(--cup-body);
+  stroke: var(--cup-edge);
+  stroke-width: 0.8;
 }
 
 .cup-card__rim {
-  fill: #c4cbd4;
+  fill: var(--cup-rim);
 }
 
 .cup-card__sleeve {
-  fill: #ced5de;
+  fill: var(--cup-sleeve);
 }
 
 .cup-card__seam {
-  stroke: rgba(16, 24, 40, 0.18);
+  stroke: rgba(0, 0, 0, 0.18);
   stroke-width: 0.8;
 }
 
 .cup-card__emboss line {
-  stroke: rgba(255, 255, 255, 0.85);
+  stroke: rgba(255, 255, 255, 0.55);
   stroke-width: 0.9;
 }
 
 .cup-card__art--plastic .cup-card__body {
-  fill: #e7ecf3;
-}
-
-.cup-card__art--plastic .cup-card__rim {
-  fill: #d0d9e4;
-}
-
-.cup-card__name {
-  margin-top: 6px;
-  font-size: 13.5px;
-  font-weight: 650;
-}
-
-.cup-card__meta {
-  font-size: 12px;
-  color: var(--muted);
+  fill: var(--cup-plastic);
+  fill-opacity: 0.8;
 }
 
 .cup-card__volume {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.cup-card__name {
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--ink-2);
+}
+
+.cup-card__size {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .cup-empty {
@@ -724,76 +803,98 @@ body.has-fullscreen-stage {
   text-align: center;
 }
 
-.cup-dialog__foot {
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.cup-card__kind {
-  margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--faint);
-}
-
 /* Высота окна постоянна: при фильтрации оно не прыгает. */
 .cup-dialog {
-  height: min(720px, calc(100dvh - 48px));
+  width: min(900px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 48px));
 }
 
-.cup-list {
-  flex: 1;
+@media (max-width: 600px) {
+  .cup-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .cup-card__art {
+    height: 80px;
+  }
+
+  .cup-dialog__tools .segmented {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
 }
 
-/* ── Экспорт (§20) ──────────────────────────────────────────────────────── */
+/* ── Скачать (§20): «Фото» и «Видео» ──────────────────────────────────── */
 
 .export-dialog {
-  width: min(680px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   height: auto;
 }
 
-.segmented {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
-  background: var(--surface-3);
-  border-radius: 11px;
+.choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.segmented--tabs {
-  display: flex;
-}
-
-.segmented--tabs .segmented__item {
-  flex: 1;
-}
-
-.segmented.is-locked {
+.choices.is-locked {
   pointer-events: none;
   opacity: 0.6;
 }
 
-.segmented__item {
-  height: 32px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 550;
-  color: var(--muted);
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  text-align: left;
   cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.segmented__item[aria-checked='true'] {
-  color: var(--ink);
+.choice[aria-checked='true'] {
+  background: var(--brand-soft);
+  border-color: var(--action);
+}
+
+.choice__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  color: var(--action);
   background: var(--surface);
-  box-shadow: var(--shadow-s);
+  border-radius: 12px;
 }
 
-.segmented__item:disabled {
-  cursor: default;
-  opacity: 0.4;
+.choice__icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.choice__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.choice__text b {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.choice__text small {
+  font-size: 12.5px;
+  color: var(--muted);
 }
 
 .export-panel {
@@ -802,63 +903,49 @@ body.has-fullscreen-stage {
   gap: 14px;
 }
 
-.export-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 18px;
-  align-items: start;
+.export-panel .segmented {
+  align-self: flex-start;
 }
 
-.export-fields {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.field-label {
-  margin-top: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.export-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 220px;
+.export-shot {
+  display: block;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  object-fit: cover;
   background: var(--surface-2);
   border-radius: var(--radius-l);
-  overflow: hidden;
-}
-
-.export-preview__img {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: 6px;
-  box-shadow: var(--shadow-s);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .export-note {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
 }
 
 .export-option {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 13.5px;
+  gap: 12px;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  background: var(--surface-2);
+  border-radius: 16px;
 }
 
 .export-option input {
-  margin-top: 3px;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--action);
 }
 
 .export-option small {
   display: block;
+  margin-top: 2px;
+  font-weight: 400;
   color: var(--muted);
 }
 
@@ -881,6 +968,7 @@ body.has-fullscreen-stage {
   object-fit: cover;
   background: var(--surface-2);
   border-radius: var(--radius);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .angle-thumbs figcaption {
@@ -916,9 +1004,11 @@ body.has-fullscreen-stage {
   color: var(--ink-2);
 }
 
-@media (max-width: 640px) {
-  .export-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .choice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
   .angle-thumbs {

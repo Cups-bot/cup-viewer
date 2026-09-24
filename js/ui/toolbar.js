@@ -1,4 +1,4 @@
-// Панель инструментов (§21), меню «•••» (фон, ракурс, круг, справка) и
+// Панель инструментов (§21), фон, ракурсы и
 // горячие клавиши. Кнопки показывают состояние из ViewerState, нажатия
 // уходят в actions.
 
@@ -62,7 +62,6 @@ export function bindMenu(button, menu, { onOpen } = {}) {
 export function initToolbar({ state, catalog, mode, actions }) {
   const autorotate = document.getElementById('autorotate-btn');
   const fullscreen = document.getElementById('fullscreen-btn');
-  bindMenu(document.getElementById('more-btn'), document.getElementById('more-menu'));
 
   document.getElementById('reset-btn')?.addEventListener('click', () => actions.resetView());
   autorotate?.addEventListener('click', () => actions.toggleAutoRotate());
@@ -149,7 +148,8 @@ function initViews({ state, actions }) {
   const buttons = VIEW_NAMES.map((name, index) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'view-btn';
+    button.className = 'segmented__item view-btn';
+    button.setAttribute('aria-checked', 'false');
     button.dataset.view = name;
     button.textContent = VIEW_LABELS[name];
     button.title = `${VIEW_LABELS[name]} · ${index + 1}`;
@@ -158,7 +158,7 @@ function initViews({ state, actions }) {
     return button;
   });
   const render = ({ view }) => {
-    for (const button of buttons) button.classList.toggle('is-active', button.dataset.view === view);
+    for (const button of buttons) button.setAttribute('aria-checked', String(button.dataset.view === view));
   };
   state.subscribe(['view'], render);
   render(state.get());

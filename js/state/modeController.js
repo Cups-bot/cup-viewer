@@ -35,10 +35,12 @@ export const CAPABILITIES = Object.freeze({
   }),
 });
 
-// Что можно выгрузить при каждом уровне export (§20, §29).
+// Что можно выгрузить при каждом уровне export (§20, §29). Владелец решил
+// дать клиенту тот же простой набор, что и сотруднику: фото 2048×2048,
+// 4 ракурса, оборот, развёртка. Уровни оставлены: их различит бэкенд (этап 06).
 export const EXPORT_KINDS = Object.freeze({
-  full: Object.freeze(['image', 'angles', 'turn', 'unwrap', 'preview']),
-  limited: Object.freeze(['current', 'unwrap', 'turn', 'preview']),
+  full: Object.freeze(['photo', 'angles', 'turn', 'unwrap']),
+  limited: Object.freeze(['photo', 'angles', 'turn', 'unwrap']),
 });
 
 // Какая capability охраняет какой ключ состояния.

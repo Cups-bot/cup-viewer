@@ -3,21 +3,23 @@
 // js/entries/design.js — в клиентский бандл этот код не попадает (§37).
 
 import { CONFIG } from '../config.js';
-import { bindMenu } from '../ui/toolbar.js';
+import { artScale, drawCup } from './cupArt.js';
 import { saveSession } from './session.js';
 import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
-const WALL_LABELS = Object.freeze({
-  single: 'однослойный',
-  double: 'двухслойный',
-  embossed: 'с тиснением',
-  plastic: 'литой пластик',
+const KIND_LABELS = Object.freeze({
+  single: 'Однослойный бумажный',
+  double: 'Двухслойный бумажный',
+  embossed: 'Эмбо, двухслойный с рельефом',
+  plastic: 'Пластиковый BM',
 });
 
-export function initDesign({ state, mode, catalog, viewer, feedback, actions: common }) {
+const kindOf = (model) => KIND_LABELS[model.wall] ?? '';
+
+export function initDesign({ state, mode, catalog, viewer, feedback }) {
   const actions = {
     // Макет на новую модель не переносится: у каждого стакана своя развёртка,
     // и та же картинка на соседней модели съезжает, растёт или обрезается.
@@ -33,18 +35,18 @@ export function initDesign({ state, mode, catalog, viewer, feedback, actions: co
   };
 
   const picker = initModelPicker({ state, catalog, actions });
-  initMaterialMenu({ state, catalog, actions });
+  initMaterialSwitch({ state, catalog, actions });
   initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
-  initModelMeta({ state, catalog });
+  initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPublish({ state, mode, catalog, feedback });
-  initMobileNav({ state, catalog, common, exportCenter });
+  initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
   const needsModel = [
     ...['texture-btn', 'export-btn', 'publish-btn'].map((id) => document.getElementById(id)),
-    ...document.querySelectorAll('[data-mobile-nav="design"], [data-mobile-action]'),
+    ...document.querySelectorAll('[data-mobile-nav="design"], [data-mobile-nav="publish"], [data-mobile-nav="export"]'),
   ];
   const renderNeeds = ({ modelId }) => {
     for (const button of needsModel) if (button) button.disabled = !modelId;
@@ -63,6 +65,9 @@ function initModelPicker({ state, catalog, actions }) {
   const button = document.getElementById('cup-btn');
   const dialog = document.getElementById('cup-dialog');
   const name = document.getElementById('cup-name');
+  const meta = document.getElementById('cup-meta');
+  const art = document.getElementById('cup-art');
+  const barName = document.getElementById('action-cup-name');
   if (!button || !dialog) return null;
 
   let picker = null;
@@ -83,7 +88,12 @@ function initModelPicker({ state, catalog, actions }) {
   const render = ({ modelId }) => {
     picker?.setActive(modelId);
     const model = catalog.model(modelId);
-    if (name) name.textContent = model ? model.name : 'Выбрать';
+    if (name) name.textContent = model ? `${model.volumeMl} мл` : 'Выбрать стакан';
+    if (meta) meta.textContent = model ? `${model.name} · ${kindOf(model)}` : 'Однослойные, двухслойные, эмбо, BM';
+    // В панели силуэт — во всю высоту поля: здесь стакан один, сравнивать
+    // не с чем, а разглядеть тип стенки нужно.
+    if (art) art.replaceChildren(...(model ? [drawCup(model, artScale([model]), { idSuffix: '-rail' })] : []));
+    if (barName) barName.textContent = model ? `${model.volumeMl} мл` : 'Стакан';
     button.classList.toggle('is-empty', !model);
   };
   state.subscribe(['modelId'], render);
@@ -91,54 +101,39 @@ function initModelPicker({ state, catalog, actions }) {
   return { open: async (from) => (await ensure()).open(from) };
 }
 
-// Материал (§14): только совместимые с моделью. Один материал — выбирать
-// нечего, кнопка показывает его и не раскрывается.
-function initMaterialMenu({ state, catalog, actions }) {
-  const button = document.getElementById('material-btn');
-  const menu = document.getElementById('material-menu');
-  const dot = document.getElementById('material-dot');
-  const name = document.getElementById('material-name');
-  if (!button || !menu) return;
-  const controls = bindMenu(button, menu, {
-    onOpen: () => menu.querySelector('[aria-checked="true"]')?.focus(),
-  });
-
+// Материал (§14) — переключатель в шапке, как выбор картона на colorcups.ru:
+// только совместимые с моделью. Один материал (BM) — показан, но выбирать
+// нечего.
+function initMaterialSwitch({ state, catalog, actions }) {
+  const box = document.getElementById('material-switch');
+  if (!box) return;
   let items = [];
   let builtFor;
   const build = (modelId) => {
     builtFor = modelId;
-    menu.replaceChildren();
     const materials = modelId ? catalog.materialsFor(modelId) : [];
     items = materials.map((material) => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'menu-item';
-      item.setAttribute('role', 'menuitemradio');
+      item.className = 'segmented__item material-switch__item';
+      item.setAttribute('role', 'radio');
       item.dataset.material = material.id;
+      item.title = material.note ?? '';
       const swatch = document.createElement('span');
       paintSwatch(swatch, material);
       const text = document.createElement('span');
       text.textContent = material.name;
-      const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      check.setAttribute('class', 'icon menu-item__check');
-      check.innerHTML = '<use href="assets/icons/sprite.svg#check" />';
-      item.append(swatch, text, check);
-      item.title = material.note ?? '';
-      item.addEventListener('click', () => {
-        actions.selectMaterial(material.id);
-        controls.close();
-      });
-      menu.appendChild(item);
+      item.append(swatch, text);
+      item.disabled = materials.length < 2;
+      item.addEventListener('click', () => actions.selectMaterial(material.id));
       return item;
     });
-    button.disabled = materials.length < 2;
+    box.replaceChildren(...items);
+    box.hidden = materials.length === 0;
   };
 
   const render = ({ modelId, materialId }) => {
     if (modelId !== builtFor) build(modelId);
-    const material = catalog.material(materialId);
-    if (name) name.textContent = material && modelId ? material.name : '—';
-    if (dot) paintSwatch(dot, modelId ? material : null);
     for (const item of items) item.setAttribute('aria-checked', String(item.dataset.material === materialId));
   };
   state.subscribe(['modelId', 'materialId'], render);
@@ -169,23 +164,24 @@ function initEmptyState({ state, picker }) {
   render(state.get());
 }
 
-// Сведения о модели в углу сцены: номенклатура, объём, тип, материал.
-function initModelMeta({ state, catalog }) {
-  const box = document.getElementById('model-meta');
-  if (!box) return;
+// Заголовок страницы — сам стакан: объём и код крупно, под ними тип,
+// материал и габариты. Как «Смешать цвет» на colorcups — страница говорит,
+// с чем сейчас работаешь.
+function initPageHead({ state, catalog }) {
+  const title = document.getElementById('page-title');
+  const sub = document.getElementById('page-sub');
+  if (!title || !sub) return;
   const render = ({ modelId, materialId }) => {
     const model = catalog.model(modelId);
-    box.hidden = !model;
-    if (!model) return;
-    const parts = [`${model.volumeMl} мл`, WALL_LABELS[model.wall], catalog.material(materialId)?.name?.toLowerCase()];
-    const name = document.createElement('b');
-    name.textContent = model.name;
-    box.replaceChildren(name);
-    for (const part of parts.filter(Boolean)) {
-      const dot = document.createElement('span');
-      dot.className = 'model-meta__dot';
-      box.append(dot, document.createTextNode(part));
+    if (!model) {
+      title.textContent = 'Выберите стакан';
+      sub.textContent = 'Затем загрузите макет — он ляжет на развёртку сам.';
+      return;
     }
+    title.textContent = `${model.volumeMl} мл · ${model.name}`;
+    const material = catalog.material(materialId)?.name?.toLowerCase();
+    const size = `Ø${Math.round(model.size.topMm)} × ${Math.round(model.size.heightMm)} мм`;
+    sub.textContent = [kindOf(model), material, size].filter(Boolean).join(' · ');
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());
@@ -226,46 +222,19 @@ function initExport(app) {
   return { open };
 }
 
-// Нижняя панель телефона и планшета в портрете (§45): те же действия, что в
-// верхней панели, — кнопки верхней панели просто нажимаются за человека.
-function initMobileNav({ state, catalog, common, exportCenter }) {
+// Нижняя панель узкого экрана (§45): те же шаги, что в левой панели, —
+// кнопки панели просто нажимаются за человека.
+function initActionBar({ exportCenter }) {
   const click = (id) => document.getElementById(id)?.click();
-  const moreMenu = document.getElementById('more-menu');
-  const closeMore = () => {
-    if (moreMenu) moreMenu.hidden = true;
-    document.getElementById('more-btn')?.setAttribute('aria-expanded', 'false');
-  };
   const nav = {
     cup: () => click('cup-btn'),
     design: () => click('texture-btn'),
-    material: () => click('material-btn'),
-    more: () => click('more-btn'),
+    publish: () => click('publish-btn'),
+    export: () => exportCenter.open('photo'),
   };
   for (const button of document.querySelectorAll('[data-mobile-nav]')) {
-    button.addEventListener('click', () => nav[button.dataset.mobileNav]?.());
+    button.addEventListener('click', () => !button.disabled && nav[button.dataset.mobileNav]?.());
   }
-  const more = {
-    scene: () => common.setTab('scene'),
-    export: () => exportCenter.open('image'),
-    turn: () => exportCenter.open('turn'),
-    publish: () => click('publish-btn'),
-  };
-  for (const button of document.querySelectorAll('[data-mobile-action]')) {
-    button.addEventListener('click', () => {
-      closeMore();
-      more[button.dataset.mobileAction]?.();
-    });
-  }
-
-  // Материал в нижней панели: образец текущего и недоступность, если выбора нет.
-  const dot = document.getElementById('mobile-material-dot');
-  const materialButton = document.querySelector('[data-mobile-nav="material"]');
-  const render = ({ modelId, materialId }) => {
-    if (dot) paintSwatch(dot, modelId ? catalog.material(materialId) : null);
-    if (materialButton) materialButton.disabled = catalog.materialsFor(modelId).length < 2;
-  };
-  state.subscribe(['modelId', 'materialId'], render);
-  render(state.get());
 }
 
 // Загрузка макета (§6, бриф 03b): кнопка и перетаскивание. Тип — по

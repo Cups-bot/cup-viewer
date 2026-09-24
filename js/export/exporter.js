@@ -2,23 +2,16 @@
 // первом открытии окна экспорта (§50); запись оборота подтягивает свой модуль
 // ещё позже — при старте записи.
 //
-// Каждая операция проверяет права режима: в Client Mode доступны только
-// текущий кадр, развёртка, 360° и превью (ModeController, export = limited).
+// Каждая операция проверяет права режима (ModeController, export). Набор у
+// сотрудника и клиента один: фото 2048×2048, 4 ракурса, оборот, развёртка.
 
 import { encodeCanvas } from '../utils/encode.js';
 import { createZip } from '../utils/zip.js';
 import { MESSAGES } from '../ui/messages.js';
 
-export const IMAGE_SIZES = Object.freeze({
-  hd: { label: '1920 × 1080', width: 1920, height: 1080 },
-  square: { label: '2048 × 2048', width: 2048, height: 2048 },
-  current: { label: 'Текущий вид', width: null, height: null },
-});
-
 export const ANGLE_VIEWS = Object.freeze(['front', 'right', 'back', 'left']);
-export const ANGLE_SIZE = 2048;
-export const JPEG_QUALITY = 0.92;
-export const PREVIEW_SIZE = 1200;
+// Размер стороны кадра: и одиночное фото, и ракурсы — квадрат 2048.
+export const PHOTO_SIZE = 2048;
 
 export class ExportBusyError extends Error {}
 
@@ -56,15 +49,10 @@ export function createExporter({ state, mode, viewer, feedback }) {
     }
   }
 
-  const currentSize = () => {
-    const canvas = viewer.renderer.domElement;
-    return { width: canvas.width, height: canvas.height };
-  };
-
-  async function still({ width, height, view = null, type = 'image/png', quality }) {
+  async function still({ width, height, view = null }) {
     const canvas = viewer.renderStill({ width, height, view });
     try {
-      return await encodeCanvas(canvas, type, quality);
+      return await encodeCanvas(canvas, 'image/png');
     } finally {
       // Холст кадра освобождаем сразу: 2048² — это 16 МБ пикселей.
       canvas.width = 0;
@@ -81,58 +69,32 @@ export function createExporter({ state, mode, viewer, feedback }) {
       return () => listeners.delete(fn);
     },
 
-    // Изображение: PNG | JPG, размер из IMAGE_SIZES. В фото-сцене — только
-    // текущий вид: у снимка свой кадр, и другой формат его бы обрезал.
-    image({ format = 'png', size = 'current' } = {}) {
-      return run('image', async (progress) => {
-        const preset = viewer.photo ? IMAGE_SIZES.current : IMAGE_SIZES[size] ?? IMAGE_SIZES.current;
-        const { width, height } = preset.width ? preset : currentSize();
-        const jpeg = format === 'jpg';
+    // Фото: PNG 2048×2048 текущего вида, без интерфейса. В фото-сцене
+    // снимок снят квадратом — кадр выходит без полей.
+    photo() {
+      return run('photo', async (progress) => {
         progress(0, 1, 'Рендер кадра');
-        const blob = await still({ width, height, type: jpeg ? 'image/jpeg' : 'image/png', quality: jpeg ? JPEG_QUALITY : undefined });
+        const blob = await still({ width: PHOTO_SIZE, height: PHOTO_SIZE });
         progress(1, 1, 'Готово');
-        await viewer.deliverFile(blob, `${baseName()}_${width}x${height}.${jpeg ? 'jpg' : 'png'}`, blob.type);
+        await viewer.deliverFile(blob, `${baseName()}_${PHOTO_SIZE}.png`, 'image/png');
         return blob;
       });
     },
 
-    // Текущий кадр клиента (§29): PNG размером с холст.
-    current() {
-      return run('current', async (progress) => {
-        const { width, height } = currentSize();
-        progress(0, 1, 'Рендер кадра');
-        const blob = await still({ width, height });
-        progress(1, 1, 'Готово');
-        await viewer.deliverFile(blob, `${baseName()}_view.png`, 'image/png');
-        return blob;
-      });
-    },
-
-    // 4 ракурса одной дистанции, фона и света — одним ZIP (§20).
+    // 4 ракурса одной дистанции, фона и света — одним ZIP (§20). Поворачивается
+    // сам стакан, поэтому тень у всех четырёх одна.
     angles() {
       return run('angles', async (progress) => {
-        if (viewer.photo) throw new Error('ракурсы снимаются в студии');
         const files = [];
         for (const [index, view] of ANGLE_VIEWS.entries()) {
           progress(index, ANGLE_VIEWS.length, `Кадр ${index + 1} из ${ANGLE_VIEWS.length}`);
-          const blob = await still({ width: ANGLE_SIZE, height: ANGLE_SIZE, view });
+          const blob = await still({ width: PHOTO_SIZE, height: PHOTO_SIZE, view });
           files.push({ name: `${baseName()}_${view}.png`, data: new Uint8Array(await blob.arrayBuffer()) });
         }
         progress(ANGLE_VIEWS.length, ANGLE_VIEWS.length, 'Собираем архив');
         const zip = createZip(files);
         await viewer.deliverFile(zip, `${baseName()}_4views.zip`, 'application/zip');
         return files.map((file) => file.name);
-      });
-    },
-
-    // Превью для мессенджера (§29): JPG квадрат, вид спереди.
-    preview() {
-      return run('preview', async (progress) => {
-        progress(0, 1, 'Рендер кадра');
-        const view = viewer.photo ? null : 'front';
-        const blob = await still({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, view, type: 'image/jpeg', quality: JPEG_QUALITY });
-        await viewer.deliverFile(blob, `${baseName()}_preview.jpg`, 'image/jpeg');
-        return blob;
       });
     },
 

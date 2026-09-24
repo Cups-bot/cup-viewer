@@ -764,24 +764,28 @@ export class Viewer {
     return [w, Math.max(1, Math.round(w / frameAspect))];
   }
 
-  // Угол камеры и кроп фона под текущую форму сцены.
-  #layoutPhotoScene() {
+  // Угол камеры и кроп фона под текущую форму сцены. target — размер кадра
+  // экспорта: тогда и кадр снимка выбирается под него, а не под страницу.
+  #layoutPhotoScene(target = null) {
     const { data, backdrops } = this.photo ?? {};
     if (!data) return;
 
     // Кадр выбирается по месту на странице, угол — по самому холсту: он уже
     // вписан в форму кадра (см. resize).
-    const { clientWidth: w, clientHeight: h } = this.container;
+    const { clientWidth: w, clientHeight: h } = target ?? this.container;
     const frame = pickFrame(aspectOf(w, h));
-    const size = this.renderer.getSize(new THREE.Vector2());
+    const size = target ? new THREE.Vector2(target.clientWidth, target.clientHeight) : this.renderer.getSize(new THREE.Vector2());
     const aspect = aspectOf(size.x, size.y);
     const backdrop = backdrops[frame] ?? backdrops.wide;
 
     // Размер снимка — странице: рамку вокруг него рисует CSS
-    // (#canvas-container.has-photo в stage.css).
-    this.container.classList.add('has-photo');
-    this.container.style.setProperty('--photo-width', `${size.x}px`);
-    this.container.style.setProperty('--photo-height', `${size.y}px`);
+    // (#canvas-container.has-photo в stage.css). Кадр экспорта странице
+    // не показывается.
+    if (!target) {
+      this.container.classList.add('has-photo');
+      this.container.style.setProperty('--photo-width', `${size.x}px`);
+      this.container.style.setProperty('--photo-height', `${size.y}px`);
+    }
 
     this.camera.fov = fovFor(data, frame, aspect);
     this.camera.aspect = aspect;
@@ -1174,7 +1178,9 @@ export class Viewer {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       this.backdropScreen?.fit(camera);
-      if (!this.photo) this.#keepModelInFrame();
+      // Фото-сцена: снимок, угол и тень — под форму кадра экспорта.
+      if (this.photo) this.#layoutPhotoScene({ clientWidth: width, clientHeight: height });
+      else this.#keepModelInFrame();
       camera.updateMatrixWorld();
 
       this.ambientShadow?.update(renderer, this.scene);

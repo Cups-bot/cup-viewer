@@ -8,112 +8,110 @@
     <meta name="robots" content="noindex" />
     <title>Ваш стакан</title>
     <link rel="icon" id="favicon" href="assets/icons/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="css/app.css?v=eb0aa57b" />
-    <link rel="stylesheet" href="css/viewer.css?v=fbafd8a3" />
-    <link rel="stylesheet" href="css/client.css?v=91231b01" />
+    <script src="js/ui/themeBoot.js?v=404de260"></script>
+    <link rel="stylesheet" href="css/app.css?v=cefb70bb" />
+    <link rel="stylesheet" href="css/viewer.css?v=714cb32d" />
+    <link rel="stylesheet" href="css/client.css?v=b86b6a24" />
   </head>
   <body class="client">
     <div class="client-app">
-      <!-- Верх (§24): логотип бренда, название, информация. -->
-      <header class="client-top">
+      <!-- Шапка (§24): логотип бренда, название, тема, информация. -->
+      <header class="client-header">
         <img class="client-logo" id="brand-logo" alt="" hidden />
         <p class="client-title" id="client-title" hidden></p>
-        <button class="icon-btn client-top__info" id="info-toggle" type="button" aria-label="Информация о стакане" aria-expanded="false" aria-controls="info-drawer">
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#info" /></svg>
-        </button>
+        <div class="client-header__actions">
+          <div class="theme-toggle" role="group" aria-label="Тема">
+            <button class="theme-toggle__btn" type="button" data-theme-set="light" aria-label="Светлая тема" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#sun" /></svg>
+            </button>
+            <button class="theme-toggle__btn" type="button" data-theme-set="dark" aria-label="Тёмная тема" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#moon" /></svg>
+            </button>
+          </div>
+          <button class="pill-btn" id="info-toggle" type="button" aria-label="О стакане" aria-expanded="false" aria-controls="info-drawer">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#info" /></svg>
+            <span class="pill-btn__text">О стакане</span>
+          </button>
+        </div>
       </header>
 
       <main class="client-main">
-        <section class="stage" id="stage" aria-label="3D-просмотр стакана">
-          <div id="canvas-container"></div>
-
-          <div class="unwrap" id="unwrap" hidden>
-            <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
-            <p class="unwrap__hint">Колесо или щипок — приблизить, двойной клик — по размеру</p>
-            <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
-              <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
-              </button>
-              <span class="unwrap-bar__zoom" id="unwrap-zoom" aria-live="polite">—</span>
-              <button class="icon-btn" id="unwrap-zoom-in" type="button" aria-label="Приблизить">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
-              </button>
-              <button class="icon-btn" id="unwrap-fit" type="button" aria-label="По размеру">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#fit" /></svg>
-              </button>
-              <button class="icon-btn" id="unwrap-fullscreen" type="button" aria-label="Во весь экран">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
-              </button>
+        <section class="stage-card">
+          <!-- Вкладки и фоны (§27, без подписей). -->
+          <div class="stage-card__bar">
+            <nav class="tabs" role="tablist" aria-label="Режим просмотра">
+              <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
+              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
+              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">В интерьере</button>
+            </nav>
+            <div class="stage-swatches">
+              <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
             </div>
           </div>
 
-          <div class="scene-strip" id="scene-picker" role="group" aria-label="Сцена" hidden></div>
+          <section class="stage" id="stage" aria-label="3D-просмотр стакана">
+            <div id="canvas-container"></div>
 
-          <nav class="toolbar stage-controls client-tools" aria-label="Управление просмотром">
-            <button class="icon-btn" id="reset-btn" type="button" aria-label="Исходный вид" data-tip="Исходный вид" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#reset" /></svg>
-            </button>
-            <button class="icon-btn" id="fullscreen-btn" type="button" aria-label="Во весь экран" aria-pressed="false" data-tip="Во весь экран" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
-            </button>
-          </nav>
+            <div class="unwrap" id="unwrap" hidden>
+              <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
+              <p class="unwrap__hint">Колесо или щипок — приблизить, двойной клик — по размеру</p>
+              <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
+                <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
+                </button>
+                <span class="unwrap-bar__zoom" id="unwrap-zoom" aria-live="polite">—</span>
+                <button class="icon-btn" id="unwrap-zoom-in" type="button" aria-label="Приблизить">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
+                </button>
+                <button class="icon-btn" id="unwrap-fit" type="button" aria-label="По размеру">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#fit" /></svg>
+                </button>
+                <span class="unwrap-bar__sep" aria-hidden="true"></span>
+                <button class="icon-btn" id="unwrap-fullscreen" type="button" aria-label="Во весь экран">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
+                </button>
+                <button class="btn" id="unwrap-download" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+                  <span>PNG</span>
+                </button>
+              </div>
+            </div>
 
-          <div class="loader" id="loader" role="status" aria-live="polite" hidden>
-            <span class="spinner" aria-hidden="true"></span>
-            <span id="loader-text">Загрузка…</span>
-          </div>
-        </section>
+            <div class="scene-strip" id="scene-picker" role="group" aria-label="Интерьер" hidden></div>
 
-        <!-- Нижняя панель: вкладки, фоны (§27, без подписей), автооборот (§23),
-             «Скачать» (§29). -->
-        <div class="client-bar">
-          <nav class="tabs" role="tablist" aria-label="Режим просмотра">
-            <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
-            <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
-            <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">Сцена</button>
-          </nav>
-          <div class="swatches client-swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
-          <div class="client-actions">
-            <button class="btn" id="autorotate-btn" type="button" aria-pressed="false">
+            <nav class="toolbar stage-controls" aria-label="Управление просмотром">
+              <button class="icon-btn" id="reset-btn" type="button" aria-label="Исходный вид" data-tip="Исходный вид" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#reset" /></svg>
+              </button>
+              <button class="icon-btn" id="fullscreen-btn" type="button" aria-label="Во весь экран" aria-pressed="false" data-tip="Во весь экран" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
+              </button>
+            </nav>
+
+            <div class="loader" id="loader" role="status" aria-live="polite" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <span id="loader-text">Загрузка…</span>
+            </div>
+          </section>
+
+          <!-- Автооборот (§23) и «Скачать» (§29). -->
+          <div class="stage-card__foot client-foot">
+            <button class="btn client-autorotate" id="autorotate-btn" type="button" aria-pressed="false">
               <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
               <span>Автооборот</span>
             </button>
-            <div class="menu-anchor">
-              <button class="btn btn--accent" id="download-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="download-menu">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
-                <span>Скачать</span>
-              </button>
-              <div class="popover download-menu" id="download-menu" role="menu" aria-label="Скачать" hidden>
-                <button class="menu-item" type="button" role="menuitem" data-download="current">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
-                  Текущий кадр <span class="menu-item__hint">PNG</span>
-                </button>
-                <button class="menu-item" type="button" role="menuitem" data-download="unwrap">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#layers" /></svg>
-                  Развёртка <span class="menu-item__hint">PNG</span>
-                </button>
-                <button class="menu-item" type="button" role="menuitem" data-download="turn">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#video" /></svg>
-                  Оборот 360° <span class="menu-item__hint">видео</span>
-                </button>
-                <button class="menu-item" type="button" role="menuitem" data-download="preview">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#image" /></svg>
-                  Превью <span class="menu-item__hint">JPG</span>
-                </button>
-                <div class="progress" id="download-progress" hidden>
-                  <div class="progress__track"><div class="progress__bar"></div></div>
-                  <span class="progress__text"></span>
-                </div>
-              </div>
-            </div>
+            <button class="btn btn--accent" id="download-btn" type="button" aria-haspopup="dialog">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+              <span>Скачать фото или видео</span>
+            </button>
           </div>
-        </div>
+        </section>
       </main>
 
       <!-- Информация (§25): объём, материал, тип печати — из каталогов. -->
       <aside class="drawer" id="info-drawer" aria-labelledby="info-title" hidden>
         <div class="drawer__head">
-          <p class="drawer__title" id="info-title">Информация</p>
+          <p class="drawer__title" id="info-title">О стакане</p>
           <button class="icon-btn" id="info-close" type="button" aria-label="Закрыть">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
           </button>
@@ -152,11 +150,12 @@
           <li data-pointer>Перетащите мышью — стакан повернётся</li>
           <li data-pointer>Колесо — приблизить и отдалить</li>
           <li>Двойное касание или клик — исходный вид</li>
+          <li>«В интерьере» — стакан в живой обстановке</li>
         </ul>
         <button class="btn btn--accent btn--block" id="onboarding-ok" type="button">Понятно</button>
       </div>
     </div>
 
-    <script type="module" src="dist/view.js?v=c45efedc"></script>
+    <script type="module" src="dist/view.js?v=1c187d5b"></script>
   </body>
 </html>

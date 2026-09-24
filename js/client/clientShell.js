@@ -3,7 +3,6 @@
 // бандле нет вовсе.
 
 import { MESSAGES } from '../ui/messages.js';
-import { bindMenu } from '../ui/toolbar.js';
 
 // Проверка до загрузки ассетов (§42): без WebGL — экран с объяснением, а не
 // чёрный холст.
@@ -75,13 +74,12 @@ export function applyBrand(brand, title) {
   document.title = title ? `${title} — ${brand.name}` : brand.title;
 }
 
-const WALL_LABELS = {
-  single: 'Однослойный',
-  double: 'Двухслойный',
-  embossed: 'С тиснением',
-  plastic: 'Литой',
+const KIND_LABELS = {
+  single: 'Однослойный бумажный',
+  double: 'Двухслойный бумажный',
+  embossed: 'Эмбо, двухслойный с рельефом',
+  plastic: 'Пластиковый, матовый',
 };
-const TYPE_LABELS = { paper: 'бумажный', pp: 'полипропилен', pet: 'PET' };
 const PRINT_LABELS = { offset: 'Офсет', 'dry-offset': 'Сухой офсет', flexo: 'Флексография' };
 
 // Информация (§25): объём, стакан, материал, печать. Номенклатуры (SKU) нет.
@@ -95,7 +93,8 @@ function initInfo({ state, catalog }) {
   const material = catalog.material(materialId);
   const rows = [
     ['Объём', model && `${model.volumeMl} мл`],
-    ['Стакан', model && `${WALL_LABELS[model.wall] ?? ''} ${TYPE_LABELS[model.type] ?? ''}`.trim()],
+    ['Стакан', model && KIND_LABELS[model.wall]],
+    ['Размер', model && `Ø${Math.round(model.size.topMm)} × ${Math.round(model.size.heightMm)} мм`],
     ['Материал', material?.name],
     ['Тип печати', model && (PRINT_LABELS[model.printType] ?? model.printType)],
   ];
@@ -160,42 +159,19 @@ function initAutoRotate({ state }) {
   return { arm };
 }
 
-// Скачать (§29): текущий кадр, развёртка, 360°, превью. Модуль экспорта
-// грузится при первом открытии меню (§50).
+// Скачать (§29): то же окно «Фото / Видео», что у сотрудника. Модуль окна и
+// экспорта грузится при первом нажатии (§50).
 function initDownloads(app) {
   const button = document.getElementById('download-btn');
-  const menu = document.getElementById('download-menu');
-  const progress = document.getElementById('download-progress');
-  if (!button || !menu) return;
-  let exporter = null;
-  const load = async () => {
-    if (exporter) return exporter;
-    const { createExporter } = await import('../export/exporter.js');
-    exporter ??= createExporter(app);
-    exporter.on((event) => {
-      if (event.type === 'busy') {
-        progress.hidden = !event.busy;
-        for (const item of menu.querySelectorAll('[data-download]')) item.disabled = event.busy;
-      }
-      if (event.type === 'progress') {
-        progress.querySelector('.progress__bar').style.width = `${Math.round((event.total ? event.done / event.total : 0) * 100)}%`;
-        progress.querySelector('.progress__text').textContent =
-          event.total > 1 ? `${event.label} · кадр ${event.done} из ${event.total}` : event.label;
-      }
-    });
-    return exporter;
-  };
-  bindMenu(button, menu, { onOpen: () => load() });
-  for (const item of menu.querySelectorAll('[data-download]')) {
-    item.addEventListener('click', async () => {
-      const ex = await load();
-      const kind = item.dataset.download;
-      if (kind === 'current') ex.current();
-      if (kind === 'unwrap') ex.unwrap(app.unwrap?.image);
-      if (kind === 'turn') ex.turn();
-      if (kind === 'preview') ex.preview();
-    });
-  }
+  if (!button) return;
+  let center = null;
+  button.addEventListener('click', async () => {
+    if (!center) {
+      const { createExportCenter } = await import('../export/exportCenter.js');
+      center ??= createExportCenter(app);
+    }
+    center.open(button, 'photo');
+  });
 }
 
 const ONBOARDING_KEY = 'cv.onboarding.v1';

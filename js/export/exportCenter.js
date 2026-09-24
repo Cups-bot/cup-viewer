@@ -1,7 +1,9 @@
-// Окно «Экспорт» Design Mode (§20): изображение, 4 ракурса, 360° — в одном
-// окне. Разметку строит сам модуль: пока окно не открывали, в странице его нет.
+// Окно «Скачать» (§20): два переключателя — «Фото» и «Видео». Фото — один
+// кадр 2048×2048 или 4 ракурса; видео — оборот 360°, по желанию с кадрами
+// через каждые 45°. Одно окно для сотрудника и клиента: права проверяет
+// exporter. Разметку строит сам модуль — пока окно не открывали, его нет.
 
-import { ANGLE_SIZE, ANGLE_VIEWS, IMAGE_SIZES, createExporter } from './exporter.js';
+import { ANGLE_VIEWS, PHOTO_SIZE, createExporter } from './exporter.js';
 
 const VIEW_LABELS = { front: 'Спереди', right: 'Справа', back: 'Сзади', left: 'Слева' };
 
@@ -16,98 +18,94 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 
-// Сегментированный выбор: [{ value, label }] → { node, value }.
-function segmented(name, options, initial, onChange) {
-  const node = el('div', { class: 'segmented', role: 'radiogroup', 'aria-label': name });
+const icon = (name) => {
+  const span = el('span', { class: 'choice__icon', 'aria-hidden': 'true' });
+  span.innerHTML = `<svg class="icon"><use href="assets/icons/sprite.svg#${name}" /></svg>`;
+  return span;
+};
+
+// Выбор из вариантов-карточек: [{ value, label, hint, icon }] → { node, value, set }.
+function choices(name, options, initial, onChange) {
+  const node = el('div', { class: 'choices', role: 'radiogroup', 'aria-label': name });
   const control = { node, value: initial };
-  const buttons = options.map(({ value, label }) => {
-    const button = el('button', { type: 'button', role: 'radio', class: 'segmented__item', text: label });
-    button.dataset.value = value;
+  const buttons = options.map((option) => {
+    const button = el(
+      'button',
+      { type: 'button', role: 'radio', class: 'choice' },
+      option.icon && icon(option.icon),
+      el('span', { class: 'choice__text' },
+        el('b', { text: option.label }),
+        option.hint && el('small', { text: option.hint })),
+    );
+    button.dataset.value = option.value;
     button.addEventListener('click', () => {
       if (button.disabled) return;
-      control.value = value;
-      render();
-      onChange?.(value);
+      control.set(option.value);
+      onChange?.(option.value);
     });
     node.append(button);
     return button;
   });
-  const render = () => {
-    for (const button of buttons) button.setAttribute('aria-checked', String(button.dataset.value === control.value));
-  };
   control.set = (value) => {
     control.value = value;
-    render();
+    for (const button of buttons) button.setAttribute('aria-checked', String(button.dataset.value === value));
   };
-  control.disable = (value, disabled) => {
-    const button = buttons.find((b) => b.dataset.value === value);
-    if (button) button.disabled = disabled;
-  };
-  render();
+  control.set(initial);
   return control;
 }
 
 export function createExportCenter(app) {
   const { viewer } = app;
   const exporter = createExporter(app);
+  const { fps, duration, photoStep } = viewer.config.turnExport;
   let opener = null;
 
   // ── разметка ───────────────────────────────────────────────────────────
   const backdrop = el('div', { class: 'dialog-backdrop', hidden: '' });
   const close = el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Закрыть' });
   close.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
-  const tabs = segmented('Что выгрузить', [
-    { value: 'image', label: 'Изображение' },
-    { value: 'angles', label: '4 ракурса' },
-    { value: 'turn', label: '360°' },
-  ], 'image', () => renderTab());
-  tabs.node.classList.add('segmented--tabs');
 
-  // Изображение
-  const format = segmented('Формат', [{ value: 'png', label: 'PNG' }, { value: 'jpg', label: 'JPG' }], 'png');
-  const size = segmented(
-    'Размер',
-    Object.entries(IMAGE_SIZES).map(([value, { label }]) => ({ value, label })),
-    'square',
-    () => refreshPreview(),
-  );
-  const preview = el('img', { class: 'export-preview__img', alt: 'Превью кадра' });
-  const imageNote = el('p', { class: 'export-note' });
-  const imageGo = el('button', { class: 'btn btn--accent btn--block', type: 'button', text: 'Скачать изображение' });
-  const imagePanel = el(
-    'div',
-    { class: 'export-panel' },
-    el('div', { class: 'export-grid' },
-      el('div', { class: 'export-fields' },
-        el('p', { class: 'field-label', text: 'Формат' }), format.node,
-        el('p', { class: 'field-label', text: 'Размер' }), size.node,
-        imageNote),
-      el('div', { class: 'export-preview' }, preview)),
-    imageGo,
-  );
+  const kind = choices('Что скачать', [
+    { value: 'photo', label: 'Фото', hint: `PNG ${PHOTO_SIZE} × ${PHOTO_SIZE}`, icon: 'camera' },
+    { value: 'video', label: 'Видео', hint: `Оборот 360°, ${duration} с`, icon: 'video' },
+  ], 'photo', () => render());
+  kind.node.classList.add('choices--kind');
 
-  // 4 ракурса
+  // Фото: один кадр или 4 ракурса.
+  const photoMode = el('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Сколько кадров' });
+  let photoValue = 'single';
+  const photoButtons = [
+    ['single', 'Один кадр'],
+    ['angles', '4 ракурса'],
+  ].map(([value, label]) => {
+    const button = el('button', { type: 'button', role: 'radio', class: 'segmented__item', text: label });
+    button.dataset.value = value;
+    button.addEventListener('click', () => {
+      photoValue = value;
+      render();
+    });
+    photoMode.append(button);
+    return button;
+  });
+  const single = el('img', { class: 'export-shot', alt: 'Кадр' });
   const thumbs = el('div', { class: 'angle-thumbs' });
   const angleImages = ANGLE_VIEWS.map((view) => {
     const img = el('img', { alt: VIEW_LABELS[view] });
     thumbs.append(el('figure', {}, img, el('figcaption', { text: VIEW_LABELS[view] })));
     return img;
   });
-  const anglesGo = el('button', { class: 'btn btn--accent btn--block', type: 'button', text: 'Скачать ZIP' });
-  const anglesPanel = el('div', { class: 'export-panel', hidden: '' },
-    thumbs,
-    el('p', { class: 'export-note', text: `4 PNG ${ANGLE_SIZE} × ${ANGLE_SIZE}: одна дистанция, фон и свет. Имена — модель_материал_ракурс.png.` }),
-    anglesGo);
+  const photoNote = el('p', { class: 'export-note' });
+  const photoPanel = el('div', { class: 'export-panel' }, photoMode, single, thumbs, photoNote);
 
-  // 360°
+  // Видео: галочка «плюс фото через 45°».
   const photos = el('input', { type: 'checkbox', id: 'export-photos' });
-  const { fps, duration, photoStep } = viewer.config.turnExport;
-  const turnGo = el('button', { class: 'btn btn--accent btn--block', type: 'button', text: 'Записать оборот' });
-  const turnPanel = el('div', { class: 'export-panel', hidden: '' },
-    el('p', { class: 'export-note', text: `Стакан сделает полный круг: ${duration} с, ${fps} кадр/с — ${fps * duration} кадров. Пока идёт запись, вкладку лучше не переключать.` }),
+  const videoPanel = el('div', { class: 'export-panel', hidden: '' },
+    el('p', { class: 'export-note', text: `Стакан сделает полный оборот: ${duration} с, ${fps} кадров в секунду. Пока идёт запись, вкладку лучше не переключать.` }),
     el('label', { class: 'export-option', for: 'export-photos' }, photos,
-      el('span', {}, `Плюс фото каждые ${photoStep}°`, el('small', { text: 'Ролик и кадры придут одним ZIP' }))),
-    turnGo);
+      el('span', {}, `С поворотом на ${photoStep}°`,
+        el('small', { text: `Плюс ${Math.round(360 / photoStep)} фото — через каждые ${photoStep}°; всё придёт одним ZIP` }))));
+
+  const go = el('button', { class: 'btn btn--accent btn--block btn--lg', type: 'button' });
 
   // Прогресс — общий: операция одна за раз.
   const bar = el('div', { class: 'progress__bar' });
@@ -116,50 +114,42 @@ export function createExportCenter(app) {
     el('div', { class: 'progress__track' }, bar), progressText);
 
   const dialog = el('div', { class: 'dialog export-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'export-title', hidden: '' },
-    el('div', { class: 'dialog__head' }, el('p', { class: 'dialog__title', id: 'export-title', text: 'Экспорт' }), close),
-    tabs.node, imagePanel, anglesPanel, turnPanel, progress);
+    el('div', { class: 'dialog__head' }, el('p', { class: 'dialog__title', id: 'export-title', text: 'Скачать' }), close),
+    kind.node, photoPanel, videoPanel, progress, go);
   document.body.append(backdrop, dialog);
 
   // ── поведение ──────────────────────────────────────────────────────────
-  const panels = { image: imagePanel, angles: anglesPanel, turn: turnPanel };
-  const goButtons = [imageGo, anglesGo, turnGo];
-
-  function renderTab() {
-    for (const [key, panel] of Object.entries(panels)) panel.hidden = key !== tabs.value;
-    if (tabs.value === 'image') refreshPreview();
-    if (tabs.value === 'angles') refreshAngles();
-  }
-
-  // Превью рисуется тем же конвейером, маленьким кадром той же формы.
-  function refreshPreview() {
-    const photo = Boolean(viewer.photo);
-    for (const value of ['hd', 'square']) size.disable(value, photo);
-    if (photo && size.value !== 'current') size.set('current');
-    const canvas = viewer.renderer.domElement;
-    const { width, height } = IMAGE_SIZES[size.value].width ? IMAGE_SIZES[size.value] : canvas;
-    const scale = 360 / Math.max(width, height);
-    preview.src = exporter.thumbnail({ width: Math.round(width * scale), height: Math.round(height * scale) }) ?? '';
-    imageNote.textContent = photo
-      ? 'В фото-сцене кадр сохраняет формат снимка.'
-      : `${width} × ${height} px, без интерфейса. Цвет — как на экране.`;
-  }
-
-  function refreshAngles() {
-    const photo = Boolean(viewer.photo);
-    anglesGo.disabled = photo || exporter.busy;
-    ANGLE_VIEWS.forEach((view, index) => {
-      angleImages[index].src = photo ? '' : exporter.thumbnail({ width: 240, height: 240, view }) ?? '';
-    });
-    if (photo) anglesGo.textContent = 'Ракурсы — во вкладке 3D';
-    else anglesGo.textContent = 'Скачать ZIP';
+  function render() {
+    const photo = kind.value === 'photo';
+    photoPanel.hidden = !photo;
+    videoPanel.hidden = photo;
+    for (const button of photoButtons) button.setAttribute('aria-checked', String(button.dataset.value === photoValue));
+    if (photo) {
+      const angles = photoValue === 'angles';
+      single.hidden = angles;
+      thumbs.hidden = !angles;
+      // Превью рисуется тем же конвейером, маленьким кадром той же формы.
+      if (angles) {
+        ANGLE_VIEWS.forEach((view, index) => {
+          angleImages[index].src = exporter.thumbnail({ width: 240, height: 240, view }) ?? '';
+        });
+        photoNote.textContent = `4 PNG ${PHOTO_SIZE} × ${PHOTO_SIZE} одним ZIP. Поворачивается стакан — свет и тень у всех кадров одни.`;
+        go.textContent = 'Скачать 4 ракурса';
+      } else {
+        single.src = exporter.thumbnail({ width: 480, height: 480 }) ?? '';
+        photoNote.textContent = `PNG ${PHOTO_SIZE} × ${PHOTO_SIZE}, как на экране, без интерфейса.`;
+        go.textContent = 'Скачать фото';
+      }
+    } else {
+      go.textContent = 'Записать видео';
+    }
   }
 
   exporter.on((event) => {
     if (event.type === 'busy') {
-      for (const button of goButtons) button.disabled = event.busy;
-      tabs.node.classList.toggle('is-locked', event.busy);
+      go.disabled = event.busy;
+      kind.node.classList.toggle('is-locked', event.busy);
       progress.hidden = !event.busy;
-      if (!event.busy && tabs.value === 'angles') refreshAngles();
       return;
     }
     if (event.type === 'progress') {
@@ -171,9 +161,11 @@ export function createExportCenter(app) {
     }
   });
 
-  imageGo.addEventListener('click', () => exporter.image({ format: format.value, size: size.value }));
-  anglesGo.addEventListener('click', () => exporter.angles());
-  turnGo.addEventListener('click', () => exporter.turn({ photos: photos.checked }));
+  go.addEventListener('click', () => {
+    if (kind.value === 'video') exporter.turn({ photos: photos.checked });
+    else if (photoValue === 'angles') exporter.angles();
+    else exporter.photo();
+  });
 
   const hide = () => {
     // Запись оборота идёт по часам: закрыть окно можно, отменить — нет.
@@ -189,13 +181,13 @@ export function createExportCenter(app) {
 
   return {
     exporter,
-    // tab: 'image' | 'angles' | 'turn' — с какой вкладки открыть.
+    // tab: 'photo' | 'video' — с чего открыть.
     open(from, tab) {
       opener = from ?? document.activeElement;
-      if (tab && !exporter.busy) tabs.set(tab);
+      if (tab && !exporter.busy) kind.set(tab);
       dialog.hidden = false;
       backdrop.hidden = false;
-      renderTab();
+      render();
       close.focus();
     },
     get isOpen() {
@@ -203,4 +195,3 @@ export function createExportCenter(app) {
     },
   };
 }
-

@@ -6,6 +6,7 @@ import { boot, whenDomReady } from '../app/boot.js';
 import { SnapshotError, downloadDesign, fetchSnapshot, readToken } from '../client/snapshot.js';
 import { applyBrand, createLoader, hasWebGL, initClient, showError } from '../client/clientShell.js';
 import { MESSAGES } from '../ui/messages.js';
+import { initTheme } from '../ui/theme.js';
 
 // Клиенту — медленный оборот: круг за 21 с (§23). Стартует после появления.
 // Сцена клиента — на весь экран, поверх неё логотип и панель: стакану нужно
@@ -120,6 +121,7 @@ async function start() {
 }
 
 whenDomReady(() => {
+  initTheme();
   start().catch((error) => {
     console.error('Просмотр не запустился:', error);
     showError(MESSAGES.modelFailed);

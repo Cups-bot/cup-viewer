@@ -4,245 +4,241 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex" />
-    <title>Cup Viewer — Design</title>
+    <title>Cup Viewer</title>
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="css/app.css?v=eb0aa57b" />
-    <link rel="stylesheet" href="css/viewer.css?v=fbafd8a3" />
-    <link rel="stylesheet" href="css/design.css?v=e24802eb" />
+    <script src="js/ui/themeBoot.js?v=404de260"></script>
+    <link rel="stylesheet" href="css/app.css?v=cefb70bb" />
+    <link rel="stylesheet" href="css/viewer.css?v=714cb32d" />
+    <link rel="stylesheet" href="css/design.css?v=332ab57f" />
   </head>
   <body>
     <div class="app">
-      <!-- Верхняя панель (§8): знак, вкладки, выбор стакана и материала,
-           загрузка макета, экспорт. Выбор стакана и загрузка — только здесь. -->
-      <header class="topbar">
-        <div class="brand">
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#logo" /></svg>
-          <span class="brand__name">Cup Viewer</span>
-          <span class="brand__mode">Design</span>
-        </div>
+      <!-- Шапка — как у colorcups.ru: логотип, по центру материал (как выбор
+           картона там), справа тема и «Как пользоваться». -->
+      <header class="site-header">
+        <a class="site-logo" href="./" aria-label="Cup Viewer">
+          <svg class="site-logo__full" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-logo" /></svg>
+        </a>
 
-        <nav class="tabs" role="tablist" aria-label="Режим просмотра">
-          <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
-          <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
-          <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">Сцена</button>
-        </nav>
+        <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Материал"></div>
 
-        <div class="topbar__actions">
-          <button class="picker-btn" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
-            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#cup" /></svg>
-            <span class="picker-btn__text">
-              <span class="picker-btn__label">Стакан</span>
-              <span class="picker-btn__value" id="cup-name">Выбрать</span>
-            </span>
-            <svg class="picker-btn__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
-          </button>
-
-          <div class="menu-anchor">
-            <button class="picker-btn" id="material-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="material-menu" disabled>
-              <span class="swatch-dot" id="material-dot" aria-hidden="true"></span>
-              <span class="picker-btn__text">
-                <span class="picker-btn__label">Материал</span>
-                <span class="picker-btn__value" id="material-name">—</span>
-              </span>
-              <svg class="picker-btn__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
+        <div class="site-header__actions">
+          <div class="theme-toggle" role="group" aria-label="Тема">
+            <button class="theme-toggle__btn" type="button" data-theme-set="light" aria-label="Светлая тема" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#sun" /></svg>
             </button>
-            <div class="popover material-menu" id="material-menu" role="menu" aria-label="Материал" hidden></div>
+            <button class="theme-toggle__btn" type="button" data-theme-set="dark" aria-label="Тёмная тема" aria-pressed="false">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#moon" /></svg>
+            </button>
           </div>
-
-          <span class="topbar__sep" aria-hidden="true"></span>
-
-          <button class="btn" id="texture-btn" type="button" disabled>
-            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
-            <span>Загрузить <span class="btn__text--long">макет</span></span>
-          </button>
-          <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
-
-          <button class="btn" id="publish-btn" type="button" aria-haspopup="dialog" disabled>
-            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
-            <span>Ссылка<span class="btn__text--long"> клиенту</span></span>
-          </button>
-          <button class="btn btn--primary" id="export-btn" type="button" aria-haspopup="dialog" disabled>
-            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
-            <span>Экспорт</span>
+          <button class="pill-btn" id="info-btn" type="button" aria-haspopup="dialog" aria-controls="help-popover" aria-label="Как пользоваться">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#help" /></svg>
+            <span class="pill-btn__text">Как пользоваться</span>
           </button>
         </div>
       </header>
 
-      <main class="workspace">
-        <section class="stage" id="stage" aria-label="3D-просмотр">
-          <div id="canvas-container"></div>
+      <!-- Левая панель по шагам: стакан → макет → результат. На узком экране
+           те же кнопки переезжают в нижнюю панель (.action-bar). -->
+      <aside class="rail" aria-label="Шаги">
+        <p class="rail__label"><span class="rail__num">1</span>Стакан</p>
+        <button class="cup-current" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
+          <span class="cup-current__art" id="cup-art" aria-hidden="true"></span>
+          <span class="cup-current__text">
+            <span class="cup-current__name" id="cup-name">Выбрать стакан</span>
+            <span class="cup-current__meta" id="cup-meta">Бумажные и пластиковые BM</span>
+          </span>
+          <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
+        </button>
 
-          <!-- Развёртка (§16): макет плоско, без разметки. -->
-          <div class="unwrap" id="unwrap" hidden>
-            <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
-            <p class="unwrap__hint">Колесо — приблизить, перетаскивание — сдвинуть, двойной клик — по размеру</p>
-            <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
-              <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить" data-tip="Отдалить" data-tip-side="top">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
-              </button>
-              <span class="unwrap-bar__zoom" id="unwrap-zoom" aria-live="polite">—</span>
-              <button class="icon-btn" id="unwrap-zoom-in" type="button" aria-label="Приблизить" data-tip="Приблизить" data-tip-side="top">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
-              </button>
-              <button class="icon-btn" id="unwrap-fit" type="button" aria-label="По размеру" data-tip="По размеру" data-tip-side="top">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#fit" /></svg>
-              </button>
-              <span class="unwrap-bar__sep" aria-hidden="true"></span>
-              <button class="icon-btn" id="unwrap-fullscreen" type="button" aria-label="Во весь экран" data-tip="Во весь экран" data-tip-side="top">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
-              </button>
-              <button class="btn" id="unwrap-download" type="button">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
-                <span>Скачать PNG</span>
-              </button>
-            </div>
-          </div>
+        <p class="rail__label"><span class="rail__num">2</span>Макет</p>
+        <button class="upload-zone" id="texture-btn" type="button" disabled>
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
+          <span class="upload-zone__title">Загрузить макет</span>
+          <span class="upload-zone__hint">PNG, JPG или PDF — можно перетащить файл на страницу</span>
+        </button>
+        <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
 
-          <!-- Пустая сцена (§11): без сохранённой сессии стакан ещё не выбран. -->
-          <div class="empty-state" id="empty-state" hidden>
-            <svg class="empty-state__art" aria-hidden="true"><use href="assets/icons/sprite.svg#cup" /></svg>
-            <p class="empty-state__title">Выберите стакан</p>
-            <p class="empty-state__text">Модель из каталога — бумажные, PP и PET. Потом загрузите макет: он ляжет на развёртку сам.</p>
-            <button class="btn btn--primary" id="empty-pick" type="button">Выбрать стакан</button>
-          </div>
+        <p class="rail__label"><span class="rail__num">3</span>Результат</p>
+        <div class="rail__result">
+          <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+            <span>Скачать фото или видео</span>
+          </button>
+          <button class="btn btn--block" id="publish-btn" type="button" aria-haspopup="dialog" disabled>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
+            <span>Ссылка клиенту</span>
+          </button>
+        </div>
+      </aside>
 
-          <!-- Выбор фото-сцены: со второй сцены в каталоге. -->
-          <div class="scene-strip" id="scene-picker" role="group" aria-label="Фото-сцена" hidden></div>
+      <main class="main">
+        <div class="page-head">
+          <h1 class="page-head__title" id="page-title">Выберите стакан</h1>
+          <p class="page-head__sub" id="page-sub">Затем загрузите макет — он ляжет на развёртку сам.</p>
+        </div>
 
-          <p class="model-meta" id="model-meta" hidden></p>
-
-          <!-- Панель инструментов (§21): постоянно — Reset, автоповорот, снимок,
-               полный экран; остальное — в «•••». -->
-          <nav class="toolbar stage-controls" id="toolbar" aria-label="Управление просмотром">
-            <button class="icon-btn" id="reset-btn" type="button" aria-label="Исходный вид" data-tip="Исходный вид" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#reset" /></svg>
-            </button>
-            <button class="icon-btn" id="autorotate-btn" type="button" aria-label="Автоповорот" aria-pressed="true" data-tip="Автоповорот · A" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
-            </button>
-            <button class="icon-btn" id="screenshot-btn" type="button" aria-label="Снимок сцены" data-tip="Снимок · S" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
-            </button>
-            <button class="icon-btn" id="fullscreen-btn" type="button" aria-label="Во весь экран" aria-pressed="false" data-tip="Во весь экран · F" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
-            </button>
-            <span class="toolbar__sep" aria-hidden="true"></span>
-            <button class="icon-btn" id="more-btn" type="button" aria-label="Ещё" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu" data-tip="Фон, ракурс, круг" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#more" /></svg>
-            </button>
-          </nav>
-
-          <div class="popover more-menu" id="more-menu" role="menu" aria-label="Ещё" hidden>
-            <div class="menu-section">
-              <p class="menu-title">Фон</p>
+        <!-- Карточка сцены: сверху вкладки и фон, снизу ракурсы. -->
+        <section class="stage-card">
+          <div class="stage-card__bar">
+            <nav class="tabs" role="tablist" aria-label="Режим просмотра">
+              <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
+              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
+              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">В интерьере</button>
+            </nav>
+            <div class="stage-swatches">
               <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
             </div>
-            <div class="menu-section">
-              <p class="menu-title">Ракурс</p>
-              <div class="view-grid" id="view-presets" role="group" aria-label="Ракурс"></div>
-            </div>
-            <!-- Только на телефоне и планшете в портрете (§45): то, что на десктопе
-                 живёт в верхней панели. -->
-            <div class="menu-section mobile-only">
-              <button class="menu-item" type="button" data-mobile-action="scene">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#image" /></svg>
-                Сцена
-              </button>
-              <button class="menu-item" type="button" data-mobile-action="export">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
-                Экспорт
-              </button>
-              <button class="menu-item" type="button" data-mobile-action="turn">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#video" /></svg>
-                Оборот 360°
-              </button>
-              <button class="menu-item" type="button" data-mobile-action="publish">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
-                Ссылка клиенту
-              </button>
-            </div>
-            <div class="menu-section">
-              <button class="menu-item" id="turntable-btn" type="button" role="menuitemcheckbox" aria-pressed="false">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#turntable" /></svg>
-                Поворотный круг
-                <span class="switch" aria-hidden="true"></span>
-              </button>
-              <button class="menu-item" id="info-btn" type="button" aria-haspopup="dialog" aria-controls="help-popover">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#help" /></svg>
-                Как управлять
-              </button>
-            </div>
           </div>
 
-          <div class="loader" id="loader" role="status" aria-live="polite" hidden>
-            <span class="spinner" aria-hidden="true"></span>
-            <span id="loader-text">Загрузка…</span>
+          <section class="stage" id="stage" aria-label="3D-просмотр">
+            <div id="canvas-container"></div>
+
+            <!-- Развёртка (§16): макет плоско, без разметки. -->
+            <div class="unwrap" id="unwrap" hidden>
+              <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
+              <p class="unwrap__hint">Колесо — приблизить, перетаскивание — сдвинуть, двойной клик — по размеру</p>
+              <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
+                <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить" data-tip="Отдалить" data-tip-side="top">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
+                </button>
+                <span class="unwrap-bar__zoom" id="unwrap-zoom" aria-live="polite">—</span>
+                <button class="icon-btn" id="unwrap-zoom-in" type="button" aria-label="Приблизить" data-tip="Приблизить" data-tip-side="top">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
+                </button>
+                <button class="icon-btn" id="unwrap-fit" type="button" aria-label="По размеру" data-tip="По размеру" data-tip-side="top">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#fit" /></svg>
+                </button>
+                <span class="unwrap-bar__sep" aria-hidden="true"></span>
+                <button class="icon-btn" id="unwrap-fullscreen" type="button" aria-label="Во весь экран" data-tip="Во весь экран" data-tip-side="top">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
+                </button>
+                <button class="btn" id="unwrap-download" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+                  <span>PNG</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Пустая сцена (§11): без сохранённой сессии стакан ещё не выбран. -->
+            <div class="empty-state" id="empty-state" hidden>
+              <svg class="empty-state__art" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-mark" /></svg>
+              <p class="empty-state__title">Начните со стакана</p>
+              <p class="empty-state__text">Однослойные, двухслойные, эмбо и пластиковые BM. Потом загрузите макет — он ляжет на развёртку сам.</p>
+              <button class="btn btn--accent" id="empty-pick" type="button">Выбрать стакан</button>
+            </div>
+
+            <!-- Выбор интерьера: со второй сцены в каталоге. -->
+            <div class="scene-strip" id="scene-picker" role="group" aria-label="Интерьер" hidden></div>
+
+            <!-- Панель инструментов (§21). -->
+            <nav class="toolbar stage-controls" id="toolbar" aria-label="Управление просмотром">
+              <button class="icon-btn" id="reset-btn" type="button" aria-label="Исходный вид" data-tip="Исходный вид" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#reset" /></svg>
+              </button>
+              <button class="icon-btn" id="autorotate-btn" type="button" aria-label="Автоповорот" aria-pressed="true" data-tip="Автоповорот · A" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
+              </button>
+              <button class="icon-btn" id="turntable-btn" type="button" aria-label="Поворотный круг" aria-pressed="false" data-tip="Поворотный круг" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#turntable" /></svg>
+              </button>
+              <span class="toolbar__sep" aria-hidden="true"></span>
+              <button class="icon-btn" id="screenshot-btn" type="button" aria-label="Снимок экрана" data-tip="Снимок · S" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
+              </button>
+              <button class="icon-btn" id="fullscreen-btn" type="button" aria-label="Во весь экран" aria-pressed="false" data-tip="Во весь экран · F" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#maximize" /></svg>
+              </button>
+            </nav>
+
+            <div class="loader" id="loader" role="status" aria-live="polite" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <span id="loader-text">Загрузка…</span>
+            </div>
+          </section>
+
+          <div class="stage-card__foot">
+            <span class="stage-card__label">Ракурс</span>
+            <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
           </div>
         </section>
       </main>
-    </div>
 
-    <!-- Нижняя панель телефона и планшета в портрете (§45). -->
-    <nav class="mobile-nav" aria-label="Действия">
-      <button class="mobile-nav__item" type="button" data-mobile-nav="cup">
-        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#cup" /></svg>
-        <span>Стакан</span>
-      </button>
-      <button class="mobile-nav__item" type="button" data-mobile-nav="design">
-        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
-        <span>Дизайн</span>
-      </button>
-      <button class="mobile-nav__item" type="button" data-mobile-nav="material">
-        <span class="swatch-dot" id="mobile-material-dot" aria-hidden="true"></span>
-        <span>Материал</span>
-      </button>
-      <button class="mobile-nav__item" type="button" data-mobile-nav="more">
-        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#more" /></svg>
-        <span>Ещё</span>
-      </button>
-    </nav>
+      <!-- Нижняя панель на узком экране: те же шаги, что в левой панели. -->
+      <nav class="action-bar" aria-label="Действия">
+        <button class="action-bar__item" type="button" data-mobile-nav="cup">
+          <span class="action-bar__art" id="action-cup-art" aria-hidden="true">
+            <svg class="icon"><use href="assets/icons/sprite.svg#cup" /></svg>
+          </span>
+          <span class="action-bar__text" id="action-cup-name">Стакан</span>
+        </button>
+        <button class="action-bar__item" type="button" data-mobile-nav="design">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
+          <span class="action-bar__text">Макет</span>
+        </button>
+        <button class="action-bar__item" type="button" data-mobile-nav="publish">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
+          <span class="action-bar__text">Ссылка</span>
+        </button>
+        <button class="action-bar__item action-bar__item--accent" type="button" data-mobile-nav="export">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+          <span class="action-bar__text">Скачать</span>
+        </button>
+      </nav>
+    </div>
 
     <!-- Окно выбора стакана (§10). Карточки строит js/design/modelPicker.js из
          catalog/models.json — здесь только рамка и постоянные тексты. -->
     <div class="dialog-backdrop" id="cup-backdrop" hidden></div>
     <div class="dialog cup-dialog" id="cup-dialog" role="dialog" aria-modal="true" aria-labelledby="cup-dialog-title" hidden>
       <div class="dialog__head">
-        <p class="dialog__title" id="cup-dialog-title">Выберите стакан</p>
+        <div>
+          <p class="dialog__title" id="cup-dialog-title">Выберите стакан</p>
+          <p class="dialog__sub">Объём номинальный, как в каталоге Формации. Силуэты — в одном масштабе.</p>
+        </div>
         <button class="icon-btn cup-dialog__close" type="button" aria-label="Закрыть">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
         </button>
       </div>
-      <div class="search-field">
-        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#search" /></svg>
-        <input class="cup-search" type="search" placeholder="Название, объём, тип — например, 430, DW90, двухслойный" aria-label="Поиск стакана" autocomplete="off" />
+      <div class="cup-dialog__tools">
+        <div class="cup-filters segmented" role="group" aria-label="Тип стакана"></div>
+        <div class="search-field">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#search" /></svg>
+          <input class="cup-search" type="search" placeholder="Объём или код: 250, DW90, эмбо" aria-label="Поиск стакана" autocomplete="off" />
+        </div>
       </div>
-      <div class="cup-filters" role="group" aria-label="Тип стакана"></div>
       <div class="cup-list"></div>
       <div class="cup-empty" hidden>
         <p>Ничего не нашлось.</p>
         <button class="btn" type="button" id="cup-reset-search">Сбросить поиск</button>
       </div>
-      <p class="cup-dialog__foot">Стакан приезжает с чистым листом — макет загрузите кнопкой «Загрузить макет».</p>
     </div>
 
-    <!-- Подсказка «как управлять». -->
+    <!-- «Как пользоваться». -->
     <div class="dialog-backdrop" id="help-backdrop" hidden></div>
     <div class="dialog help-dialog" id="help-popover" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
       <div class="dialog__head">
-        <p class="dialog__title" id="help-title">Как управлять</p>
+        <p class="dialog__title" id="help-title">Как пользоваться</p>
         <button class="icon-btn" type="button" id="help-close" aria-label="Закрыть">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
         </button>
       </div>
+      <ol class="help-steps">
+        <li><b>Выберите стакан</b> — по объёму и типу стенки; материал — вверху страницы.</li>
+        <li><b>Загрузите макет</b> — PNG, JPG или PDF; можно просто перетащить файл.</li>
+        <li><b>Проверьте</b> в 3D, на развёртке и в интерьере.</li>
+        <li><b>Скачайте</b> фото или видео либо отправьте клиенту ссылку.</li>
+      </ol>
       <ul class="help-list">
-        <li><b>Перетаскивание</b><span>облёт камерой</span></li>
+        <li><b>Перетаскивание</b><span>облёт камерой; в интерьере — поворот стакана</span></li>
         <li><b>Колесо, щипок</b><span>приблизить и отдалить</span></li>
         <li><b>Двойной клик</b><span>исходный вид</span></li>
         <li><b>Поворотный круг</b><span>вращает сам стакан — свет и тени на месте</span></li>
         <li><b><span class="kbd">A</span></b><span>автоповорот</span></li>
-        <li><b><span class="kbd">S</span></b><span>снимок сцены</span></li>
+        <li><b><span class="kbd">S</span></b><span>снимок экрана</span></li>
         <li><b><span class="kbd">F</span></b><span>во весь экран</span></li>
         <li><b><span class="kbd">B</span></b><span>следующий фон</span></li>
+        <li><b><span class="kbd">V</span></b><span>скачать фото или видео</span></li>
         <li><b><span class="kbd">1</span>–<span class="kbd">6</span></b><span>ракурс: спереди, справа, сзади, слева, сверху, шов</span></li>
       </ul>
     </div>
@@ -251,6 +247,6 @@
       <div class="drop-overlay__message">Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=4da2bb22"></script>
+    <script type="module" src="dist/design.js?v=31b4048e"></script>
   </body>
 </html>

@@ -1,39 +1,79 @@
 /* Общая база обеих оболочек: токены, сброс, кнопки, меню, диалоги, тосты,
    индикатор загрузки. Раскладка — в design.css и client.css. */
 
+/* Токены — по системе colorcups.ru: тот же серый холст, белые карточки,
+   синее действие-«пилюля» и тёмная тема. Тема: по системе, пока человек не
+   выбрал сам (data-theme на <html>, js/ui/themeBoot.js). */
 :root {
+  color-scheme: light;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  --bg: #eef0f3;
+  --bg: #f5f5f7;
   --surface: #ffffff;
-  --surface-2: #f5f6f8;
-  --surface-3: #eceef2;
-  --ink: #15171c;
-  --ink-2: #3b3f47;
-  --muted: #6b707a;
-  --faint: #9aa0aa;
-  --line: #e3e6ea;
-  --line-strong: #cfd4db;
+  --surface-2: #f5f5f7;
+  --surface-3: #ebebf0;
+  --ink: #1d1d1f;
+  --ink-2: #3a3a3c;
+  --muted: #6e6e73;
+  --faint: #98989d;
+  --line: #e5e5ea;
+  --line-strong: #d1d1d6;
+  --fill: rgba(0, 0, 0, 0.05);
+  --fill-hover: rgba(0, 0, 0, 0.08);
+  --segment-on: #ffffff;
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --glass: rgba(255, 255, 255, 0.86);
+  --header-bg: rgba(255, 255, 255, 0.86);
 
-  /* Главное действие — тёмное: цвет в интерфейсе не спорит с цветом макета. */
-  --primary: #15171c;
+  /* Действие — синяя «пилюля», как на colorcups; бренд клиента (§24)
+     подменяет --accent. */
+  --action: #0071e3;
+  --primary: var(--action);
   --primary-ink: #ffffff;
-  --accent: #2f6fed;
-  --focus: #2f6fed;
+  --accent: var(--action);
+  --focus: #0071e3;
+  --brand-soft: #eaf3ff;
   --danger: #d4351c;
   --success: #1f8f55;
 
   --radius-s: 8px;
   --radius: 10px;
   --radius-l: 14px;
-  --radius-xl: 18px;
+  --radius-xl: 20px;
+  --pill: 980px;
 
-  --shadow-s: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 4px 14px rgba(16, 24, 40, 0.08);
-  --shadow-l: 0 2px 6px rgba(16, 24, 40, 0.06), 0 24px 56px -12px rgba(16, 24, 40, 0.28);
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.07);
+  --shadow-l: 0 2px 6px rgba(0, 0, 0, 0.06), 0 24px 56px -12px rgba(0, 0, 0, 0.26);
 
-  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tap: 44px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #101012;
+  --surface: #1c1c1e;
+  --surface-2: #272729;
+  --surface-3: #2c2c2e;
+  --ink: #f5f5f7;
+  --ink-2: #dedee2;
+  --muted: #aeaeb2;
+  --faint: #8d8d93;
+  --line: #3a3a3c;
+  --line-strong: #48484a;
+  --fill: rgba(255, 255, 255, 0.08);
+  --fill-hover: rgba(255, 255, 255, 0.13);
+  --segment-on: #636366;
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --glass: rgba(28, 28, 30, 0.86);
+  --header-bg: rgba(22, 22, 24, 0.86);
+  --action: #0a84ff;
+  --focus: #6ab0ff;
+  --brand-soft: #172b43;
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-l: 0 2px 6px rgba(0, 0, 0, 0.4), 0 24px 56px -12px rgba(0, 0, 0, 0.7);
 }
 
 *,
@@ -107,10 +147,10 @@ button {
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--fill);
+  border: 1px solid transparent;
+  border-radius: var(--pill);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .btn:disabled {
@@ -120,8 +160,7 @@ button {
 
 @media (hover: hover) {
   .btn:not(:disabled):hover {
-    background: var(--surface-2);
-    border-color: var(--line-strong);
+    background: var(--fill-hover);
   }
 }
 
@@ -133,8 +172,7 @@ button {
 
 @media (hover: hover) {
   .btn--primary:not(:disabled):hover {
-    background: #2a2d35;
-    border-color: #2a2d35;
+    filter: brightness(1.08);
   }
 }
 
@@ -161,6 +199,11 @@ button {
   height: 44px;
 }
 
+.btn--lg {
+  height: 48px;
+  font-size: 15px;
+}
+
 /* Круглая кнопка-иконка: панель инструментов, закрытие диалогов. */
 .icon-btn {
   position: relative;
@@ -181,7 +224,7 @@ button {
 @media (hover: hover) {
   .icon-btn:not(:disabled):hover {
     color: var(--ink);
-    background: var(--surface-3);
+    background: var(--fill);
   }
 }
 
@@ -242,6 +285,62 @@ button {
   display: none;
 }
 
+/* ── Переключатель темы и кнопка-«пилюля» (шапки обеих оболочек) ───────── */
+
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: 10px;
+}
+
+.theme-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+}
+
+.theme-toggle__btn .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-toggle__btn[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--segment-on);
+  box-shadow: var(--segment-shadow);
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--surface-3);
+  border: none;
+  border-radius: var(--pill);
+}
+
+@media (hover: hover) {
+  .pill-btn:hover {
+    background: var(--fill-hover);
+  }
+}
+
 /* ── Меню и поповеры ────────────────────────────────────────────────────── */
 
 .popover {
@@ -280,7 +379,7 @@ button {
 
 @media (hover: hover) {
   .menu-item:not(:disabled):hover {
-    background: var(--surface-2);
+    background: var(--fill);
   }
 }
 
@@ -358,7 +457,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(21, 23, 28, 0.32);
+  background: rgba(0, 0, 0, 0.36);
   animation: fade-in 0.16s ease both;
 }
 
@@ -456,7 +555,7 @@ button {
   padding: 10px 16px 10px 12px;
   font-size: 13px;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--glass);
   border-radius: 999px;
   box-shadow: var(--shadow);
   transform: translate(-50%, -50%);
@@ -467,7 +566,7 @@ button {
   width: 18px;
   height: 18px;
   border: 2px solid var(--line);
-  border-top-color: var(--ink);
+  border-top-color: var(--action);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

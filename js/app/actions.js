@@ -73,7 +73,9 @@ export function createActions({ state, mode, catalog, viewer }) {
         viewer.hooks.onToast?.('Не удалось сохранить файл. Попробуйте ещё раз.', 'error');
         return;
       }
-      const name = `${state.get().modelId ?? 'cup'}_unwrap.png`;
+      // Клиенту — без номенклатуры (§25, §59), как и в остальном экспорте.
+      const base = mode.mode === 'client' ? 'cup' : (state.get().modelId ?? 'cup');
+      const name = `${base}_unwrap.png`;
       await viewer.deliverFile(blob, name, 'image/png');
     },
 

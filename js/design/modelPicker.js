@@ -18,162 +18,36 @@
 //   • карточки обходятся стрелками, Enter выбирает, Esc закрывает — с
 //     клавиатуры до дальней позиции добираться быстрее, чем мышью.
 //
-// Силуэт рисуется по числам из каталога, а не картинкой из assets/: новая
-// модель не требует ни рендера, ни выкладки файла — только строчку размеров.
+// Силуэт — js/design/cupArt.js.
 
-// Разделы окна (§10) — по материалу стакана. Пустой раздел остаётся кнопкой
-// (неактивной): так видно, что тип в каталоге предусмотрен, но позиций нет.
+import { artScale, drawCup } from './cupArt.js';
+
+// Разделы окна (§10) — как их называет производство: однослойные,
+// двухслойные, эмбо (двухслойные с рельефом) и пластиковые BM. Пустой раздел
+// не показывается.
 const GROUPS = Object.freeze([
-  { type: 'paper', label: 'Бумажные' },
-  { type: 'pp', label: 'PP' },
-  { type: 'pet', label: 'PET' },
+  { key: 'single', label: 'Однослойные', note: 'Одна стенка картона', match: (m) => m.type === 'paper' && m.wall === 'single' },
+  { key: 'double', label: 'Двухслойные', note: 'Вторая стенка держит тепло', match: (m) => m.type === 'paper' && m.wall === 'double' },
+  { key: 'embossed', label: 'Эмбо', note: 'Двухслойные с рельефом «вафля»', match: (m) => m.type === 'paper' && m.wall === 'embossed' },
+  { key: 'bm', label: 'BM', note: 'Матовый пластик для холодных напитков', match: (m) => m.type === 'pp' },
+  { key: 'pet', label: 'PET', note: 'Прозрачный пластик', match: (m) => m.type === 'pet' },
 ]);
 
-// Подпись типа стенки на карточке; по ней же работает поиск.
-const WALL_LABELS = Object.freeze({
-  single: 'Однослойный',
-  double: 'Двухслойный',
-  embossed: 'С тиснением',
-  plastic: 'Литой пластик',
-});
+const groupOf = (model) => GROUPS.find((group) => group.match(model))?.label ?? '';
 
-const groupOf = (model) => GROUPS.find((group) => group.type === model.type)?.label ?? '';
-
+// Внутри раздела — по объёму, при равном объёме — по росту: так три разных
+// стакана «на 300» стоят рядом и различаются силуэтом.
 function modelGroups(models) {
-  return GROUPS.map(({ type, label }) => ({ group: label, cups: models.filter((model) => model.type === type) }));
+  return GROUPS.map((group) => ({
+    ...group,
+    cups: models
+      .filter(group.match)
+      .sort((a, b) => a.volumeMl - b.volumeMl || a.size.heightMm - b.size.heightMm),
+  })).filter((group) => group.cups.length > 0);
 }
-
-// Поле рисунка карточки в единицах SVG. Ширина с запасом: самый широкий
-// стакан каталога — 89 мм по верху.
-const ART = { width: 96, height: 104, padding: 6 };
-
-// Насколько сплюснут эллипс ободка — отношение полуосей. Смотрим на стакан
-// чуть сверху, как камера в самой сцене.
-const RIM_SQUASH = 0.17;
-
-// Запас высоты под ободок: он выступает над верхней кромкой на свою полуось.
-const RIM_HEADROOM = 1.1;
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Нормализация для поиска: регистр и «ё» не должны мешать найти стакан.
 const norm = (value) => String(value ?? '').toLowerCase().replace(/ё/g, 'е');
-
-// Общий масштаб: самый высокий стакан каталога занимает поле целиком,
-// остальные — пропорционально своему росту.
-function artScale(models) {
-  const tallest = Math.max(...models.map((cup) => cup.size.heightMm), 1);
-  return (ART.height - ART.padding * 2) / (tallest * RIM_HEADROOM);
-}
-
-function svgEl(name, attrs) {
-  const node = document.createElementNS(SVG_NS, name);
-  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-  return node;
-}
-
-// Силуэт стакана: тень под дном, стенка, приметы типа и эллипс ободка.
-//
-// Геометрия честная — из size каталога, — поэтому карточки сравнимы между
-// собой: у самого маленького бумажного стенка почти отвесная и низкая, у
-// пластикового на 650 мл — высокая и узкая.
-function drawCup(cup, scale) {
-  const svg = svgEl('svg', {
-    class: `cup-card__art cup-card__art--${cup.wall ?? 'single'}`,
-    viewBox: `0 0 ${ART.width} ${ART.height}`,
-    'aria-hidden': 'true',
-  });
-
-  const size = cup.size;
-  const h = size.heightMm * scale;
-  const topR = (size.topMm / 2) * scale;
-  const botR = (size.bottomMm / 2) * scale;
-  const cx = ART.width / 2;
-  // Все стаканы стоят на одной линии — иначе сравнивать их по росту нельзя.
-  const baseY = ART.height - ART.padding;
-  const topY = baseY - h;
-  const rimRy = topR * RIM_SQUASH;
-  const botRy = botR * RIM_SQUASH;
-
-  // Стенка: от левой верхней кромки вниз, по дну и обратно вверх. Верх
-  // закрывает эллипс ободка, поэтому здесь он оставлен прямым.
-  const bodyPath =
-    `M${cx - topR} ${topY} L${cx - botR} ${baseY} ` +
-    `A${botR} ${botRy} 0 0 0 ${cx + botR} ${baseY} ` +
-    `L${cx + topR} ${topY} Z`;
-
-  svg.append(
-    // Линия пола: все стаканы стоят на ней, и разница в росте читается как
-    // разница в росте, а не как «мелкая картинка» на карточке.
-    svgEl('line', {
-      class: 'cup-card__floor',
-      x1: ART.padding,
-      y1: baseY + botRy,
-      x2: ART.width - ART.padding,
-      y2: baseY + botRy,
-    }),
-    svgEl('ellipse', {
-      class: 'cup-card__shadow',
-      cx,
-      cy: baseY + botRy * 0.5,
-      rx: botR * 1.25,
-      ry: botRy * 1.1,
-    }),
-    svgEl('path', { class: 'cup-card__body', d: bodyPath }),
-  );
-
-  // Приметы типа рисуются ВНУТРИ стенки: обрезаем их её же контуром, иначе
-  // рисунок тиснения вылезал бы за силуэт.
-  const clipId = `cup-clip-${cup.id}`;
-  const defs = svgEl('defs', {});
-  const clip = svgEl('clipPath', { id: clipId });
-  clip.appendChild(svgEl('path', { d: bodyPath }));
-  defs.appendChild(clip);
-  svg.appendChild(defs);
-
-  const marks = svgEl('g', { 'clip-path': `url(#${clipId})` });
-
-  if (cup.wall === 'double') {
-    // Обёртка двухслойного: она закрывает стенку почти целиком, кроме узкой
-    // полосы у дна и самой кромки — по этим двум линиям тип и узнаётся.
-    const sleeveTop = topY + h * 0.03;
-    const sleeveBottom = baseY - h * 0.11;
-    marks.append(
-      svgEl('path', {
-        class: 'cup-card__sleeve',
-        d: `M${cx - topR} ${sleeveTop} L${cx - botR} ${sleeveBottom} L${cx + botR} ${sleeveBottom} L${cx + topR} ${sleeveTop} Z`,
-      }),
-      svgEl('line', {
-        class: 'cup-card__seam',
-        x1: cx - botR,
-        y1: sleeveBottom,
-        x2: cx + botR,
-        y2: sleeveBottom,
-      }),
-    );
-  }
-
-  if (cup.wall === 'embossed') {
-    // Тиснение: та же сетка ромбов, что на изделии. Рисуется косой решёткой —
-    // на карточке в 96 единиц шириной отдельные ромбы уже неразличимы, и важна
-    // именно фактура.
-    const step = 7;
-    const lattice = svgEl('g', { class: 'cup-card__emboss' });
-    for (let x = -ART.height; x < ART.width + ART.height; x += step) {
-      lattice.append(
-        svgEl('line', { x1: x, y1: 0, x2: x + ART.height, y2: ART.height }),
-        svgEl('line', { x1: x, y1: ART.height, x2: x + ART.height, y2: 0 }),
-      );
-    }
-    marks.appendChild(lattice);
-  }
-
-  svg.appendChild(marks);
-  svg.appendChild(
-    svgEl('ellipse', { class: 'cup-card__rim', cx, cy: topY, rx: topR, ry: rimRy }),
-  );
-  return svg;
-}
 
 export class CupPicker {
   // root — карточка окна, backdrop — затемнение под ней. onSelect получает id
@@ -217,20 +91,23 @@ export class CupPicker {
     const groups = modelGroups(this.models);
     if (this.filters) {
       this.#addFilter('', 'Все', this.models.length);
-      for (const { group, cups } of groups) this.#addFilter(group, group, cups.length);
+      for (const { label, cups } of groups) this.#addFilter(label, label, cups.length);
     }
 
-    for (const { group, cups } of groups) {
-      if (cups.length === 0) continue;
+    for (const { label, note, cups } of groups) {
       const section = document.createElement('section');
       section.className = 'cup-group';
 
-      if (group) {
-        const title = document.createElement('h3');
-        title.className = 'cup-group__title';
-        title.textContent = group;
-        section.appendChild(title);
-      }
+      const head = document.createElement('div');
+      head.className = 'cup-group__head';
+      const title = document.createElement('h3');
+      title.className = 'cup-group__title';
+      title.textContent = label;
+      const hint = document.createElement('span');
+      hint.className = 'cup-group__note';
+      hint.textContent = note;
+      head.append(title, hint);
+      section.appendChild(head);
 
       const grid = document.createElement('div');
       grid.className = 'cup-grid';
@@ -242,29 +119,25 @@ export class CupPicker {
         card.className = 'cup-card';
         card.dataset.id = cup.id;
         card.setAttribute('aria-pressed', 'false');
+        card.setAttribute('aria-label', `${cup.volumeMl} мл, ${cup.name}`);
         // Фокус по карточкам ведут стрелки, а не Tab: иначе до кнопки закрытия
-        // пришлось бы протабать два десятка позиций (роving tabindex).
+        // пришлось бы протабать два десятка позиций (roving tabindex).
         card.tabIndex = -1;
 
+        // Выбирают «на 250, повыше» — поэтому крупно объём, а код и габариты
+        // мельче: код совпадает с каталогом Формации, габариты различают
+        // стаканы одного объёма.
+        const volume = document.createElement('span');
+        volume.className = 'cup-card__volume';
+        volume.textContent = `${cup.volumeMl} мл`;
         const name = document.createElement('span');
         name.className = 'cup-card__name';
         name.textContent = cup.name;
+        const size = document.createElement('span');
+        size.className = 'cup-card__size';
+        size.textContent = `Ø${Math.round(cup.size.topMm)} · ${Math.round(cup.size.heightMm)} мм`;
 
-        // Объём и рост — то, чем позиции различаются на деле. Номенклатура их
-        // повторяет (диаметр и объём в коде), но читается как код, а выбирают
-        // «на 300 мл, повыше».
-        const meta = document.createElement('span');
-        meta.className = 'cup-card__meta';
-        const volume = document.createElement('b');
-        volume.className = 'cup-card__volume';
-        volume.textContent = `${cup.volumeMl} мл`;
-        meta.appendChild(volume);
-        meta.append(document.createTextNode(` · ${Math.round(cup.size.heightMm)} мм`));
-        const kind = document.createElement('span');
-        kind.className = 'cup-card__kind';
-        kind.textContent = WALL_LABELS[cup.wall] ?? '';
-
-        card.append(drawCup(cup, scale), name, meta, kind);
+        card.append(drawCup(cup, scale), volume, name, size);
         card.addEventListener('click', () => this.#choose(cup.id));
 
         grid.appendChild(card);
@@ -274,17 +147,16 @@ export class CupPicker {
 
       section.appendChild(grid);
       this.list.appendChild(section);
-      this.sections.push({ section, group, cards });
+      this.sections.push({ section, group: label, cards });
     }
   }
 
   #addFilter(group, label, count) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'cup-filter';
+    button.className = 'segmented__item cup-filter';
     button.dataset.group = group;
     button.setAttribute('aria-pressed', String(group === this.group));
-    button.classList.toggle('is-active', group === this.group);
 
     const text = document.createElement('span');
     text.textContent = label;
@@ -293,7 +165,6 @@ export class CupPicker {
     badge.textContent = String(count);
 
     button.append(text, badge);
-    button.disabled = count === 0;
     button.addEventListener('click', () => this.#setGroup(group));
     this.filters.appendChild(button);
     this.filterButtons.push(button);
@@ -302,9 +173,7 @@ export class CupPicker {
   #setGroup(group) {
     this.group = group;
     for (const button of this.filterButtons) {
-      const active = button.dataset.group === group;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
+      button.setAttribute('aria-pressed', String(button.dataset.group === group));
     }
     this.#filter(this.search?.value ?? '');
   }
@@ -426,9 +295,8 @@ export class CupPicker {
     let visible = 0;
 
     for (const { cup, card } of this.cards) {
-      const wall = WALL_LABELS[cup.wall] ?? '';
       const haystack = norm(
-        `${cup.id} ${cup.name} ${groupOf(cup)} ${wall} ${cup.volumeMl} мл ${cup.searchTerms.join(' ')}`,
+        `${cup.id} ${cup.name} ${groupOf(cup)} ${cup.volumeMl} мл ${cup.searchTerms.join(' ')}`,
       );
       const hit = (q === '' || haystack.includes(q)) && (this.group === '' || groupOf(cup) === this.group);
       card.hidden = !hit;
