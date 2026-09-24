@@ -31,3 +31,7 @@ npm-debug.log*
 # Generated local capture verification page and its media
 capture-review.local.html
 tests/output/
+
+# render:check — сборка страницы съёмки и результаты прогона
+tests/render/.build/
+tests/render/out/

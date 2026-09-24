@@ -79,6 +79,32 @@ export class Viewer {
 
     this.#initCore();
     this.#initModules();
+    this.#trackAsync(['loadHDRI', 'loadModel', 'applyTexture', 'enterPhotoScene', 'exitPhotoScene', 'selectCup']);
+  }
+
+  // Незавершённые загрузки. whenReady() ждёт, пока их не останется: без этого
+  // нельзя снять один и тот же кадр дважды — тень фото-сцены, например,
+  // догружается уже после того, как enterPhotoScene вернул управление.
+  #pending = new Set();
+
+  #track(promise) {
+    this.#pending.add(promise);
+    const settle = () => this.#pending.delete(promise);
+    promise.then(settle, settle);
+    return promise;
+  }
+
+  #trackAsync(names) {
+    for (const name of names) {
+      const original = this[name].bind(this);
+      this[name] = (...args) => this.#track(original(...args));
+    }
+  }
+
+  // Разрешается, когда все начатые загрузки (модель, дизайн, окружение,
+  // сцена и её тени) закончились — успешно или нет.
+  async whenReady() {
+    while (this.#pending.size > 0) await Promise.allSettled([...this.#pending]);
   }
 
   #initCore() {
@@ -558,7 +584,7 @@ export class Viewer {
     this.#standCupInScene();
     // Через resize, а не сразу раскладкой: холст ужимается до снимка.
     this.resize();
-    this.#loadPhotoShadow();
+    this.#track(this.#loadPhotoShadow());
     this.invalidateModel();
   }
 

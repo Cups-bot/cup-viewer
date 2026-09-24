@@ -2,17 +2,23 @@
   "name": "cup-viewer",
   "version": "1.0.0",
   "private": true,
-  "description": "Страница согласования макета бумажного стакана: 3D-просмотрщик на three.js и развёртка",
+  "description": "3D-просмотрщик стаканов: Design Mode для сотрудников и Client Mode по ссылке",
   "type": "module",
   "scripts": {
     "build": "node scripts/check-config.mjs && node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
     "serve": "node scripts/serve.mjs",
     "start": "node scripts/build.mjs && node scripts/serve.mjs",
-    "check": "node scripts/check-config.mjs"
+    "check": "node scripts/check-config.mjs",
+    "test:unit": "node --test \"tests/unit/*.test.mjs\"",
+    "render:baseline": "node tests/render/fixtures/make.mjs && node tests/render/run.mjs baseline",
+    "render:check": "node tests/render/run.mjs check"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.63.0",
+    "pngjs": "^7.0.0",
     "three": "0.160.0"
   }
 }
