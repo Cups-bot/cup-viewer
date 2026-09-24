@@ -23,7 +23,10 @@ function debugAllowed() {
 //
 // initialState(catalog) — стартовое состояние; ставится ДО lock(), поэтому
 // клиентский snapshot разворачивается целиком, а дальше права уже действуют.
-export async function boot({ mode: modeName, initialState }) {
+// lock: false — права запрёт вызывающий сам (клиент сначала докачивает дизайн).
+// config — настройки движка (по умолчанию js/config.js); hooks — добавочные
+// hooks движка поверх тостов и индикатора загрузки.
+export async function boot({ mode: modeName, initialState, lock = true, config = CONFIG, hooks: extraHooks = {} }) {
   const container = document.getElementById('canvas-container');
   if (!container) throw new Error('Нет элемента #canvas-container');
 
@@ -33,8 +36,8 @@ export async function boot({ mode: modeName, initialState }) {
   mode.attach(state, catalog);
 
   const feedback = createFeedback({ toastDuration: CONFIG.ui.toastDuration });
-  const hooks = { ...feedback };
-  const viewer = new Viewer(container, CONFIG, { catalog, hooks });
+  const hooks = { ...feedback, ...extraHooks };
+  const viewer = new Viewer(container, config, { catalog, hooks });
   const actions = createActions({ state, mode, catalog, viewer });
 
   const { unwrap } = initStage({ state, viewer, catalog, actions });
@@ -48,14 +51,15 @@ export async function boot({ mode: modeName, initialState }) {
   });
 
   await viewer.startEnvironment();
+  const firstBackground = catalog.backgrounds.find((background) => mode.canUseBackground(background));
   state.set({
-    backgroundId: catalog.backgrounds[0]?.id ?? null,
-    autoRotate: CONFIG.autoRotate.enabled,
-    ...(await initialState(catalog)),
+    backgroundId: firstBackground?.id ?? null,
+    autoRotate: config.autoRotate.enabled,
+    ...(await initialState(catalog, mode)),
   });
-  mode.lock();
+  if (lock) mode.lock();
 
-  const app = { catalog, state, mode, viewer, actions, feedback };
+  const app = { catalog, state, mode, viewer, actions, feedback, unwrap, config };
   if (debugAllowed()) publishDebugApi(app);
   return app;
 }

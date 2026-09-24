@@ -27,9 +27,11 @@ export function createExporter({ state, mode, viewer, feedback }) {
   const listeners = new Set();
   const emit = (event) => listeners.forEach((fn) => fn(event));
 
-  // Имя файла — из модели и материала, не из исходника макета.
+  // Имя файла — из модели и материала, не из исходника макета. Клиенту —
+  // без номенклатуры: код модели ему ни к чему (§25, §59).
   const baseName = () => {
     const { modelId, materialId } = state.get();
+    if (mode.mode === 'client') return 'cup';
     return `${modelId ?? 'cup'}_${materialId ?? 'material'}`;
   };
 
@@ -145,7 +147,7 @@ export function createExporter({ state, mode, viewer, feedback }) {
         canvas.getContext('2d').drawImage(image, 0, 0);
         try {
           const blob = await encodeCanvas(canvas, 'image/png');
-          await viewer.deliverFile(blob, `${state.get().modelId ?? 'cup'}_unwrap.png`, 'image/png');
+          await viewer.deliverFile(blob, `${baseName()}_unwrap.png`, 'image/png');
           return blob;
         } finally {
           canvas.width = 0;

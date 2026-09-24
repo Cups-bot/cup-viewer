@@ -6,6 +6,9 @@
 // заголовки безопасности, что должны стоять на бою, — расхождение конфигураций
 // обнаруживается сразу, а не после выкладки.
 //
+// Заодно отдаёт локальный API клиентских ссылок (scripts/snapshotApi.mjs) —
+// замену бэкенда, пока этап 06 (Supabase) отложен.
+//
 // Запуск: npm run serve   ·   сборка и запуск: npm start
 
 import { createServer } from 'node:http';
@@ -14,9 +17,20 @@ import { stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createSnapshotApi } from './snapshotApi.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.env.PORT) || 8000;
+const snapshots = createSnapshotApi({ root });
+
+// Кэш (§51): файлы с хешем в имени (чанки сборки) не меняются никогда;
+// HTML и ответы API — всегда свежие; остальное — с проверкой (no-cache).
+// На бою эти же правила выставляет веб-сервер (docs/deploy.md).
+function cacheControl(relative) {
+  if (/^\/dist\/chunks\/.+-[A-Z0-9]{8}\.js$/.test(relative)) return 'public, max-age=31536000, immutable';
+  if (relative === '/' || relative.endsWith('.html')) return 'no-store';
+  return 'no-cache';
+}
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -72,6 +86,10 @@ const SECURITY_HEADERS = {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  if (snapshots.matches(url)) {
+    await snapshots.handle(req, res, url);
+    return;
+  }
   const relative = decodeURIComponent(url.pathname);
   const target = normalize(join(root, relative === '/' ? '/index.html' : relative));
 
@@ -88,7 +106,7 @@ createServer(async (req, res) => {
     res.writeHead(200, {
       'Content-Type': TYPES[extname(target).toLowerCase()] ?? 'application/octet-stream',
       'Content-Length': info.size,
-      'Cache-Control': 'no-cache',
+      'Cache-Control': cacheControl(relative),
       ...SECURITY_HEADERS,
     });
     createReadStream(target).pipe(res);

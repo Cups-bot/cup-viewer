@@ -1,0 +1,457 @@
+/* Client Mode (§22–§30, §40–§44): стакан на весь экран, поверх — логотип
+   бренда, ⓘ и нижняя панель. Акцент бренда — --accent (ставит js/client). */
+
+body.client {
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.client-app {
+  position: relative;
+  height: 100dvh;
+}
+
+.client-main {
+  position: absolute;
+  inset: 0;
+}
+
+.client .stage {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+
+/* ── Верх ───────────────────────────────────────────────────────────────── */
+
+.client-top {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: max(14px, env(safe-area-inset-top)) 18px 14px;
+  pointer-events: none;
+}
+
+.client-top > * {
+  pointer-events: auto;
+}
+
+.client-logo {
+  display: block;
+  height: 30px;
+  max-width: 180px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.client-title {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.client-top__info {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-s);
+}
+
+/* ── Нижняя панель ──────────────────────────────────────────────────────── */
+
+.client-bar {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 6px 6px 6px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(16, 24, 40, 0.06);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+}
+
+.client-swatches {
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.client-swatches .swatch {
+  width: 26px;
+  height: 26px;
+}
+
+/* В фото-сцене и на развёртке фон не выбирается: там его нет. */
+.stage.is-photo ~ .client-bar .client-swatches,
+.stage.is-unwrap ~ .client-bar .client-swatches {
+  display: none;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.client-actions .btn {
+  height: 38px;
+}
+
+#autorotate-btn[aria-pressed='true'] {
+  color: var(--primary-ink);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.download-menu {
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 260px;
+}
+
+.download-menu .progress {
+  padding: 8px 10px 4px;
+}
+
+/* Инструменты сцены: только Reset и полный экран. */
+.client-tools {
+  top: auto;
+  bottom: 96px;
+  transform: none;
+}
+
+.client .stage.is-photo {
+  --stage-top: 44px;
+  --stage-bottom: 70px;
+}
+
+.client .scene-strip {
+  bottom: 88px;
+}
+
+.client .unwrap-bar {
+  bottom: 88px;
+}
+
+/* ── Информация (§25) ───────────────────────────────────────────────────── */
+
+.drawer {
+  position: absolute;
+  z-index: 30;
+  top: 70px;
+  right: 16px;
+  width: 300px;
+  padding: 16px 18px 18px;
+  background: var(--surface);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-l);
+  animation: pop-in 0.16s var(--ease) both;
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.drawer__title {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.spec {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.spec__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.spec__row dt {
+  color: var(--muted);
+}
+
+.spec__row dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ── Загрузка (§40) и появление (§41) ───────────────────────────────────── */
+
+.client-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.4s ease;
+}
+
+.client-loader.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.client-loader__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+.client-loader__logo {
+  height: 34px;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.client-loader__steps {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.client-loader__steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--faint);
+  transition: color 0.2s ease;
+}
+
+.client-loader__steps li::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.client-loader__steps li.is-active {
+  color: var(--ink);
+}
+
+.client-loader__steps li.is-active::before {
+  border-color: var(--line);
+  border-top-color: var(--ink);
+  animation: spin 0.8s linear infinite;
+}
+
+.client-loader__steps li.is-done {
+  color: var(--ink-2);
+}
+
+.client-loader__steps li.is-done::before {
+  background: var(--success)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 10px no-repeat;
+  border-color: var(--success);
+}
+
+.client-loader__pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* Появление: холст проявляется, пока камера «оседает» (js/client). */
+.client #canvas-container {
+  opacity: 0;
+  transition: opacity 0.42s ease;
+}
+
+.client.is-revealed #canvas-container {
+  opacity: 1;
+}
+
+/* ── Ошибка (§42) ───────────────────────────────────────────────────────── */
+
+.client-error {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.client-error__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.client-error__icon {
+  width: 64px;
+  height: 64px;
+  color: var(--line-strong);
+}
+
+.client-error__text {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── Подсказка жестов (§44) ─────────────────────────────────────────────── */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(21, 23, 28, 0.36);
+  animation: fade-in 0.2s ease both;
+}
+
+.onboarding__card {
+  width: min(360px, 100%);
+  padding: 20px 20px 18px;
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-l);
+}
+
+.onboarding__title {
+  margin-bottom: 10px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.onboarding__list {
+  display: grid;
+  gap: 8px;
+  padding: 0 0 0 18px;
+  margin: 0 0 16px;
+  color: var(--ink-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .onboarding [data-touch] {
+    display: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .onboarding [data-pointer] {
+    display: none;
+  }
+}
+
+/* ── Телефон (§43): вьюер 75 % высоты, панель — под ним ─────────────────── */
+
+@media (max-width: 760px) {
+  .client-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client .stage {
+    position: relative;
+    flex: none;
+    height: 75dvh;
+  }
+
+  .client-bar {
+    position: static;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px 12px max(12px, env(safe-area-inset-bottom));
+    transform: none;
+  }
+
+  .client-bar .tabs {
+    width: 100%;
+  }
+
+  .client-bar .stage-tab {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .client-actions {
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .client-actions .btn {
+    height: 44px;
+  }
+
+  .client-tools {
+    bottom: 16px;
+  }
+
+  .client .scene-strip,
+  .client .unwrap-bar {
+    bottom: 14px;
+  }
+
+  .client .stage.is-photo {
+    --stage-bottom: 44px;
+    --photo-inset: 10px;
+  }
+
+  /* ⓘ на телефоне — нижний лист. */
+  .drawer {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    animation: sheet-in 0.22s var(--ease) both;
+  }
+
+  .download-menu {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}

@@ -144,10 +144,10 @@ button {
   border-color: var(--accent);
 }
 
+/* Наведение — тем же цветом, чуть темнее: акцент задаёт бренд (§24). */
 @media (hover: hover) {
   .btn--accent:not(:disabled):hover {
-    background: #2560d6;
-    border-color: #2560d6;
+    filter: brightness(0.92);
   }
 }
 

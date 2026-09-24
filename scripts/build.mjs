@@ -38,7 +38,7 @@ const OUTDIR = resolve(root, 'dist');
 // Страница → файлы, которые получают метку версии.
 const PAGES = {
   'index.html': ['css/app.css', 'css/viewer.css', 'css/design.css', 'dist/design.js'],
-  'view.html': ['css/style.css', 'css/stage.css', 'dist/view.js'],
+  'view.html': ['css/app.css', 'css/viewer.css', 'css/client.css', 'dist/view.js'],
 };
 
 const options = {

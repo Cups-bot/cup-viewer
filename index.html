@@ -6,9 +6,9 @@
     <meta name="robots" content="noindex" />
     <title>Cup Viewer — Design</title>
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="css/app.css?v=df8e6bd1" />
+    <link rel="stylesheet" href="css/app.css?v=2c4b76c7" />
     <link rel="stylesheet" href="css/viewer.css?v=fbafd8a3" />
-    <link rel="stylesheet" href="css/design.css?v=348c7491" />
+    <link rel="stylesheet" href="css/design.css?v=0bfda6fa" />
   </head>
   <body>
     <div class="app">
@@ -57,6 +57,10 @@
           </button>
           <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
 
+          <button class="btn" id="publish-btn" type="button" aria-haspopup="dialog" disabled>
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
+            <span><span class="btn__text--long">Ссылка </span>клиенту</span>
+          </button>
           <button class="btn btn--primary" id="export-btn" type="button" aria-haspopup="dialog" disabled>
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
             <span>Экспорт</span>
@@ -207,6 +211,6 @@
       <div class="drop-overlay__message">Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=b9af9ad0"></script>
+    <script type="module" src="dist/design.js?v=037affb6"></script>
   </body>
 </html>

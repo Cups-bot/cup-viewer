@@ -39,9 +39,10 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initEmptyState({ state, picker });
   initModelMeta({ state, catalog });
   initExport({ state, mode, viewer, feedback });
+  initPublish({ state, mode, catalog, feedback });
 
   // Кнопки, которым нужна модель в сцене.
-  const needsModel = ['texture-btn', 'export-btn'].map((id) => document.getElementById(id));
+  const needsModel = ['texture-btn', 'export-btn', 'publish-btn'].map((id) => document.getElementById(id));
   const renderNeeds = ({ modelId }) => {
     for (const button of needsModel) if (button) button.disabled = !modelId;
   };
@@ -176,6 +177,25 @@ function initModelMeta({ state, catalog }) {
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());
+}
+
+// «Ссылка клиенту» (§31): окно грузится при первом открытии.
+function initPublish(app) {
+  const button = document.getElementById('publish-btn');
+  if (!button) return;
+  if (!app.mode.can('publish')) {
+    button.remove();
+    return;
+  }
+  let dialog = null;
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    if (!dialog) {
+      const { createPublishDialog } = await import('./publish.js');
+      dialog ??= createPublishDialog(app);
+    }
+    dialog.open(button);
+  });
 }
 
 // Окно экспорта (§20): модуль грузится при первом открытии (§50).
