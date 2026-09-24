@@ -157,6 +157,30 @@
   border-radius: 12px;
 }
 
+.cup-current__art {
+  overflow: hidden;
+  background: #f1f2f4;
+}
+
+:root[data-theme='dark'] .cup-current__art {
+  background: #1c1c1e;
+}
+
+.cup-current__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cup-current__img--dark,
+:root[data-theme='dark'] .cup-current__img--light {
+  display: none;
+}
+
+:root[data-theme='dark'] .cup-current__img--dark {
+  display: block;
+}
+
 .cup-current__art .cup-card__art {
   height: 60px;
 }
@@ -211,13 +235,11 @@
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.upload-zone .icon {
-  width: 36px;
-  height: 36px;
-  padding: 8px;
-  color: var(--action);
-  background: var(--brand-soft);
-  border-radius: 50%;
+.upload-zone__anim {
+  display: block;
+  width: 104px;
+  height: 84px;
+  margin: -6px 0 -4px;
 }
 
 .upload-zone__title {

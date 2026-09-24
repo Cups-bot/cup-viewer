@@ -438,9 +438,10 @@ body.has-fullscreen-stage {
 }
 
 .empty-state__art {
-  width: 96px;
-  height: 96px;
-  margin-bottom: 6px;
+  display: block;
+  width: 220px;
+  height: 150px;
+  margin-bottom: 2px;
 }
 
 .empty-state__title {
@@ -502,7 +503,15 @@ body.has-fullscreen-stage {
   pointer-events: none;
 }
 
+.drop-overlay__anim {
+  display: block;
+  width: 200px;
+  height: 162px;
+  margin: 0 auto 6px;
+}
+
 .drop-overlay__message {
+  text-align: center;
   padding: 12px 18px;
   font-size: 15px;
   font-weight: 600;
@@ -666,54 +675,113 @@ body.has-fullscreen-stage {
 
 .cup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
 }
 
+/* Карточка — как выбор модели в магазине: фото товара в «лунке», под ним
+   главное (объём) крупно, код и габариты мельче. Выбранная — синяя рамка
+   и галочка, как у сегментов colorcups. */
 .cup-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 10px 8px 12px;
-  text-align: center;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
   cursor: pointer;
-  background: var(--surface-2);
-  border: 2px solid transparent;
-  border-radius: 16px;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s var(--ease);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 0 0 0 transparent;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.25s var(--ease),
+    transform 0.25s var(--ease);
 }
 
 @media (hover: hover) {
   .cup-card:hover {
-    background: var(--surface-3);
-    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.22);
+    transform: translateY(-3px);
+  }
+
+  .cup-card:hover .cup-card__img {
+    transform: scale(1.035);
   }
 }
 
+.cup-card:active {
+  transform: translateY(0) scale(0.99);
+}
+
 .cup-card.is-active {
-  background: var(--brand-soft);
   border-color: var(--action);
+  box-shadow: 0 0 0 1px var(--action);
 }
 
 .cup-card.is-active::after {
   content: '';
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
   background: var(--action)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / 12px no-repeat;
   border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.4);
+}
+
+/* Лунка — цвета фона снимка, чтобы край кадра не читался. */
+.cup-card__photo {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #f1f2f4;
+}
+
+:root[data-theme='dark'] .cup-card__photo {
+  background: #1c1c1e;
+}
+
+.cup-card__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s var(--ease);
+}
+
+.cup-card__img--dark,
+:root[data-theme='dark'] .cup-card__img--light {
+  display: none;
+}
+
+:root[data-theme='dark'] .cup-card__img--dark {
+  display: block;
+}
+
+.cup-card__photo.is-drawn {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+}
+
+.cup-card__info {
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px 12px;
 }
 
 .cup-card__art {
   width: 100%;
-  height: 112px;
-  margin-bottom: 6px;
+  height: 100%;
 }
 
 /* Цвета силуэта — токенами: в тёмной теме бумага не должна светиться. */
@@ -776,19 +844,19 @@ body.has-fullscreen-stage {
 }
 
 .cup-card__volume {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .cup-card__name {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
 }
 
 .cup-card__size {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -811,12 +879,16 @@ body.has-fullscreen-stage {
 
 @media (max-width: 600px) {
   .cup-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .cup-card__art {
-    height: 80px;
+  .cup-card__info {
+    padding: 8px 10px 10px;
+  }
+
+  .cup-card__volume {
+    font-size: 16px;
   }
 
   .cup-dialog__tools .segmented {
@@ -875,9 +947,10 @@ body.has-fullscreen-stage {
   border-radius: 12px;
 }
 
-.choice__icon .icon {
-  width: 22px;
-  height: 22px;
+.choice__anim {
+  display: block;
+  width: 40px;
+  height: 40px;
 }
 
 .choice__text {

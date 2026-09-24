@@ -4,6 +4,7 @@
 // exporter. Разметку строит сам модуль — пока окно не открывали, его нет.
 
 import { ANGLE_VIEWS, PHOTO_SIZE, createExporter } from './exporter.js';
+import { initLottie, playLottie } from '../ui/lottie.js';
 
 const VIEW_LABELS = { front: 'Спереди', right: 'Справа', back: 'Сзади', left: 'Слева' };
 
@@ -18,9 +19,10 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 
+// Значок варианта — Lottie: проигрывается при выборе и наведении.
 const icon = (name) => {
   const span = el('span', { class: 'choice__icon', 'aria-hidden': 'true' });
-  span.innerHTML = `<svg class="icon"><use href="assets/icons/sprite.svg#${name}" /></svg>`;
+  span.append(el('span', { class: 'choice__anim', 'data-lottie': name, 'data-lottie-play': 'hover' }));
   return span;
 };
 
@@ -41,6 +43,8 @@ function choices(name, options, initial, onChange) {
     button.addEventListener('click', () => {
       if (button.disabled) return;
       control.set(option.value);
+      const anim = button.querySelector('[data-lottie]');
+      if (anim) playLottie(anim);
       onChange?.(option.value);
     });
     node.append(button);
@@ -66,8 +70,8 @@ export function createExportCenter(app) {
   close.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
 
   const kind = choices('Что скачать', [
-    { value: 'photo', label: 'Фото', hint: `PNG ${PHOTO_SIZE} × ${PHOTO_SIZE}`, icon: 'camera' },
-    { value: 'video', label: 'Видео', hint: `Оборот 360°, ${duration} с`, icon: 'video' },
+    { value: 'photo', label: 'Фото', hint: `PNG ${PHOTO_SIZE} × ${PHOTO_SIZE}`, icon: 'shot' },
+    { value: 'video', label: 'Видео', hint: `Оборот 360°, ${duration} с`, icon: 'turn' },
   ], 'photo', () => render());
   kind.node.classList.add('choices--kind');
 
@@ -117,6 +121,7 @@ export function createExportCenter(app) {
     el('div', { class: 'dialog__head' }, el('p', { class: 'dialog__title', id: 'export-title', text: 'Скачать' }), close),
     kind.node, photoPanel, videoPanel, progress, go);
   document.body.append(backdrop, dialog);
+  initLottie(dialog);
 
   // ── поведение ──────────────────────────────────────────────────────────
   function render() {

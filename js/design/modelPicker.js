@@ -49,6 +49,28 @@ function modelGroups(models) {
 // Нормализация для поиска: регистр и «ё» не должны мешать найти стакан.
 const norm = (value) => String(value ?? '').toLowerCase().replace(/ё/g, 'е');
 
+// Фото стакана — снимок тем же движком (scripts/render-thumbs.mjs), под обе
+// темы. Снимка нет (новая модель, ещё не сняли) — силуэт по габаритам.
+function cupPhoto(cup, scale) {
+  const frame = document.createElement('span');
+  frame.className = 'cup-card__photo';
+  for (const theme of ['light', 'dark']) {
+    const img = document.createElement('img');
+    img.className = `cup-card__img cup-card__img--${theme}`;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.src = `assets/thumbs/${theme}/${cup.id}.webp`;
+    img.addEventListener('error', () => {
+      if (frame.querySelector('.cup-card__art')) return;
+      frame.replaceChildren(drawCup(cup, scale));
+      frame.classList.add('is-drawn');
+    });
+    frame.appendChild(img);
+  }
+  return frame;
+}
+
 export class CupPicker {
   // root — карточка окна, backdrop — затемнение под ней. onSelect получает id
   // выбранной модели, onToggle — состояние окна: закрыть его можно и мимо
@@ -137,7 +159,10 @@ export class CupPicker {
         size.className = 'cup-card__size';
         size.textContent = `Ø${Math.round(cup.size.topMm)} · ${Math.round(cup.size.heightMm)} мм`;
 
-        card.append(drawCup(cup, scale), volume, name, size);
+        const info = document.createElement('span');
+        info.className = 'cup-card__info';
+        info.append(volume, name, size);
+        card.append(cupPhoto(cup, scale), info);
         card.addEventListener('click', () => this.#choose(cup.id));
 
         grid.appendChild(card);

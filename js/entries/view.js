@@ -7,6 +7,7 @@ import { SnapshotError, downloadDesign, fetchSnapshot, readToken } from '../clie
 import { applyBrand, createLoader, hasWebGL, initClient, showError } from '../client/clientShell.js';
 import { MESSAGES } from '../ui/messages.js';
 import { initTheme } from '../ui/theme.js';
+import { initLottie } from '../ui/lottie.js';
 
 // Клиенту — медленный оборот: круг за 21 с (§23). Стартует после появления.
 // Сцена клиента — на весь экран, поверх неё логотип и панель: стакану нужно
@@ -122,6 +123,7 @@ async function start() {
 
 whenDomReady(() => {
   initTheme();
+  initLottie();
   start().catch((error) => {
     console.error('Просмотр не запустился:', error);
     showError(MESSAGES.modelFailed);

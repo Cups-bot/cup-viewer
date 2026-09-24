@@ -59,6 +59,19 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   return actions;
 }
 
+// Фото стакана в панели — тот же снимок, что в пикере (assets/thumbs/).
+// Снимка нет — силуэт во всю высоту поля.
+function railPhoto(model) {
+  return ['light', 'dark'].map((theme) => {
+    const img = document.createElement('img');
+    img.className = `cup-current__img cup-current__img--${theme}`;
+    img.alt = '';
+    img.src = `assets/thumbs/${theme}/${model.id}.webp`;
+    img.addEventListener('error', () => img.replaceWith(drawCup(model, artScale([model]), { idSuffix: `-rail-${theme}` })), { once: true });
+    return img;
+  });
+}
+
 // Model Picker (§10) грузится по требованию (§50): модуль и его разметка
 // появляются при первом открытии окна.
 function initModelPicker({ state, catalog, actions }) {
@@ -90,9 +103,7 @@ function initModelPicker({ state, catalog, actions }) {
     const model = catalog.model(modelId);
     if (name) name.textContent = model ? `${model.volumeMl} мл` : 'Выбрать стакан';
     if (meta) meta.textContent = model ? `${model.name} · ${kindOf(model)}` : 'Однослойные, двухслойные, эмбо, BM';
-    // В панели силуэт — во всю высоту поля: здесь стакан один, сравнивать
-    // не с чем, а разглядеть тип стенки нужно.
-    if (art) art.replaceChildren(...(model ? [drawCup(model, artScale([model]), { idSuffix: '-rail' })] : []));
+    if (art) art.replaceChildren(...(model ? railPhoto(model) : []));
     if (barName) barName.textContent = model ? `${model.volumeMl} мл` : 'Стакан';
     button.classList.toggle('is-empty', !model);
   };

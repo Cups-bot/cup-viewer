@@ -169,6 +169,12 @@ body.client {
   gap: 22px;
 }
 
+.client-loader__anim {
+  display: block;
+  width: 96px;
+  height: 104px;
+}
+
 .client-loader__logo {
   height: 34px;
   max-width: 200px;

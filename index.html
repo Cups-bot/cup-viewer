@@ -8,8 +8,8 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=cefb70bb" />
-    <link rel="stylesheet" href="css/viewer.css?v=714cb32d" />
-    <link rel="stylesheet" href="css/design.css?v=3538ff06" />
+    <link rel="stylesheet" href="css/viewer.css?v=0909be70" />
+    <link rel="stylesheet" href="css/design.css?v=57e5ce82" />
   </head>
   <body>
     <div class="app">
@@ -53,7 +53,7 @@
 
         <p class="rail__label">Макет</p>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
+          <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
           <span class="upload-zone__title">Загрузить макет</span>
           <span class="upload-zone__hint">PNG, JPG или PDF — можно перетащить файл на страницу</span>
         </button>
@@ -122,7 +122,7 @@
 
             <!-- Пустая сцена (§11): без сохранённой сессии стакан ещё не выбран. -->
             <div class="empty-state" id="empty-state" hidden>
-              <svg class="empty-state__art" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-mark" /></svg>
+              <span class="empty-state__art" data-lottie="pick" data-lottie-palette="light" aria-hidden="true"></span>
               <p class="empty-state__title">Начните со стакана</p>
               <p class="empty-state__text">Однослойные, двухслойные, эмбо и пластиковые BM. Потом загрузите макет — он ляжет на развёртку сам.</p>
               <button class="btn btn--accent" id="empty-pick" type="button">Выбрать стакан</button>
@@ -194,7 +194,7 @@
       <div class="dialog__head">
         <div>
           <p class="dialog__title" id="cup-dialog-title">Выберите стакан</p>
-          <p class="dialog__sub">Объём номинальный, как в каталоге Формации. Силуэты — в одном масштабе.</p>
+          <p class="dialog__sub">Объём номинальный, как в каталоге Формации.</p>
         </div>
         <button class="icon-btn cup-dialog__close" type="button" aria-label="Закрыть">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
@@ -244,9 +244,9 @@
     </div>
 
     <div class="drop-overlay" id="drop-overlay" hidden>
-      <div class="drop-overlay__message">Отпустите файл макета</div>
+      <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=31b4048e"></script>
+    <script type="module" src="dist/design.js?v=14ab910e"></script>
   </body>
 </html>
