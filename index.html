@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=cefb70bb" />
     <link rel="stylesheet" href="css/viewer.css?v=714cb32d" />
-    <link rel="stylesheet" href="css/design.css?v=332ab57f" />
+    <link rel="stylesheet" href="css/design.css?v=3538ff06" />
   </head>
   <body>
     <div class="app">
@@ -41,7 +41,7 @@
       <!-- Левая панель по шагам: стакан → макет → результат. На узком экране
            те же кнопки переезжают в нижнюю панель (.action-bar). -->
       <aside class="rail" aria-label="Шаги">
-        <p class="rail__label"><span class="rail__num">1</span>Стакан</p>
+        <p class="rail__label">Стакан</p>
         <button class="cup-current" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
           <span class="cup-current__art" id="cup-art" aria-hidden="true"></span>
           <span class="cup-current__text">
@@ -51,7 +51,7 @@
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
 
-        <p class="rail__label"><span class="rail__num">2</span>Макет</p>
+        <p class="rail__label">Макет</p>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
           <span class="upload-zone__title">Загрузить макет</span>
@@ -59,7 +59,7 @@
         </button>
         <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
 
-        <p class="rail__label"><span class="rail__num">3</span>Результат</p>
+        <p class="rail__label">Результат</p>
         <div class="rail__result">
           <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled>
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
