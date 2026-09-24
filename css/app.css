@@ -486,3 +486,29 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Сенсорный экран (§47): цели нажатия не меньше 44×44 px в любой раскладке. */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn,
+  .segmented__item,
+  .stage-tab,
+  .scene-chip,
+  .view-btn,
+  .cup-filter {
+    min-height: 44px;
+  }
+
+  .menu-item {
+    min-height: 44px;
+  }
+
+  .swatch {
+    width: 36px;
+    height: 36px;
+  }
+}

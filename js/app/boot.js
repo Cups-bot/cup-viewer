@@ -60,7 +60,12 @@ export async function boot({ mode: modeName, initialState, lock = true, config =
   if (lock) mode.lock();
 
   const app = { catalog, state, mode, viewer, actions, feedback, unwrap, config };
-  if (debugAllowed()) publishDebugApi(app);
+  if (debugAllowed()) {
+    publishDebugApi(app);
+    if (new URLSearchParams(window.location.search).get('debug') === 'perf') {
+      import('../ui/perfOverlay.js').then(({ mountPerfOverlay }) => mountPerfOverlay(viewer));
+    }
+  }
   return app;
 }
 

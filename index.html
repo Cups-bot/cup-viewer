@@ -6,9 +6,9 @@
     <meta name="robots" content="noindex" />
     <title>Cup Viewer — Design</title>
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="css/app.css?v=2c4b76c7" />
+    <link rel="stylesheet" href="css/app.css?v=eb0aa57b" />
     <link rel="stylesheet" href="css/viewer.css?v=fbafd8a3" />
-    <link rel="stylesheet" href="css/design.css?v=0bfda6fa" />
+    <link rel="stylesheet" href="css/design.css?v=e24802eb" />
   </head>
   <body>
     <div class="app">
@@ -59,7 +59,7 @@
 
           <button class="btn" id="publish-btn" type="button" aria-haspopup="dialog" disabled>
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
-            <span><span class="btn__text--long">Ссылка </span>клиенту</span>
+            <span>Ссылка<span class="btn__text--long"> клиенту</span></span>
           </button>
           <button class="btn btn--primary" id="export-btn" type="button" aria-haspopup="dialog" disabled>
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
@@ -141,6 +141,26 @@
               <p class="menu-title">Ракурс</p>
               <div class="view-grid" id="view-presets" role="group" aria-label="Ракурс"></div>
             </div>
+            <!-- Только на телефоне и планшете в портрете (§45): то, что на десктопе
+                 живёт в верхней панели. -->
+            <div class="menu-section mobile-only">
+              <button class="menu-item" type="button" data-mobile-action="scene">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#image" /></svg>
+                Сцена
+              </button>
+              <button class="menu-item" type="button" data-mobile-action="export">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+                Экспорт
+              </button>
+              <button class="menu-item" type="button" data-mobile-action="turn">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#video" /></svg>
+                Оборот 360°
+              </button>
+              <button class="menu-item" type="button" data-mobile-action="publish">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#link" /></svg>
+                Ссылка клиенту
+              </button>
+            </div>
             <div class="menu-section">
               <button class="menu-item" id="turntable-btn" type="button" role="menuitemcheckbox" aria-pressed="false">
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#turntable" /></svg>
@@ -161,6 +181,26 @@
         </section>
       </main>
     </div>
+
+    <!-- Нижняя панель телефона и планшета в портрете (§45). -->
+    <nav class="mobile-nav" aria-label="Действия">
+      <button class="mobile-nav__item" type="button" data-mobile-nav="cup">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#cup" /></svg>
+        <span>Стакан</span>
+      </button>
+      <button class="mobile-nav__item" type="button" data-mobile-nav="design">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
+        <span>Дизайн</span>
+      </button>
+      <button class="mobile-nav__item" type="button" data-mobile-nav="material">
+        <span class="swatch-dot" id="mobile-material-dot" aria-hidden="true"></span>
+        <span>Материал</span>
+      </button>
+      <button class="mobile-nav__item" type="button" data-mobile-nav="more">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#more" /></svg>
+        <span>Ещё</span>
+      </button>
+    </nav>
 
     <!-- Окно выбора стакана (§10). Карточки строит js/design/modelPicker.js из
          catalog/models.json — здесь только рамка и постоянные тексты. -->
@@ -211,6 +251,6 @@
       <div class="drop-overlay__message">Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=037affb6"></script>
+    <script type="module" src="dist/design.js?v=4da2bb22"></script>
   </body>
 </html>

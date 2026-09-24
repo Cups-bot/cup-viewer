@@ -189,8 +189,10 @@ export function createExportCenter(app) {
 
   return {
     exporter,
-    open(from) {
+    // tab: 'image' | 'angles' | 'turn' — с какой вкладки открыть.
+    open(from, tab) {
       opener = from ?? document.activeElement;
+      if (tab && !exporter.busy) tabs.set(tab);
       dialog.hidden = false;
       backdrop.hidden = false;
       renderTab();

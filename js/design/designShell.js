@@ -3,7 +3,6 @@
 // js/entries/design.js — в клиентский бандл этот код не попадает (§37).
 
 import { CONFIG } from '../config.js';
-import { CupPicker } from './modelPicker.js';
 import { bindMenu } from '../ui/toolbar.js';
 import { saveSession } from './session.js';
 import { DesignError, prepareDesign } from './prepareDesign.js';
@@ -18,7 +17,7 @@ const WALL_LABELS = Object.freeze({
   plastic: 'литой пластик',
 });
 
-export function initDesign({ state, mode, catalog, viewer, feedback }) {
+export function initDesign({ state, mode, catalog, viewer, feedback, actions: common }) {
   const actions = {
     // Макет на новую модель не переносится: у каждого стакана своя развёртка,
     // и та же картинка на соседней модели съезжает, растёт или обрезается.
@@ -38,11 +37,15 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initModelMeta({ state, catalog });
-  initExport({ state, mode, viewer, feedback });
+  const exportCenter = initExport({ state, mode, viewer, feedback });
   initPublish({ state, mode, catalog, feedback });
+  initMobileNav({ state, catalog, common, exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
-  const needsModel = ['texture-btn', 'export-btn', 'publish-btn'].map((id) => document.getElementById(id));
+  const needsModel = [
+    ...['texture-btn', 'export-btn', 'publish-btn'].map((id) => document.getElementById(id)),
+    ...document.querySelectorAll('[data-mobile-nav="design"], [data-mobile-action]'),
+  ];
   const renderNeeds = ({ modelId }) => {
     for (const button of needsModel) if (button) button.disabled = !modelId;
   };
@@ -54,29 +57,38 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   return actions;
 }
 
+// Model Picker (§10) грузится по требованию (§50): модуль и его разметка
+// появляются при первом открытии окна.
 function initModelPicker({ state, catalog, actions }) {
   const button = document.getElementById('cup-btn');
   const dialog = document.getElementById('cup-dialog');
   const name = document.getElementById('cup-name');
   if (!button || !dialog) return null;
 
-  const picker = new CupPicker(dialog, {
-    models: catalog.models,
-    backdrop: document.getElementById('cup-backdrop'),
-    onSelect: (id) => actions.selectModel(id),
-    onToggle: (open) => button.setAttribute('aria-expanded', String(open)),
-  });
-  button.addEventListener('click', () => picker.toggle(button));
+  let picker = null;
+  const ensure = async () => {
+    if (picker) return picker;
+    const { CupPicker } = await import('./modelPicker.js');
+    picker ??= new CupPicker(dialog, {
+      models: catalog.models,
+      backdrop: document.getElementById('cup-backdrop'),
+      onSelect: (id) => actions.selectModel(id),
+      onToggle: (open) => button.setAttribute('aria-expanded', String(open)),
+    });
+    picker.setActive(state.get().modelId);
+    return picker;
+  };
+  button.addEventListener('click', async () => (await ensure()).toggle(button));
 
   const render = ({ modelId }) => {
-    picker.setActive(modelId);
+    picker?.setActive(modelId);
     const model = catalog.model(modelId);
     if (name) name.textContent = model ? model.name : 'Выбрать';
     button.classList.toggle('is-empty', !model);
   };
   state.subscribe(['modelId'], render);
   render(state.get());
-  return picker;
+  return { open: async (from) => (await ensure()).open(from) };
 }
 
 // Материал (§14): только совместимые с моделью. Один материал — выбирать
@@ -201,16 +213,59 @@ function initPublish(app) {
 // Окно экспорта (§20): модуль грузится при первом открытии (§50).
 function initExport(app) {
   const button = document.getElementById('export-btn');
-  if (!button) return;
   let center = null;
-  button.addEventListener('click', async () => {
-    if (button.disabled) return;
+  const open = async (tab, from = button) => {
+    if (!app.state.get().modelId) return;
     if (!center) {
       const { createExportCenter } = await import('../export/exportCenter.js');
       center ??= createExportCenter(app);
     }
-    center.open(button);
-  });
+    center.open(from, tab);
+  };
+  button?.addEventListener('click', () => !button.disabled && open());
+  return { open };
+}
+
+// Нижняя панель телефона и планшета в портрете (§45): те же действия, что в
+// верхней панели, — кнопки верхней панели просто нажимаются за человека.
+function initMobileNav({ state, catalog, common, exportCenter }) {
+  const click = (id) => document.getElementById(id)?.click();
+  const moreMenu = document.getElementById('more-menu');
+  const closeMore = () => {
+    if (moreMenu) moreMenu.hidden = true;
+    document.getElementById('more-btn')?.setAttribute('aria-expanded', 'false');
+  };
+  const nav = {
+    cup: () => click('cup-btn'),
+    design: () => click('texture-btn'),
+    material: () => click('material-btn'),
+    more: () => click('more-btn'),
+  };
+  for (const button of document.querySelectorAll('[data-mobile-nav]')) {
+    button.addEventListener('click', () => nav[button.dataset.mobileNav]?.());
+  }
+  const more = {
+    scene: () => common.setTab('scene'),
+    export: () => exportCenter.open('image'),
+    turn: () => exportCenter.open('turn'),
+    publish: () => click('publish-btn'),
+  };
+  for (const button of document.querySelectorAll('[data-mobile-action]')) {
+    button.addEventListener('click', () => {
+      closeMore();
+      more[button.dataset.mobileAction]?.();
+    });
+  }
+
+  // Материал в нижней панели: образец текущего и недоступность, если выбора нет.
+  const dot = document.getElementById('mobile-material-dot');
+  const materialButton = document.querySelector('[data-mobile-nav="material"]');
+  const render = ({ modelId, materialId }) => {
+    if (dot) paintSwatch(dot, modelId ? catalog.material(materialId) : null);
+    if (materialButton) materialButton.disabled = catalog.materialsFor(modelId).length < 2;
+  };
+  state.subscribe(['modelId', 'materialId'], render);
+  render(state.get());
 }
 
 // Загрузка макета (§6, бриф 03b): кнопка и перетаскивание. Тип — по
