@@ -1,28 +1,26 @@
 import { CONFIG } from './config.js';
 import { Viewer } from './Viewer.js';
-import { loadOrder, readLocalOrder, resolveOrder } from './data/order.js';
-import { renderOrderPanel } from './ui/orderPanel.js';
-import { setViewer, setOrder, getOrder } from './appState.js';
-// Интерфейс страницы согласования (вкладки, чек-лист, правки, подсказка).
-// Подключается импортом, а не вторым тегом <script>: так вся страница
-// собирается в один файл и общее состояние гарантированно одно на всех.
-import './ui/approval.js';
+import { DEFAULT_PAPER } from './data/catalog.js';
+import { findCup } from './data/models.js';
+import { setViewer } from './appState.js';
+// Вкладки, фото-сцены, развёртка и подсказка. Подключается импортом, а не
+// вторым тегом <script>: так вся страница собирается в один файл и общее
+// состояние гарантированно одно на всех.
+import './ui/stage.js';
 
-// Точка входа. Поднимает просмотрщик, забирает данные заказа (Битрикс, endpoint
-// или значения по умолчанию — см. js/data/order.js) и применяет их: модель по
-// номенклатуре, дизайн, шероховатость по типу картона, правая панель.
+// Точка входа: поднимает просмотрщик и ставит стартовый стакан с чистым листом.
 //
 // Отладочный API публикуется в window.cupViewer только там, где это разрешено
 // config.security.debugApi (по умолчанию — на localhost):
-//   cupViewer.order                        // что применилось
-//   cupViewer.applyOrder({ paper: 'coated' })
-//   cupViewer.applyOrder({ sku: 'DW90-430' })
-//   cupViewer.selectCup('PP-650')          // другой стакан, как из списка
+//   cupViewer.selectCup('PP-500')          // другой стакан, как из списка
+//   cupViewer.selectPaper('coated')        // другой картон
 //   cupViewer.setRoughness(0.35)           // 0 — зеркало, 1 — матовая
 //   cupViewer.setRelief(0.3)               // сила фактуры картона
-//   cupViewer.setReliefScale(5)            // крупность зерна: больше — мельче
 //   cupViewer.describeKeyLight()
 // Для постоянных изменений правьте js/config.js и js/data/.
+
+// С какого стакана открывается страница.
+const START_CUP_ID = 'DW80-280';
 
 function debugAllowed(config) {
   const mode = config.security?.debugApi ?? 'never';
@@ -36,68 +34,29 @@ async function bootstrap() {
   const container = document.getElementById('canvas-container');
   if (!container) throw new Error('Нет элемента #canvas-container');
 
-  // Правую панель заполняем первым делом, ещё до сцены: тексты уже известны
-  // (умолчания + напечатанный в страницу заказ), и пустых полей быть не должно.
-  // Если заказ придёт с сервера, панель перерисуется данными оттуда.
-  renderOrderPanel(readLocalOrder(CONFIG));
-
   const viewer = new Viewer(container, CONFIG);
   setViewer(viewer);
   if (debugAllowed(CONFIG)) publishDebugApi(viewer);
 
-  // Данные читаем параллельно с подъёмом сцены — HDRI грузится дольше.
-  const [order] = await Promise.all([loadOrder(CONFIG), viewer.startEnvironment()]);
-  await applyOrder(viewer, order);
+  await viewer.startEnvironment();
+  const cup = findCup(START_CUP_ID);
+  await viewer.loadModel(cup.file, cup);
+  // Картон ставится после модели: загрузка сбрасывает материалы.
+  viewer.selectPaper(DEFAULT_PAPER);
+  await viewer.applyTexture(null);
 }
 
-// Применяет заказ к сцене и к странице. Вызывается и на старте, и из консоли.
-async function applyOrder(viewer, order) {
-  viewer.setOrder(order);
-  // Развёртка и другие части интерфейса ждут этого события.
-  setOrder(order);
-
-  renderOrderPanel(order);
-
-  await viewer.loadModel(order.model, order.cup);
-  // Шероховатость ставится после модели: загрузка сбрасывает материалы.
-  viewer.setSurfaceFinish({
-    roughness: order.roughness,
-    relief: order.relief,
-    reliefScale: order.reliefScale,
-    // Сила собственного рельефа модели — тиснения и волокна (paperSurface.js).
-    normalScale: order.paper?.normalScale,
-  });
-  await viewer.applyTexture(order.texture);
-
-  return order;
-}
-
-// Отладочный API. Патч накладывается на ИСХОДНЫЕ значения заказа (order.input),
-// после чего справочники прогоняются заново — иначе applyOrder({ paper: … })
-// меняло бы поле, но не шероховатость, а applyOrder({ sku: … }) — не модель.
 function publishDebugApi(viewer) {
   window.cupViewer = {
     viewer,
-    get order() {
-      return getOrder();
-    },
-    applyOrder: (patch) => applyOrder(viewer, resolveOrder({ ...getOrder()?.input, ...patch })),
     loadModel: (url) => viewer.loadModel(url),
-    // Сменить стакан так же, как это делает список в сцене: с чистым листом
-    // вместо прежнего макета. Идентификаторы — в js/data/models.js.
     selectCup: (id) => viewer.selectCup(id),
-    // Показать на другом картоне — то же, что переключатель в сцене.
     selectPaper: (key) => viewer.selectPaper(key),
     replaceTexture: (url) => viewer.applyTexture(url),
     setRoughness: (roughness) => viewer.setSurfaceFinish({ roughness }),
     setMetalness: (metalness) => viewer.setSurfaceFinish({ metalness }),
-    // Фактура картона. Крупность передаём вместе с силой: без неё
-    // setSurfaceFinish подставит запасное значение из конфига, и зерно
-    // перескочит на другое прямо посреди подбора.
-    setRelief: (relief) =>
-      viewer.setSurfaceFinish({ relief, reliefScale: getOrder()?.reliefScale }),
-    setReliefScale: (reliefScale) =>
-      viewer.setSurfaceFinish({ relief: getOrder()?.relief, reliefScale }),
+    setRelief: (relief) => viewer.setSurfaceFinish({ relief }),
+    setReliefScale: (reliefScale) => viewer.setSurfaceFinish({ reliefScale }),
     describeKeyLight: () => viewer.describeKeyLight(),
     // Показать только карту затенения складок: так удобно подбирать
     // quality.ambientOcclusion.radius и scale в js/config.js.
@@ -105,9 +64,8 @@ function publishDebugApi(viewer) {
   };
 }
 
-// Сцена не поднялась — клиент не должен смотреть в пустой прямоугольник без
-// объяснений. Раньше промис bootstrap() никто не обрабатывал: при переименовании
-// любого id в шаблоне страница молча оставалась пустой.
+// Сцена не поднялась — человек не должен смотреть в пустой прямоугольник без
+// объяснений.
 function showStartupFailure(error) {
   console.error('Просмотрщик не запустился:', error);
 
@@ -126,7 +84,7 @@ function showStartupFailure(error) {
   text.className = 'startup-error__text';
   text.textContent =
     'Проверьте вкладку «Развёртка» — макет там открывается плоско. ' +
-    'Если 3D не появится и после обновления страницы, сообщите менеджеру.';
+    'Если 3D не появится и после обновления страницы, напишите разработчику.';
 
   box.append(title, text);
   host.appendChild(box);

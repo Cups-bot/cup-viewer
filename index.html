@@ -3,22 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <!-- Заголовок вкладки браузера. Правится здесь или подставляется шаблоном
-         Битрикса; JS его не трогает. Номер заказа и имя клиента в репозитории
-         не храним. -->
-    <title>Согласование макета</title>
-    <link rel="stylesheet" href="css/style.css?v=6748e202" />
-    <link rel="stylesheet" href="css/approve.css?v=745657dd" />
+    <title>Cup Viewer</title>
+    <link rel="stylesheet" href="css/style.css?v=36909ce9" />
+    <link rel="stylesheet" href="css/stage.css?v=c524ebcf" />
   </head>
-  <body class="approve">
+  <body class="viewer">
     <main class="page">
-      <section class="approve-grid">
+      <section class="viewer-layout">
         <!-- Левая колонка — 3D-сцена -->
         <div class="stage" id="stage">
           <div id="canvas-container"></div>
 
           <!-- Развёртка: тот же макет, что лежит на модели, плоско и с зумом.
-               Картинку подставляет js/ui/unwrap.js из данных заказа. -->
+               Картинку рисует js/ui/unwrap.js. -->
           <div class="unwrap" id="unwrap" hidden>
             <canvas class="unwrap__canvas" role="img" aria-label="Развёртка дизайна"></canvas>
             <p class="unwrap__hint">Колесо мыши — приблизить, перетаскивание — сдвинуть, двойной клик — исходный вид</p>
@@ -26,7 +23,7 @@
 
           <!-- Переключатель режимов -->
           <div class="stage-tabs" role="tablist" aria-label="Режим просмотра">
-            <!-- Короткие подписи включаются на узких экранах (см. approve.css) -->
+            <!-- Короткие подписи включаются на узких экранах (см. stage.css) -->
             <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">
               <span class="stage-tab__full">3D-визуализация</span>
               <span class="stage-tab__short">3D</span>
@@ -41,7 +38,7 @@
             </button>
           </div>
 
-          <!-- Выбор фото-сцены. Кнопки строит js/ui/approval.js из каталога
+          <!-- Выбор фото-сцены. Кнопки строит js/ui/stage.js из каталога
                js/data/scenes.js; блок показывается только на вкладке
                «Фото-сцена», вместо кружочков фона: там фон — снятая сцена. -->
           <div class="stage-scenes" id="scene-picker" role="group" aria-label="Фото-сцена" hidden></div>
@@ -59,25 +56,6 @@
                здесь только место для них. У пластиковых стаканов блок
                скрывается: тип бумаги к полипропилену отношения не имеет. -->
           <div class="stage-paper" id="paper-picker" role="group" aria-label="Тип картона" hidden></div>
-
-          <!-- Свернуть панель заказа: на широком экране она забирает 420 px, а
-               смотрят прежде всего на сам стакан. Ручка стоит у правого края
-               сцены и остаётся на виду в обоих состояниях — иначе свёрнутую
-               панель нечем вернуть (js/ui/approval.js, .approve-grid.is-panel-collapsed
-               в approve.css). На узком экране колонки идут друг под другом, и
-               ручка скрыта. -->
-          <button
-            class="panel-toggle"
-            id="panel-toggle"
-            type="button"
-            aria-expanded="true"
-            aria-controls="approve-panel"
-            data-label-collapse="Свернуть панель заказа"
-            data-label-expand="Показать панель заказа"
-          >
-            <span class="panel-toggle__icon" aria-hidden="true"></span>
-            <span class="panel-toggle__text">Свернуть</span>
-          </button>
 
           <!-- Плавающая панель управления. Подпись у каждой кнопки — в
                data-tip: всплывает над панелью и объясняет, что она делает. -->
@@ -115,7 +93,7 @@
             <!-- Выгрузка оборота. Меню раскрывается вверх прямо отсюда: оно
                  низкое и в сцену помещается целиком, поэтому позицию, в отличие
                  от подсказки «как управлять», считать не нужно. Тексты внутри
-                 от заказа не зависят и правятся здесь. -->
+                 правятся здесь. -->
             <div class="export-menu">
               <button class="btn" id="export-btn" type="button" data-tip="Выгрузить оборот" data-key="V" aria-label="Выгрузить полный оборот" aria-expanded="false" aria-controls="export-popover">
                 <img class="btn__icon" src="assets/icons/video.svg" alt="" aria-hidden="true" />
@@ -153,91 +131,12 @@
           </nav>
         </div>
 
-        <!-- Правая колонка — согласование.
-
-             ВНИМАНИЕ. Пустые элементы ниже заполняются из js/data/order.js —
-             править их текст здесь бесполезно, он будет перезаписан. Правило
-             простое:
-
-               • текст зависит от заказа (статус, заголовок, характеристики,
-                 пункты чек-листа) → js/data/order.js, блок DEFAULT_ORDER;
-               • текст одинаков всегда (подписи кнопок, вкладки, подсказки)
-                 → прямо здесь, в разметке.
-
-             Раньше эти строки были продублированы и тут, и в JS: правка в
-             разметке ничего не меняла, а при загрузке успевала мелькнуть
-             старая версия. -->
-        <aside class="approve-panel" id="approve-panel">
-          <!-- Начальный текст плашки — order.status; текст после согласования
-               одинаков всегда, поэтому лежит здесь. -->
-          <span class="status-chip" id="status-chip" data-label-done="Согласовано — макет отправлен в печать">
-            <span class="status-chip__dot" aria-hidden="true"></span>
-            <span class="status-chip__text"><!-- order.status --></span>
-          </span>
-
-          <h1 class="approve-panel__title"><!-- order.title --></h1>
-          <p class="approve-panel__lead"><!-- order.lead --></p>
-
-          <dl class="spec"><!-- order.spec --></dl>
-
-          <!-- Действия согласования -->
-          <div class="approve-actions" id="approve-actions">
-            <!-- Чек-лист: появляется после нажатия «Согласовать».
-                 Заголовок и пояснение правятся здесь, сами пункты — order.checklist -->
-            <div class="checklist" id="checklist" hidden>
-              <p class="checklist__title">Подтвердите перед печатью</p>
-              <p class="checklist__sub">
-                  Убедитесь, что макет выглядит именно так, как вы ожидаете. Если заметите неточность — снимите соответствующую галочку.
-              </p>
-            </div>
-
-            <!-- Подписи всех трёх состояний кнопки лежат здесь, в data-атрибутах:
-                 согласование идёт в два шага, и JS только переключает состояние,
-                 а не придумывает текст. На телефоне показывается короткая
-                 подпись (см. approve.css). -->
-            <button
-              class="cta cta--approve"
-              id="approve-btn"
-              type="button"
-              data-label-confirm="Подтвердить и отправить в печать"
-              data-label-confirm-short="Подтвердить"
-              data-label-done="Согласовано ✓"
-            >
-              <span class="cta__full">Согласовать и запустить в печать</span>
-              <span class="cta__short">Согласовать</span>
-            </button>
-            <div class="approve-panel__secondary">
-              <button class="cta cta--ghost" id="edits-btn" type="button">Нужны правки</button>
-              <button class="cta cta--ghost" id="share-btn" type="button">Поделиться ссылкой</button>
-            </div>
-            <p class="approve-panel__note"><!-- order.note --></p>
-          </div>
-
-          <!-- Форма правок -->
-          <form class="edits" id="edits-form" hidden>
-            <p class="edits__title">Что поправить в макете?</p>
-            <textarea
-              class="edits__input"
-              id="edits-text"
-              rows="4"
-              placeholder="Например: логотип поднять на 3 мм, изменить цвет фона стакана"
-            ></textarea>
-            <div class="edits__actions">
-              <button class="cta cta--dark" type="submit">
-                <span class="cta__full">Отправить правки</span>
-                <span class="cta__short">Отправить</span>
-              </button>
-              <button class="cta cta--ghost" type="button" id="edits-cancel">Отмена</button>
-            </div>
-          </form>
-        </aside>
       </section>
     </main>
 
     <!-- Подсказка «как управлять». Лежит вне сцены намеренно: у сцены
-         overflow: hidden, и внутри неё карточка обрезалась краем — на телефоне
-         из-под панели было видно меньше половины. Положение считает
-         js/ui/approval.js. -->
+         overflow: hidden, и внутри неё карточка обрезалась краем. Положение
+         считает js/ui/stage.js. -->
     <div class="help-popover" id="help-popover" role="dialog" aria-modal="false" aria-labelledby="help-popover-title" hidden>
       <div class="help-popover__head">
         <p class="help-popover__title" id="help-popover-title">Как управлять</p>
@@ -270,8 +169,8 @@
     <div class="help-backdrop" id="help-backdrop" hidden></div>
 
     <!-- Окно выбора стакана. Карточки строит js/ui/cupPicker.js из каталога
-         js/data/models.js — здесь только рамка и тексты, которые от заказа не
-         зависят. Лежит вне сцены по той же причине, что и подсказка выше: у
+         js/data/models.js — здесь только рамка и постоянные тексты.
+         Лежит вне сцены по той же причине, что и подсказка выше: у
          сцены overflow: hidden, и окно обрезалось бы её краем. -->
     <div class="cup-dialog" id="cup-dialog" role="dialog" aria-modal="true" aria-labelledby="cup-dialog-title" hidden>
       <div class="cup-dialog__head">
@@ -312,6 +211,6 @@
          сторонний CDN на клиентской странице — и точка отказа, и канал подмены
          кода. Заодно ушла карта импорта, которую не понимает Safari до 16.4:
          на таких iPhone страница не показывала ничего. -->
-    <script type="module" src="dist/cup-viewer.js?v=2187a31a"></script>
+    <script type="module" src="dist/cup-viewer.js?v=ff3d42a4"></script>
   </body>
 </html>

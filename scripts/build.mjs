@@ -33,7 +33,7 @@ const OUTFILE = resolve(root, 'dist/cup-viewer.js');
 const INDEX = resolve(root, 'index.html');
 
 // Файлы, у которых index.html должен получить метку версии.
-const VERSIONED = ['css/style.css', 'css/approve.css', 'dist/cup-viewer.js'];
+const VERSIONED = ['css/style.css', 'css/stage.css', 'dist/cup-viewer.js'];
 
 const options = {
   entryPoints: [ENTRY],

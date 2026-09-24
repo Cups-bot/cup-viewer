@@ -331,7 +331,7 @@ export class Viewer {
     const { clientWidth: w, clientHeight: h } = this.container;
     if (w === 0 || h === 0) return;
     // В фото-сцене холст — ровно снимок, вписанный в контейнер, а не весь
-    // контейнер: поля вокруг забирает рамка страницы (approve.css), а снимок
+    // контейнер: поля вокруг забирает рамка страницы (stage.css), а снимок
     // экрана и выгрузка оборота выходят чистым кадром без пустых полос.
     const [width, height] = this.photo ? this.#photoCanvasSize(w, h) : [w, h];
     this.camera.aspect = aspectOf(width, height);
@@ -543,7 +543,7 @@ export class Viewer {
     // после него (см. RenderPipeline#setBackdrop).
     //
     // Какой именно — говорит сцена: стакан обязан пройти ту же кривую, что
-    // и в рендере, по которому сцену согласовали. Сцена, сведённая в Blender
+    // и в рендере, по которому сцену утвердили. Сцена, сведённая в Blender
     // в Standard, — это обычный sRGB с обрезкой; AgX на ней сжимал белый
     // стакан до серого. Filmic и AgX из Blender в three ближе всего к AgX.
     this.renderer.toneMapping =
@@ -710,7 +710,7 @@ export class Viewer {
     const backdrop = backdrops[frame] ?? backdrops.wide;
 
     // Размер снимка — странице: рамку вокруг него рисует CSS
-    // (#canvas-container.has-photo в approve.css).
+    // (#canvas-container.has-photo в stage.css).
     this.container.classList.add('has-photo');
     this.container.style.setProperty('--photo-width', `${size.x}px`);
     this.container.style.setProperty('--photo-height', `${size.y}px`);
@@ -864,21 +864,14 @@ export class Viewer {
     this.unwrap?.setSource(sheet);
   }
 
-  // Перетаскивание .glb на страницу: заказная отделка и дизайн сохраняются.
-  // Работает только при включённом ui.dragAndDrop (по умолчанию выключен).
+  // Перетаскивание .glb на страницу: модель встаёт с выбранным картоном и
+  // чистым листом. Работает только при включённом ui.dragAndDrop.
   async loadModelFromFile(file) {
     const url = URL.createObjectURL(file);
-    const order = this.order;
     try {
       await this.loadModel(url);
-      if (order?.roughness != null) {
-        this.setSurfaceFinish({
-          roughness: order.roughness,
-          relief: order.relief,
-          reliefScale: order.reliefScale,
-        });
-      }
-      await this.applyTexture(order?.texture);
+      this.#applyPaper();
+      await this.applyTexture(null);
       this.ui.showToast(`Модель загружена: ${file.name}`);
     } catch (error) {
       console.error(error);
@@ -910,19 +903,8 @@ export class Viewer {
     }
   }
 
-  // Текущий заказ. Держим ссылкой на объект, а не читаем window.cupOrder:
-  // страница Битрикса — чужая территория, глобальное имя там могут занять.
-  setOrder(order) {
-    this.order = order;
-    // Страница открывается на том картоне, который выбран в заказе.
-    this.paperKey = order?.paper?.key ?? this.paperKey ?? DEFAULT_PAPER;
-    this.ui.setActivePaper(this.paperKey);
-  }
-
-  // ПОКАЗАТЬ на другом картоне. Заказ при этом не меняется: тип бумаги в нём
-  // уже выбран, а здесь клиент смотрит, как тот же макет ложится на глянцевый
-  // и на матовый — на мелованном краска собраннее и ярче, на немелованном
-  // садится в волокно (см. js/data/catalog.js).
+  // Показать тот же макет на другом картоне: на мелованном краска собраннее и
+  // ярче, на немелованном садится в волокно (см. js/data/catalog.js).
   selectPaper(key) {
     if (!PAPER_TYPES[key]) return;
     this.paperKey = key;

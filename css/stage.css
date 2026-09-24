@@ -1,7 +1,6 @@
-/* Дизайн «страницы согласования» (блок 2 макета MyCups): карточка со сценой
-   вьювера и панелью согласования. Грузится ПОСЛЕ style.css и
-   переопределяет полноэкранную раскладку вьювера на встроенную в макет.
-   Идентификаторы элементов управления сохранены — UIManager работает как есть. */
+/* Страница вьювера: карточка со сценой, вкладки, пикер стакана, подсказка.
+   Грузится ПОСЛЕ style.css и переопределяет полноэкранную раскладку вьювера
+   на встроенную в страницу. */
 
 :root {
   --brand: #e8290c;
@@ -13,13 +12,11 @@
   --sky: #eaf5ff;
   --page-bg: var(--sky);
   --card: #ffffff;
-  --done: #16a34a;
-  /* Высота сцены. Панель согласования равна ей по минимуму, но может стать
-     выше — сцену это не двигает. */
+  /* Высота сцены. */
   --stage-h: min(760px, calc(100vh - 44px));
 }
 
-body.approve {
+body.viewer {
   overflow: auto;
   color: var(--ink);
   background: var(--page-bg);
@@ -31,9 +28,6 @@ body.approve {
   max-width: 1360px;
   margin: 0 auto;
   padding: 22px;
-  /* Свёрнутая панель уезжает за правый край: clip отрезает её, не создавая
-     прокрутки (в отличие от overflow: hidden, он не делает блок скроллером). */
-  overflow-x: clip;
 }
 
 /* Полноэкранный режим сцены. Настоящий Fullscreen API есть не везде (на iPhone
@@ -60,144 +54,7 @@ body.has-fullscreen-stage {
 }
 
 /* ── Основной блок ─────────────────────────────────────────────────────── */
-/* Сцена имеет собственную фиксированную высоту, а колонки выровнены по верху.
-   Иначе панель справа, вырастая (чек-лист, форма правок), растягивала бы строку
-   сетки — холст менял бы размер, и стакан на вид «увеличивался». Правое меню
-   ничего в сцене менять не должно. */
-.approve-grid {
-  /* Полная ширина панели. Её читает сама панель: пока колонка едет к нулю,
-     панель не должна сплющиваться (см. .approve-panel ниже).
 
-     ВНИМАНИЕ: в grid-template-columns ширина подставлена ЧИСЛОМ, а не через
-     var(). Chrome не пересчитывает свойство с объявленным переходом, когда
-     меняется только переменная внутри var(): колонка так и оставалась 420 px.
-     Поэтому у каждого размера экрана ширина написана дважды — в колонках и в
-     переменной, и менять их нужно парой. */
-  --panel-open: 420px;
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 14px;
-  align-items: start;
-  /* Вход — 400 мс с мягкой посадкой, уход — 200 мс: закрытие не требует
-     внимания и должно быть быстрее (кривые и длительности из Material 3). */
-  transition: grid-template-columns 400ms cubic-bezier(0.05, 0.7, 0.1, 1);
-}
-
-.approve-grid.is-panel-collapsed {
-  grid-template-columns: minmax(0, 1fr) 0px;
-  transition-duration: 200ms;
-  transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
-}
-
-/* Панель уезжает целиком, а не сплющивается: пока колонка едет к нулю, ширина
-   держится на --panel-open, и текст внутри не переливается. Всё, что вылезло
-   за край страницы, отрезано (.page { overflow-x: clip }). */
-.approve-grid.is-panel-collapsed .approve-panel {
-  transform: translateX(24px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.approve-panel {
-  min-width: var(--panel-open);
-  transition:
-    transform 400ms cubic-bezier(0.05, 0.7, 0.1, 1),
-    opacity 200ms linear;
-}
-
-/* Ручка, которой панель убирается и возвращается. Живёт у правого края сцены,
-   по середине высоты: сверху вкладки и кружочки фона, снизу панель управления,
-   а середина свободна. Она внутри сцены намеренно — так она сама едет вместе с
-   её краем, когда колонка растёт, и остаётся на виду при свёрнутой панели.
-   (Привязка к ширине панели через var() не работает: см. .approve-grid.) */
-.panel-toggle {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  z-index: 7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 74px;
-  padding: 0;
-  color: var(--muted);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
-  cursor: pointer;
-  transform: translateY(-50%);
-  transition: color 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* Шеврон: развёрнутая панель — стрелка вправо («убрать»), свёрнутая — влево
-   («вернуть»). Рисуется уголком из границ, без картинки. */
-.panel-toggle__icon {
-  width: 7px;
-  height: 7px;
-  border-top: 1.6px solid currentColor;
-  border-right: 1.6px solid currentColor;
-  transform: translateX(-1px) rotate(45deg);
-  transition: transform 0.2s ease;
-}
-
-.approve-grid.is-panel-collapsed .panel-toggle__icon {
-  transform: translateX(1px) rotate(-135deg);
-}
-
-/* Подпись выезжает слева при наведении и по фокусу: на самой ручке места нет,
-   а понимать, что она делает, нужно до нажатия. */
-.panel-toggle__text {
-  position: absolute;
-  right: calc(100% + 8px);
-  padding: 5px 10px;
-  font-size: 12.5px;
-  line-height: 1;
-  white-space: nowrap;
-  color: #fff;
-  background: #1c1c1e;
-  border-radius: 999px;
-  opacity: 0;
-  transform: translateX(6px);
-  pointer-events: none;
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-@media (hover: hover) {
-  .panel-toggle:hover {
-    color: var(--ink);
-    box-shadow: 0 4px 14px rgba(16, 24, 40, 0.14);
-  }
-
-  .panel-toggle:hover .panel-toggle__text {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.panel-toggle:focus-visible {
-  outline: none;
-  color: var(--ink);
-  box-shadow: 0 0 0 2px var(--brand);
-}
-
-.panel-toggle:focus-visible .panel-toggle__text {
-  opacity: 1;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .approve-grid,
-  .approve-panel,
-  .panel-toggle {
-    transition: none;
-  }
-}
-
-/* Левая колонка: сцена вьювера. Высота своя и постоянная — от содержимого
-   правой панели она не зависит. */
 /* Фон сцены задаёт CSS, а не сам просмотрщик: холст прозрачный, потому что
    тонмаппинг перекрашивал бы заливку (см. js/core/scene.js).
 
@@ -394,7 +251,7 @@ body.has-fullscreen-stage {
   justify-content: center;
 }
 
-/* Сцена одна — ряда выбора нет (approval.js его не строит), и его место
+/* Сцена одна — ряда выбора нет (stage.js его не строит), и его место
    отходит снимку. */
 .stage.is-photo:not(:has(.stage-scenes)) #canvas-container {
   top: calc(66px + var(--photo-gap) + var(--photo-mat));
@@ -888,7 +745,7 @@ body.has-fullscreen-stage {
 }
 
 /* Подсказка «как управлять». Живёт вне сцены (у той overflow: hidden) и
-   позиционируется из js/ui/approval.js — поэтому fixed, а не absolute. */
+   позиционируется из js/ui/stage.js — поэтому fixed, а не absolute. */
 /* ── Окно выбора стакана ───────────────────────────────────────────────── */
 /* Лежит поверх всей страницы, а не внутри сцены: у сцены overflow: hidden, и
    карточки обрезало бы её краем — ровно та же причина, по которой снаружи
@@ -1335,331 +1192,10 @@ body.has-fullscreen-stage {
   }
 }
 
-/* ── Правая панель согласования ────────────────────────────────────────── */
-.approve-panel {
-  display: flex;
-  flex-direction: column;
-  padding: 30px 30px 26px;
-  background: var(--card);
-  border-radius: 18px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  /* По умолчанию вровень со сценой; чек-лист и форма правок могут сделать
-     панель выше — прокручивается вся страница, сцена остаётся на месте. */
-  min-height: var(--stage-h);
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--brand);
-  background: #fdece9;
-  border-radius: 999px;
-}
-
-.status-chip__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--brand);
-}
-
-.status-chip.is-done {
-  color: var(--done);
-  background: #e7f6ec;
-}
-
-.status-chip.is-done .status-chip__dot {
-  background: var(--done);
-}
-
-.approve-panel__title {
-  margin-top: 18px;
-  font-size: 30px;
-  line-height: 1.15;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.approve-panel__lead {
-  margin-top: 14px;
-  font-size: 15px;
-  line-height: 1.55;
-  color: #55565b;
-}
-
-.spec {
-  margin: 22px 0;
-  border-top: 1px solid var(--line);
-}
-
-.spec__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.spec__row dt {
-  font-size: 14px;
-  color: var(--muted);
-  flex: none;
-}
-
-.spec__row dd {
-  font-size: 14px;
-  font-weight: 600;
-  text-align: right;
-}
-
-/* Блок действий прижат к низу панели. */
-.approve-actions {
-  margin-top: auto;
-}
-
-.approve-actions[hidden],
-.edits[hidden],
-.checklist[hidden] {
-  display: none;
-}
-
-/* ── Чек-лист перед печатью ────────────────────────────────────────────── */
-.checklist {
-  margin-bottom: 18px;
-  padding: 20px;
-  background: #fafafa;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-}
-
-.checklist__title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.checklist__sub {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.check {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px 16px;
-  font-size: 14px;
-  line-height: 1.4;
-  background: #eaf7ee;
-  border: 1px solid #cfe9d8;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-/* Настоящий чекбокс скрыт, но остаётся доступным с клавиатуры. */
-.check input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.check__box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  background: #fff;
-  border: 1.5px solid #c9cdd2;
-  border-radius: 7px;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.check__box::after {
-  content: '✓';
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.check input:checked + .check__box {
-  background: #2fa860;
-  border-color: #2fa860;
-}
-
-.check input:checked + .check__box::after {
-  opacity: 1;
-}
-
-/* Снятая галочка гасит зелёный фон — видно, что пункт под вопросом. */
-.check:has(input:not(:checked)) {
-  background: #fff;
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-.check input:focus-visible + .check__box {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
-
-/* ── Кнопки действий ───────────────────────────────────────────────────── */
-.cta {
-  font: inherit;
-  cursor: pointer;
-  border-radius: 14px;
-  transition: background 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
-}
-
-.cta:active {
-  transform: translateY(1px);
-}
-
-.cta--approve {
-  width: 100%;
-  padding: 18px 22px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #fff;
-  background: var(--brand);
-  border: none;
-  box-shadow: 0 10px 26px rgba(232, 41, 12, 0.32);
-}
-
-@media (hover: hover) {
-  .cta--approve:hover {
-    background: var(--brand-strong);
-  }
-}
-
-.cta--approve:disabled {
-  cursor: default;
-  opacity: 0.6;
-  box-shadow: none;
-}
-
-.approve-panel__secondary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.cta--ghost {
-  padding: 14px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  background: #fff;
-  border: 1.5px solid rgba(0, 0, 0, 0.14);
-}
-
-@media (hover: hover) {
-  .cta--ghost:hover {
-    border-color: rgba(0, 0, 0, 0.3);
-    background: #fafafa;
-  }
-}
-
-.cta--ghost:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.approve-panel__note {
-  margin-top: 16px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  /* 2.8:1 на белом было мало для мелкой оговорки — поднято до 4.6:1. */
-  color: #74757c;
-}
-
-/* ── Форма правок ──────────────────────────────────────────────────────── */
-.edits {
-  margin-top: auto;
-  padding: 22px;
-  background: #fdf1ef;
-  border-radius: 16px;
-}
-
-.edits__title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.edits__input {
-  width: 100%;
-  margin-top: 14px;
-  padding: 14px 16px;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--ink);
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  resize: vertical;
-}
-
-.edits__input::placeholder {
-  color: #a9adb3;
-}
-
-.edits__input:focus {
-  outline: 2px solid rgba(232, 41, 12, 0.35);
-  outline-offset: 1px;
-}
-
-.edits__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.cta--dark {
-  flex: 1;
-  padding: 16px 22px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #fff;
-  background: #16161a;
-  border: none;
-  border-radius: 999px;
-}
-
-@media (hover: hover) {
-  .cta--dark:hover {
-    background: #000;
-  }
-}
-
-.edits__actions .cta--ghost {
-  border-radius: 999px;
-  padding: 16px 24px;
-}
-
 /* ── Адаптив ───────────────────────────────────────────────────────────── */
 
 /* Короткие подписи вкладок и кнопок — только на узких экранах. */
-.stage-tab__short,
-.cta__short {
+.stage-tab__short {
   display: none;
 }
 
@@ -1675,12 +1211,6 @@ body.has-fullscreen-stage {
     max-width: 1660px;
     padding: 26px;
   }
-
-  .approve-grid {
-    --panel-open: 460px;
-    grid-template-columns: minmax(0, 1fr) 460px;
-    gap: 18px;
-  }
 }
 
 @media (min-width: 1900px) {
@@ -1692,16 +1222,6 @@ body.has-fullscreen-stage {
     max-width: 1900px;
     padding: 30px;
   }
-
-  .approve-grid {
-    --panel-open: 520px;
-    grid-template-columns: minmax(0, 1fr) 520px;
-    gap: 22px;
-  }
-
-  .approve-panel {
-    padding: 36px 36px 32px;
-  }
 }
 
 @media (min-width: 2400px) {
@@ -1712,15 +1232,9 @@ body.has-fullscreen-stage {
   .page {
     max-width: 2200px;
   }
-
-  .approve-grid {
-    --panel-open: 560px;
-    grid-template-columns: minmax(0, 1fr) 560px;
-  }
 }
 
-/* 4K и сверхширокие. Панель дальше не растёт — читать строки в 700 px тяжело;
-   всё лишнее место отдаём сцене. */
+/* 4K и сверхширокие. */
 @media (min-width: 2800px) {
   :root {
     --stage-h: min(1400px, calc(100vh - 80px));
@@ -1729,57 +1243,12 @@ body.has-fullscreen-stage {
   .page {
     max-width: 3200px;
   }
-
-  .approve-grid {
-    --panel-open: 600px;
-    grid-template-columns: minmax(0, 1fr) 600px;
-  }
-}
-
-/* Свёрнутая панель важнее ширины экрана: правило идёт после медиазапросов
-   размеров, иначе на широком мониторе колонка возвращалась бы к 460–600 px. */
-@media (min-width: 901px) {
-  .approve-grid.is-panel-collapsed {
-    grid-template-columns: minmax(0, 1fr) 0px;
-  }
 }
 
 @media (max-width: 900px) {
-  .approve-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Колонки идут друг под другом: панель не сбоку, сворачивать её вправо
-     некуда — и незачем, кнопки согласования должны быть на виду. */
-  .approve-grid.is-panel-collapsed {
-    grid-template-columns: 1fr;
-  }
-
-  .approve-grid.is-panel-collapsed .approve-panel {
-    transform: none;
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .approve-panel {
-    min-width: 0;
-  }
-
-  .panel-toggle {
-    display: none;
-  }
-
-  .approve-panel {
-    min-height: 0;
-  }
-
   .stage {
     height: 62vh;
     min-height: 420px;
-  }
-
-  .approve-panel__title {
-    font-size: 26px;
   }
 
   .help-popover {
@@ -1794,21 +1263,15 @@ body.has-fullscreen-stage {
     padding: 12px;
   }
 
-  .approve-grid {
-    gap: 12px;
-  }
-
   .stage {
     height: min(66vh, 560px);
   }
 
-  .stage-tab__full,
-  .cta__full {
+  .stage-tab__full {
     display: none;
   }
 
-  .stage-tab__short,
-  .cta__short {
+  .stage-tab__short {
     display: inline;
   }
 
@@ -1951,7 +1414,7 @@ body.has-fullscreen-stage {
 
   /* Подсказка — карточка снизу во всю ширину. Раньше она раскрывалась влево от
      кнопки и упиралась в край сцены: из-под панели было видно меньше половины
-     текста. Координаты в этом режиме не считаются (см. approval.js). */
+     текста. Координаты в этом режиме не считаются (см. stage.js). */
   .help-popover {
     top: auto !important;
     left: 12px !important;
@@ -1962,29 +1425,6 @@ body.has-fullscreen-stage {
     max-height: 76vh;
     overflow-y: auto;
     padding: 18px 18px 20px;
-  }
-
-  .approve-panel {
-    padding: 22px 20px;
-  }
-
-  .approve-panel__title {
-    font-size: 24px;
-  }
-
-  /* Кнопки в столбик — в две колонки подписи не помещаются. */
-  .approve-panel__secondary {
-    grid-template-columns: 1fr;
-  }
-
-  .cta--approve {
-    padding: 16px 18px;
-    font-size: 14px;
-  }
-
-  .edits__actions {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 

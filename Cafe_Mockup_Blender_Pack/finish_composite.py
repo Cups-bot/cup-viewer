@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Доводка композита: согласовать 3D-слой с оптикой и зерном фотографии.
+Доводка композита: совместить 3D-слой с оптикой и зерном фотографии.
 
     python finish_composite.py --render out.png --plate base.png --out final.png
 

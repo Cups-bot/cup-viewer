@@ -1,30 +1,21 @@
-// Общее состояние страницы: вьювер, текущий заказ и вкладка «Развёртка».
+// Общее состояние страницы: вьювер и вкладка «Развёртка».
 //
-// У страницы два входа — js/main.js (сцена и данные) и js/ui/approval.js
-// (интерфейс согласования). Раньше они находили друг друга через window:
-// approval.js в цикле опрашивал window.cupViewer, Viewer дотягивался до
-// window.cupUnwrap, заказ лежал в window.cupOrder. На чужой странице (а страница
-// Битрикса — чужая) это и конфликт имён, и возможность подменить поведение
-// вьювера сторонним скриптом.
+// У страницы два входа — js/main.js (сцена) и js/ui/stage.js (вкладки,
+// развёртка). Через window они друг друга не ищут: глобальное имя может занять
+// чужой скрипт и подменить поведение вьювера.
 //
 // Модуль ES — singleton в пределах документа: оба входа импортируют этот файл и
 // получают один и тот же объект, ничего не публикуя наружу.
 
 const viewerWaiters = new Set();
-const orderListeners = new Set();
 
 const state = {
   viewer: null,
-  order: null,
   unwrap: null,
 };
 
 export function getViewer() {
   return state.viewer;
-}
-
-export function getOrder() {
-  return state.order;
 }
 
 export function getUnwrap() {
@@ -48,19 +39,6 @@ export function setViewer(viewer) {
   if (state.unwrap) viewer.attachUnwrap(state.unwrap);
   for (const callback of viewerWaiters) callback(viewer);
   viewerWaiters.clear();
-}
-
-// Подписка на заказ. Если заказ уже применён, callback вызывается немедленно —
-// порядок загрузки модулей на это влиять не должен.
-export function onOrder(callback) {
-  orderListeners.add(callback);
-  if (state.order) callback(state.order);
-  return () => orderListeners.delete(callback);
-}
-
-export function setOrder(order) {
-  state.order = order;
-  for (const callback of orderListeners) callback(order);
 }
 
 export function setUnwrap(view) {

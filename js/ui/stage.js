@@ -1,32 +1,11 @@
-// Интерактив «страницы согласования»: режимы просмотра, поворотный круг,
-// согласование с чек-листом, форма правок и подсказка по управлению.
-// Логики рендера не касается — только страница вокруг вьювера.
+// Интерактив вокруг вьювера: режимы просмотра, фото-сцены, развёртка,
+// поворотный круг и подсказка по управлению. Логики рендера не касается.
 
 import { UnwrapView } from './unwrap.js';
 import { blankSheetUrl } from '../utils/blankSheet.js';
 import { DEFAULT_SCENE_ID, PHOTO_SCENES } from '../data/scenes.js';
 import { CONFIG } from '../config.js';
-import { getViewer, whenViewer, onOrder, setUnwrap } from '../appState.js';
-
-// Тосты берём у вьювера, но не зависим от него: сцена может ещё грузиться или
-// вовсе не подняться, а сообщение «этот режим появится позже» нужно показать в
-// любом случае.
-function toast(message, type = 'success') {
-  const ui = getViewer()?.ui;
-  if (ui) {
-    ui.showToast(message, type);
-    return;
-  }
-
-  document.querySelector('.toast')?.remove();
-  const el = document.createElement('div');
-  el.className = type === 'error' ? 'toast toast--error' : 'toast';
-  el.setAttribute('role', 'status');
-  el.textContent = message;
-  document.body.appendChild(el);
-  setTimeout(() => el.classList.add('is-leaving'), 2200);
-  setTimeout(() => el.remove(), 2500);
-}
+import { getViewer, whenViewer, setUnwrap } from '../appState.js';
 
 // Переключение режимов сцены: 3D и развёртка живут в одном контейнере, поэтому
 // показываем нужный слой и прячем лишние элементы управления.
@@ -41,10 +20,10 @@ function initTabs() {
 
   const show = (mode) => {
     // Фото-сцену панели не перекрывают: холст сжимается до области между ними
-    // (см. .stage.is-photo в approve.css), и снимок вписывается уже туда.
+    // (см. .stage.is-photo в stage.css), и снимок вписывается уже туда.
     stage?.classList.toggle('is-photo', mode === 'scene');
     // На развёртке скрывается и выбор картона: там макет лежит плоско, без
-    // света и материала (см. .stage.is-unwrap в approve.css).
+    // света и материала (см. .stage.is-unwrap в stage.css).
     stage?.classList.toggle('is-unwrap', mode === 'unwrap');
     if (unwrapEl) unwrapEl.hidden = mode !== 'unwrap';
     // В развёртке вращать и менять фон нечего.
@@ -144,8 +123,7 @@ function initPhotoScenes() {
   markScene(currentSceneId);
 }
 
-// Просмотр развёртки. Картинку берём из данных заказа — они могут прийти позже
-// самого интерфейса, поэтому слушаем событие загрузки.
+// Просмотр развёртки.
 function initUnwrap() {
   const root = document.getElementById('unwrap');
   if (!root) return;
@@ -153,12 +131,9 @@ function initUnwrap() {
   const view = new UnwrapView(root);
   setUnwrap(view);
 
-  // Крупный файл развёртки, если он пришёл: на модель ложится ужатая текстура,
-  // а здесь смотрят мелкий текст. onOrder сам вызовет обработчик, если заказ
-  // уже применён, — порядок загрузки модулей на это влиять не должен.
   // Макета нет — показываем тот же чистый лист, что лежит на модели: пустая
   // вкладка выглядела бы как не загрузившаяся страница.
-  onOrder((order) => view.setSource(order?.unwrap || order?.texture || blankSheetUrl()));
+  view.setSource(blankSheetUrl());
 }
 
 // Поворотный круг живёт в сцене (js/core/turntable.js) — здесь только показ по
@@ -188,7 +163,7 @@ function initStage() {
 // Подсказка «как управлять». Карточка лежит вне сцены — у сцены overflow:
 // hidden, и внутри неё подсказка обрезалась краем. Значит, позицию под кнопкой
 // считаем сами; на телефоне она разворачивается снизу во всю ширину, и считать
-// нечего (см. approve.css).
+// нечего (см. stage.css).
 function initHelp() {
   const button = document.getElementById('info-btn');
   const popover = document.getElementById('help-popover');
@@ -264,180 +239,12 @@ function initHelp() {
   }, { passive: true });
 }
 
-// Согласование в два шага: первый клик раскрывает чек-лист, второй —
-// подтверждает. Незакрытые пункты не дают отправить макет в печать.
-function initApproveFlow() {
-  const approveBtn = document.getElementById('approve-btn');
-  const checklist = document.getElementById('checklist');
-  const chip = document.getElementById('status-chip');
-  if (!approveBtn || !checklist) return;
-
-  let confirming = false;
-
-  // Подписи всех состояний кнопки лежат в разметке (data-label-*), здесь только
-  // переключение — чтобы текст правился в index.html, а не в коде.
-  const label = (name, fallback) => approveBtn.dataset[name] ?? fallback;
-
-  // Подписи меняем по частям: у кнопки две — полная и короткая для телефона.
-  const setLabel = (full, short) => {
-    const fullEl = approveBtn.querySelector('.cta__full');
-    const shortEl = approveBtn.querySelector('.cta__short');
-    if (fullEl) fullEl.textContent = full;
-    if (shortEl) shortEl.textContent = short;
-    if (!fullEl && !shortEl) approveBtn.textContent = full;
-  };
-
-  approveBtn.addEventListener('click', () => {
-    if (!confirming) {
-      confirming = true;
-      checklist.hidden = false;
-      setLabel(
-        label('labelConfirm', 'Подтвердить и отправить в печать'),
-        label('labelConfirmShort', 'Подтвердить'),
-      );
-      return;
-    }
-
-    const boxes = Array.from(checklist.querySelectorAll('input[type="checkbox"]'));
-    if (!boxes.every((box) => box.checked)) {
-      toast('Снятая галочка — значит, нужны правки', 'error');
-      return;
-    }
-
-    if (chip) {
-      chip.classList.add('is-done');
-      const text = chip.querySelector('.status-chip__text');
-      const done = chip.dataset.labelDone;
-      if (text && done) text.textContent = done;
-    }
-    checklist.hidden = true;
-    approveBtn.disabled = true;
-    const done = label('labelDone', 'Согласовано ✓');
-    setLabel(done, done);
-    document.getElementById('edits-btn')?.setAttribute('disabled', '');
-    toast('Заказ согласован и отправлен в печать');
-  });
-}
-
-// Форма правок: подменяет собой блок действий, «Отмена» возвращает обратно.
-function initEditsFlow() {
-  const actions = document.getElementById('approve-actions');
-  const form = document.getElementById('edits-form');
-  const openBtn = document.getElementById('edits-btn');
-  const cancelBtn = document.getElementById('edits-cancel');
-  const input = document.getElementById('edits-text');
-  if (!actions || !form) return;
-
-  const close = () => {
-    form.hidden = true;
-    actions.hidden = false;
-  };
-
-  openBtn?.addEventListener('click', () => {
-    actions.hidden = true;
-    form.hidden = false;
-    input?.focus();
-  });
-
-  cancelBtn?.addEventListener('click', close);
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    if (!input?.value.trim()) {
-      toast('Напишите, что поправить', 'error');
-      input?.focus();
-      return;
-    }
-    close();
-    if (input) input.value = '';
-    toast('Правки отправлены менеджеру');
-  });
-}
-
-// Свернуть панель согласования вправо.
-//
-// ЗАЧЕМ. На широком экране панель забирает 420 px, а смотрят прежде всего на
-// сам стакан: свёрнутая панель отдаёт сцене всю ширину колонки. Состояние
-// запоминается — клиент, свернувший панель, не должен разворачивать её после
-// каждой перезагрузки.
-//
-// Кнопка остаётся на виду и в свёрнутом состоянии: панель, которую нечем
-// вернуть, — это потерянная панель. Она же меняет подпись и aria-expanded,
-// поэтому с клавиатуры и с экранного диктора состояние читается однозначно.
-//
-// На узком экране колонки идут друг под другом, сворачивать нечего: там кнопка
-// скрыта (см. approve.css), а класс с сетки снимается.
-const PANEL_STORAGE_KEY = 'cup-viewer:panel-collapsed';
-
-function initPanelToggle() {
-  const grid = document.querySelector('.approve-grid');
-  const button = document.getElementById('panel-toggle');
-  const panel = document.getElementById('approve-panel');
-  if (!grid || !button || !panel) return;
-
-  const text = button.querySelector('.panel-toggle__text');
-
-  const apply = (collapsed) => {
-    grid.classList.toggle('is-panel-collapsed', collapsed);
-    button.setAttribute('aria-expanded', String(!collapsed));
-    // Свёрнутая панель не должна ловить фокус табом и попадать в диктор.
-    panel.inert = collapsed;
-    const label = collapsed
-      ? button.dataset.labelExpand ?? 'Показать панель'
-      : button.dataset.labelCollapse ?? 'Свернуть панель';
-    button.setAttribute('aria-label', label);
-    button.title = label;
-    if (text) text.textContent = collapsed ? 'Заказ' : 'Свернуть';
-  };
-
-  let collapsed = false;
-  try {
-    collapsed = localStorage.getItem(PANEL_STORAGE_KEY) === '1';
-  } catch {
-    // Приватный режим и заблокированные куки: не беда, откроемся развёрнутыми.
-  }
-  apply(collapsed);
-
-  button.addEventListener('click', () => {
-    collapsed = !collapsed;
-    apply(collapsed);
-    try {
-      localStorage.setItem(PANEL_STORAGE_KEY, collapsed ? '1' : '0');
-    } catch {
-      // см. выше
-    }
-  });
-
-  // Холст следит за своим контейнером сам (ResizeObserver во Viewer), но во
-  // время анимации ширина меняется каждый кадр. Один пересчёт в конце —
-  // страховка на случай, если наблюдатель пропустит последний шаг.
-  grid.addEventListener('transitionend', (event) => {
-    if (event.propertyName === 'grid-template-columns') getViewer()?.resize();
-  });
-}
-
-// Ссылка на заказ в буфер обмена.
-function initShare() {
-  document.getElementById('share-btn')?.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      toast('Ссылка скопирована');
-    } catch {
-      toast('Не удалось скопировать ссылку', 'error');
-    }
-  });
-}
-
 function init() {
   initTabs();
   initPhotoScenes();
   initUnwrap();
   initStage();
   initHelp();
-  initApproveFlow();
-  initEditsFlow();
-  initShare();
-  initPanelToggle();
 }
 
 if (document.readyState === 'loading') {

@@ -14,7 +14,7 @@ import { HELPER_LAYER } from './layers.js';
 const TICKS = 24;
 const RING_SEGMENTS = 128;
 
-// Цвета совпадают с макетом страницы согласования. На тёмном фоне тёмный круг
+// Цвета совпадают с макетом страницы. На тёмном фоне тёмный круг
 // пропадает, поэтому держим вторую, светлую пару (см. setBackground).
 const INK = 0x1c1c1e;
 const PAPER = 0xffffff;

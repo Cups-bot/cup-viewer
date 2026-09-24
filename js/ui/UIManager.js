@@ -64,7 +64,7 @@ export class UIManager {
       cupBtn: document.getElementById('cup-btn'),
       cupDialog: document.getElementById('cup-dialog'),
       cupBackdrop: document.getElementById('cup-backdrop'),
-      // Слайдера может не быть: на странице согласования поворотом управляет
+      // Слайдера может не быть: на странице поворотом управляет
       // круг под моделью (js/core/turntable.js).
       rotateWrap: document.getElementById('rotate-wrap'),
       rotateSlider: document.getElementById('rotate-slider'),
@@ -122,7 +122,7 @@ export class UIManager {
       chip.dataset.paper = key;
       chip.setAttribute('aria-pressed', 'false');
       // Подпись объясняет, чем типы отличаются на вид: сам по себе «мелованный»
-      // мало что говорит тому, кто согласовывает макет впервые.
+      // мало что говорит тому, кто видит макет впервые.
       chip.title = paper.note ? `${paper.label}: ${paper.note.toLowerCase()}` : paper.label;
 
       const dot = document.createElement('span');
@@ -131,7 +131,7 @@ export class UIManager {
       dot.setAttribute('aria-hidden', 'true');
 
       // Две подписи, как у вкладок режима: узкий экран показывает короткую
-      // (см. approve.css).
+      // (см. stage.css).
       const label = document.createElement('span');
       label.className = 'paper-chip__full';
       label.textContent = paper.label;
@@ -245,7 +245,7 @@ export class UIManager {
   //
   // Меню раскрывается вверх прямо из панели, без вычисления координат: оно
   // низкое и помещается в сцену целиком. Подсказке «как управлять» позицию
-  // приходится считать в js/ui/approval.js только потому, что она высокая и
+  // приходится считать в js/ui/stage.js только потому, что она высокая и
   // упирается в край сцены с overflow: hidden.
   #bindExportMenu() {
     const { exportBtn, exportPopover, exportPhotos, exportStart } = this.dom;
@@ -265,7 +265,7 @@ export class UIManager {
     // Клик мимо меню и Escape закрывают его — как у подсказки «как управлять».
     //
     // Слушаем на погружении (третий аргумент true), а не на всплытии: кнопка
-    // подсказки гасит всплытие у себя (js/ui/approval.js), и на всплытии этот
+    // подсказки гасит всплытие у себя (js/ui/stage.js), и на всплытии этот
     // обработчик до клика по ней просто не доходил — подсказка раскрывалась
     // поверх меню, и на экране висели обе карточки разом.
     document.addEventListener(

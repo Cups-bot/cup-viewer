@@ -1,11 +1,10 @@
 // Каталог 3D-моделей стаканов.
 //
 // ЭТО ЕДИНСТВЕННОЕ МЕСТО, КУДА ДОПИСЫВАЕТСЯ НОВАЯ МОДЕЛЬ. Список ниже наполняет
-// сразу три вещи:
+// сразу две вещи:
 //
 //   • окно выбора стакана на странице (js/ui/cupPicker.js) — карточки в нём
 //     рисуются по размерам отсюда, поиск идёт по названию, объёму и типу;
-//   • сопоставление «номенклатура из 1С → файл модели» (js/data/order.js);
 //   • правила, по которым на модель ложится макет (js/loaders/).
 //
 // ── Как добавить бумажную позицию ─────────────────────────────────────────
@@ -167,57 +166,10 @@ const PLASTIC_CUPS = [
 
 export const CUP_MODELS = Object.freeze([...PAPER_CUPS, ...PLASTIC_CUPS]);
 
-// Что показывать, если номенклатуру опознать не удалось.
-export const FALLBACK_CUP_ID = 'HB80-280';
-
-// Если точного совпадения по номенклатуре нет, она разбирается по префиксу типа
-// стакана. Порядок важен: выигрывает первое совпадение.
-const ID_PATTERNS = [
-  { test: /^DW/i, id: 'DW80-280' }, // double wall — двухслойный
-  { test: /^EM/i, id: 'EM80-280' }, // embossed — с тиснением
-  { test: /^HB/i, id: 'HB80-280' }, // hot beverage — однослойный
-  { test: /^PP/i, id: 'PP-500' }, // полипропилен
-];
-
 const BY_ID = new Map(CUP_MODELS.map((cup) => [cup.id.toUpperCase(), cup]));
-const BY_FILE = new Map(CUP_MODELS.map((cup) => [cup.file, cup]));
-
-// Номенклатура из 1С приходит с хвостами: «HB80-280K-0037», «HB80-280 (белый)».
-// Сравниваем по буквам и цифрам, игнорируя остальное.
-const squash = (value) => String(value ?? '').toUpperCase().replace(/[^A-ZА-Я0-9]/g, '');
 
 export function findCup(id) {
   return BY_ID.get(String(id ?? '').trim().toUpperCase()) ?? null;
-}
-
-// Модель по пути к файлу. Нужна, когда заказ задаёт модель напрямую полем
-// `model`, минуя номенклатуру: правила печати всё равно нужно взять из каталога.
-export function findCupByFile(file) {
-  return BY_FILE.get(String(file ?? '').trim()) ?? null;
-}
-
-// Номенклатура → модель. Возвращает { cup, matchedBy }: по matchedBy видно,
-// опознали позицию точно или свалились в запасной вариант.
-export function resolveCup(sku) {
-  const key = String(sku ?? '').trim();
-  if (!key) return { cup: findCup(FALLBACK_CUP_ID), matchedBy: 'fallback' };
-
-  const exact = findCup(key);
-  if (exact) return { cup: exact, matchedBy: 'sku' };
-
-  // «HB80-280K-0037» — это HB80-280 с артикулом макета. Берём самое длинное
-  // совпадение, иначе HB80-340 и HB80-360 спорили бы за общее начало.
-  const squashed = squash(key);
-  const prefixed = CUP_MODELS.filter((cup) => squashed.startsWith(squash(cup.id))).sort(
-    (a, b) => b.id.length - a.id.length,
-  )[0];
-  if (prefixed) return { cup: prefixed, matchedBy: 'sku' };
-
-  const pattern = ID_PATTERNS.find((entry) => entry.test.test(key));
-  if (pattern) return { cup: findCup(pattern.id), matchedBy: 'pattern' };
-
-  console.warn(`Каталог: номенклатура "${key}" неизвестна — грузим модель по умолчанию.`);
-  return { cup: findCup(FALLBACK_CUP_ID), matchedBy: 'fallback' };
 }
 
 // Список для окна выбора: модели, разложенные по разделам в порядке каталога.

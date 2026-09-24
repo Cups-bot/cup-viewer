@@ -112,7 +112,7 @@ def shadow_layer(plate, shadow_png, box, gain=1.0, tint=(1.0, 1.0, 1.0),
     gain и tint — те же, что у композита в build_photo_composite.py
     (shadow_gain·shadow_power и shadow_tint): там тень вмешивается как
     plate·(1 − gain·tint·(1 − s)). Без них слой выходил в 1.35 раза светлее
-    согласованного рендера, и стакан в браузере висел над столом.
+    эталонного рендера, и стакан в браузере висел над столом.
     """
     pl = plate.crop(box).convert('RGB')
     # Пасс приходит с шумом рендера. Тень всё равно мягкая, а шум в альфе
