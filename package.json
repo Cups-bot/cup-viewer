@@ -20,5 +20,8 @@
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",
     "three": "0.160.0"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.3.289"
   }
 }

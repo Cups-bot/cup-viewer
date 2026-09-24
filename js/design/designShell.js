@@ -6,6 +6,9 @@ import { CONFIG } from '../config.js';
 import { CupPicker } from './modelPicker.js';
 import { bindMenu } from '../ui/toolbar.js';
 import { saveSession } from './session.js';
+import { DesignError, prepareDesign } from './prepareDesign.js';
+import { aspectMismatch } from './fileType.js';
+import { MESSAGES } from '../ui/messages.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const WALL_LABELS = Object.freeze({
@@ -32,7 +35,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
 
   const picker = initModelPicker({ state, catalog, actions });
   initMaterialMenu({ state, catalog, actions });
-  initUpload({ state, mode, viewer, feedback });
+  initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initModelMeta({ state, catalog });
 
@@ -174,34 +177,96 @@ function initModelMeta({ state, catalog }) {
   render(state.get());
 }
 
-// Замена макета: кнопка и перетаскивание картинки на страницу. Файл остаётся
-// в браузере — ссылка blob: живёт, пока макет стоит на модели.
-function initUpload({ state, mode, viewer, feedback }) {
+// Загрузка макета (§6, бриф 03b): кнопка и перетаскивание. Тип — по
+// сигнатуре, PDF — первая страница через pdf.js. Файл остаётся в браузере.
+//
+// Повторный выбор во время обработки отменяет предыдущий (§17): у каждой
+// загрузки своё поколение, и результат устаревшего не применяется.
+function initUpload({ state, mode, catalog, viewer, feedback }) {
   const button = document.getElementById('texture-btn');
   const input = document.getElementById('texture-input');
   const overlay = document.getElementById('drop-overlay');
-  let ownedUrl = null;
+  let generation = 0;
+  let controller = null;
+  // Растры, которые сделала загрузка: освобождаются, когда макет сменился.
+  const owned = new Map();
+
+  state.subscribe(['design'], (s) => {
+    for (const [url, release] of owned) {
+      if (url === s.design?.textureUrl) continue;
+      release();
+      owned.delete(url);
+    }
+  });
+
+  const fail = (error) => {
+    if (error?.name === 'AbortError') return;
+    console.warn('Макет не загрузился:', error);
+    const text =
+      error instanceof DesignError && error.reason === 'too-big'
+        ? MESSAGES.fileTooBig
+        : error instanceof DesignError && error.reason === 'unsupported'
+          ? MESSAGES.formatUnsupported
+          : MESSAGES.designFailed;
+    feedback.onToast(text, 'error');
+  };
 
   const apply = async (file) => {
     if (!mode.check('uploadDesign', 'загрузить макет')) return;
-    if (!state.get().modelId) return;
-    if (!file.type.startsWith('image/')) {
-      feedback.onToast('Неподдерживаемый тип файла', 'error');
+    const model = catalog.model(state.get().modelId);
+    if (!model) return;
+
+    controller?.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+    const token = ++generation;
+    const stale = () => token !== generation;
+
+    feedback.onLoading('Обрабатываем макет…');
+    let prepared;
+    try {
+      prepared = await prepareDesign(file, model, {
+        signal,
+        onStage: (stage) => stage === 'pdf' && feedback.onLoading('Растрируем PDF…'),
+      });
+    } catch (error) {
+      if (!stale()) {
+        feedback.onLoaded();
+        fail(error);
+      }
       return;
     }
+    if (stale() || state.get().modelId !== model.id) {
+      prepared.release();
+      return;
+    }
+
     const previous = state.get().design;
-    const url = URL.createObjectURL(file);
-    state.set({ design: { textureUrl: url, unwrapUrl: url, width: null, height: null } });
-    const { updated } = await viewer.present({ designUrl: url });
-    if (updated > 0) {
-      if (ownedUrl) URL.revokeObjectURL(ownedUrl);
-      ownedUrl = url;
-      feedback.onToast(`Дизайн применён: ${file.name}`);
+    owned.set(prepared.textureUrl, prepared.release);
+    state.set({
+      design: {
+        textureUrl: prepared.textureUrl,
+        unwrapUrl: prepared.unwrapUrl,
+        width: prepared.width,
+        height: prepared.height,
+      },
+    });
+    const { updated } = await viewer.present({ designUrl: prepared.textureUrl });
+    if (stale()) return;
+    feedback.onLoaded();
+    if (!(updated > 0)) {
+      state.set({ design: previous });
+      fail(new DesignError('broken', 'макет не лёг на модель'));
       return;
     }
-    feedback.onToast(updated === 0 ? 'В модели нет поверхности для дизайна' : 'Не удалось применить дизайн', 'error');
-    state.set({ design: previous });
-    URL.revokeObjectURL(url);
+
+    // Неблокирующие предупреждения: макет стоит, но стоит проверить.
+    const notes = [];
+    if (prepared.pages > 1) notes.push(MESSAGES.firstPageUsed);
+    if (aspectMismatch([prepared.width, prepared.height], model.textureMapping.unwrapMm) > 0.02) {
+      notes.push(MESSAGES.aspectMismatch);
+    }
+    feedback.onToast(notes.length ? notes.join(' · ') : 'Макет на модели', notes.length ? 'warning' : 'success');
   };
 
   if (button && input) {

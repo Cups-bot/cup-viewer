@@ -428,6 +428,11 @@ button {
   background: var(--danger);
 }
 
+.toast--warning {
+  color: #3d2c00;
+  background: #ffd766;
+}
+
 .toast.is-leaving {
   opacity: 0;
   transition: opacity 0.3s ease;

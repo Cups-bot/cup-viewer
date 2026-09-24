@@ -35,6 +35,10 @@ const TYPES = {
   '.exr': 'image/x-exr',
   '.wasm': 'application/wasm',
   '.map': 'application/json; charset=utf-8',
+  '.bcmap': 'application/octet-stream',
+  '.pfb': 'application/octet-stream',
+  '.ttf': 'font/ttf',
+  '.icc': 'application/vnd.iccprofile',
 };
 
 // Ровно тот набор, что описан в docs/security.md. Держим его здесь, чтобы
@@ -42,7 +46,9 @@ const TYPES = {
 const SECURITY_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self'",
+    // wasm-unsafe-eval — только компиляция WebAssembly (декодеры pdf.js),
+    // произвольный eval по-прежнему запрещён.
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self'",
     "img-src 'self' data: blob:",
     // blob: здесь обязателен. GLTFLoader достаёт встроенные в .glb текстуры

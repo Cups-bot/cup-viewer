@@ -103,8 +103,31 @@ async function stampPages() {
   console.log(`${Object.keys(PAGES).join(', ')} — метки версий обновлены`);
 }
 
+// pdf.js: worker и ресурсы (шрифты, кодировки, ICC, wasm) — рядом с сайтом.
+// Грузятся только при первом PDF-макете (js/design/pdfRaster.js).
+const PDFJS_DIRS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'];
+// Скриптинг PDF (quickjs) не нужен: формы и JS в макете не исполняем.
+const PDFJS_SKIP = /quickjs/;
+
+async function vendorPdfjs() {
+  const from = resolve(root, 'node_modules/pdfjs-dist');
+  const to = resolve(root, 'vendor/pdfjs');
+  await rm(to, { recursive: true, force: true });
+  await mkdir(to, { recursive: true });
+  await cp(resolve(from, 'legacy/build/pdf.worker.min.mjs'), resolve(to, 'pdf.worker.min.mjs'));
+  for (const dir of PDFJS_DIRS) {
+    await cp(resolve(from, dir), resolve(to, dir), {
+      recursive: true,
+      filter: (source) => !PDFJS_SKIP.test(source),
+    });
+  }
+  await cp(resolve(from, 'LICENSE'), resolve(to, 'LICENSE'));
+  console.log('vendor/pdfjs — worker и ресурсы pdf.js на месте');
+}
+
 async function run() {
   await vendorDraco();
+  await vendorPdfjs();
 
   if (watch) {
     const ctx = await context(options);

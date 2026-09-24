@@ -17,17 +17,20 @@ export function createFeedback({ toastDuration = 2500 } = {}) {
       if (loader) loader.hidden = true;
     },
 
+    // type: 'success' | 'warning' (макет стоит, но стоит проверить) | 'error'.
     onToast(message, type = 'success') {
       document.querySelector('.toast')?.remove();
       const toast = document.createElement('div');
-      toast.className = type === 'error' ? 'toast toast--error' : 'toast';
+      toast.className = type === 'success' ? 'toast' : `toast toast--${type}`;
       toast.setAttribute('role', 'status');
       toast.textContent = message;
       document.body.appendChild(toast);
       // Уход начинается чуть раньше: анимация исчезновения укладывается в
       // последние 300 мс, и тост не обрывается на полуслове.
-      setTimeout(() => toast.classList.add('is-leaving'), Math.max(toastDuration - 300, 0));
-      setTimeout(() => toast.remove(), toastDuration);
+      // Предупреждение и ошибку надо успеть прочитать: они висят вдвое дольше.
+      const duration = type === 'success' ? toastDuration : toastDuration * 2;
+      setTimeout(() => toast.classList.add('is-leaving'), Math.max(duration - 300, 0));
+      setTimeout(() => toast.remove(), duration);
     },
   };
   return api;
