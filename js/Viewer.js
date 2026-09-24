@@ -858,8 +858,12 @@ export class Viewer {
         continue;
       }
       if (target.material && target.material !== shown.material) {
+        const opacity = this.modelLoader.wallOpacity;
         this.#applyMaterial(target.material);
         shown.material = target.material;
+        // Прозрачность стенки пластика запечена в лист макета (TextureManager):
+        // у другого пластика она другая — лист кладётся заново.
+        if (this.modelLoader.wallOpacity !== opacity) shown.designUrl = undefined;
         continue;
       }
       if (shown.model && target.designUrl !== shown.designUrl) {

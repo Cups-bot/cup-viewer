@@ -3,6 +3,7 @@
 //   node tests/render/run.mjs baseline [--only id,id]   снять эталоны в tests/render/baseline/
 //   node tests/render/run.mjs check    [--only id,id]   сравнить с эталонами → tests/render/out/
 //   node tests/render/run.mjs check --strict            любое отличие от эталона — провал
+//   node tests/render/run.mjs candidates                кадры новых материалов → tests/render/candidates/
 //
 // Строгий режим — для рефакторингов: рендер детерминирован бит в бит, и кадр,
 // который «не должен был измениться», обязан совпасть с эталоном точно. Пороги
@@ -22,11 +23,12 @@ import { chromium } from 'playwright';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 import { deltaEStats } from './color.mjs';
-import { CANVAS, FRAMES, THRESHOLDS } from './matrix.mjs';
+import { CANDIDATE_FRAMES, CANVAS, FRAMES, THRESHOLDS } from './matrix.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
 const BASELINE = resolve(here, 'baseline');
+const CANDIDATES = resolve(here, 'candidates');
 const OUT = resolve(here, 'out');
 const BROWSER_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-rasterization'];
 const FRAME_TIMEOUT = 180_000;
@@ -114,11 +116,23 @@ async function captureAll(frames) {
   return shots;
 }
 
-function selectFrames() {
+function selectFrames(list = FRAMES) {
   const index = process.argv.indexOf('--only');
-  if (index < 0) return FRAMES;
+  if (index < 0) return list;
   const ids = new Set(process.argv[index + 1].split(','));
-  return FRAMES.filter((frame) => ids.has(frame.id));
+  return list.filter((frame) => ids.has(frame.id));
+}
+
+// Кандидаты в эталоны: снимаются и складываются рядом, но не сравниваются.
+async function candidates() {
+  const shots = await captureAll(selectFrames(CANDIDATE_FRAMES));
+  await mkdir(CANDIDATES, { recursive: true });
+  for (const { frame, png } of shots) await writeFile(resolve(CANDIDATES, `${frame.id}.png`), PNG.sync.write(png));
+  // Для глаз: попарно спереди | сверху.
+  const rows = [];
+  for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2).map((shot) => shot.png));
+  await writeFile(resolve(CANDIDATES, 'contact-sheet.png'), PNG.sync.write(contactSheet(rows)));
+  console.log(`Кандидаты: ${shots.length} кадров → tests/render/candidates/ (эталонами станут после «ок»)`);
 }
 
 async function baseline() {
@@ -275,9 +289,9 @@ async function check() {
 }
 
 const command = process.argv[2];
-const run = { baseline, check }[command];
+const run = { baseline, check, candidates }[command];
 if (!run) {
-  console.error('использование: node tests/render/run.mjs baseline|check [--only id,id]');
+  console.error('использование: node tests/render/run.mjs baseline|check|candidates [--only id,id]');
   process.exit(2);
 }
 run().catch((error) => {

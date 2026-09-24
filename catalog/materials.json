@@ -1,41 +1,12 @@
 {
   "schemaVersion": 1,
   "materials": [
-    {
-      "id": "coated",
-      "name": "Мелованный",
-      "short": "Глянец",
-      "note": "Гладкий, собранный блик",
-      "kind": "paper",
-      "swatch": "#d8dee6",
-      "params": { "roughness": 0.18, "metalness": 0, "relief": 0.1, "reliefScale": 42, "normalScale": 0.3 }
-    },
-    {
-      "id": "uncoated",
-      "name": "Немелованный",
-      "short": "Мат",
-      "note": "Матовый, видно волокно",
-      "kind": "paper",
-      "swatch": "#efe9de",
-      "params": { "roughness": 0.85, "metalness": 0, "relief": 0.55, "reliefScale": 16, "normalScale": 1.4 }
-    },
-    {
-      "id": "pp-frosted",
-      "name": "Матовый пластик",
-      "short": "PP матовый",
-      "note": "Молочный полипропилен",
-      "kind": "plastic",
-      "swatch": "#e9ecef",
-      "params": {
-        "color": "#ffffff",
-        "opacity": 0.65,
-        "roughness": 0.62,
-        "metalness": 0,
-        "clearcoat": 0.35,
-        "clearcoatRoughness": 0.3,
-        "sheen": 0.5,
-        "sheenRoughness": 0.6
-      }
-    }
+    {"id": "coated", "name": "Мелованный", "short": "Глянец", "note": "Гладкий, собранный блик", "kind": "paper", "swatch": "#d8dee6", "params": {"roughness": 0.18, "metalness": 0, "relief": 0.1, "reliefScale": 42, "normalScale": 0.3}},
+    {"id": "uncoated", "name": "Немелованный", "short": "Мат", "note": "Матовый, видно волокно", "kind": "paper", "swatch": "#efe9de", "params": {"roughness": 0.85, "metalness": 0, "relief": 0.55, "reliefScale": 16, "normalScale": 1.4}},
+    {"id": "soft-touch", "name": "Soft-touch", "short": "Soft-touch", "note": "Бархатистая матовая плёнка", "kind": "paper", "swatch": "#e9e7e4", "params": {"roughness": 0.92, "metalness": 0, "relief": 0.05, "reliefScale": 42, "normalScale": 0.35, "sheen": 0.12, "sheenRoughness": 0.3, "sheenColor": "#ffffff"}},
+    {"id": "kraft", "name": "Крафт", "short": "Крафт", "note": "Бурый картон, печать без белил", "kind": "paper", "printBlend": "multiply", "swatch": "#b08a60", "params": {"roughness": 0.9, "metalness": 0, "relief": 0.6, "reliefScale": 14, "normalScale": 1.8, "boardColor": "#b08a60"}},
+    {"id": "pp-frosted", "name": "Матовый пластик", "short": "PP матовый", "note": "Молочный полипропилен", "kind": "plastic", "swatch": "#e9ecef", "params": {"color": "#ffffff", "opacity": 0.65, "roughness": 0.62, "metalness": 0, "clearcoat": 0.35, "clearcoatRoughness": 0.3, "sheen": 0.5, "sheenRoughness": 0.6}},
+    {"id": "pp-clear", "name": "Прозрачный PP", "short": "PP прозрачный", "note": "Прозрачный полипропилен", "kind": "plastic", "swatch": "#f4f7fa", "params": {"color": "#ffffff", "opacity": 0.14, "roughness": 0.08, "metalness": 0, "clearcoat": 1, "clearcoatRoughness": 0.04, "sheen": 0, "sheenRoughness": 1, "ior": 1.49}},
+    {"id": "pet-clear", "name": "Прозрачный PET", "short": "PET", "note": "Кристально прозрачный PET", "kind": "plastic", "swatch": "#f7fafc", "params": {"color": "#ffffff", "opacity": 0.08, "roughness": 0.03, "metalness": 0, "clearcoat": 1, "clearcoatRoughness": 0.02, "sheen": 0, "sheenRoughness": 1, "ior": 1.575}}
   ]
 }

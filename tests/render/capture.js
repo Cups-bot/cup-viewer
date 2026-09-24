@@ -6,7 +6,7 @@ import { CONFIG } from '../../js/config.js';
 import { Viewer } from '../../js/Viewer.js';
 import { loadCatalog } from '../../js/catalog/catalog.js';
 import { UnwrapView } from '../../js/ui/unwrap.js';
-import { FRAMES, CANVAS } from './matrix.mjs';
+import { CANDIDATE_FRAMES, FRAMES, CANVAS } from './matrix.mjs';
 import { fixtureName } from './fixtures/names.mjs';
 
 // Кадр не должен зависеть от часов и от экрана: автоповорот выключен,
@@ -62,7 +62,7 @@ async function captureUnwrap(url) {
 
 async function capture() {
   const id = new URLSearchParams(location.search).get('frame');
-  const frame = FRAMES.find((entry) => entry.id === id);
+  const frame = [...FRAMES, ...CANDIDATE_FRAMES].find((entry) => entry.id === id);
   if (!frame) throw new Error(`нет кадра «${id}»`);
 
   const stage = document.getElementById('stage');

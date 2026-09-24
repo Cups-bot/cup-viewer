@@ -12,7 +12,8 @@
     "check": "node scripts/check-config.mjs",
     "test:unit": "node --test \"tests/unit/*.test.mjs\"",
     "render:baseline": "node tests/render/fixtures/make.mjs && node tests/render/run.mjs baseline",
-    "render:check": "node tests/render/run.mjs check"
+    "render:check": "node tests/render/run.mjs check",
+    "render:candidates": "node tests/render/run.mjs candidates"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

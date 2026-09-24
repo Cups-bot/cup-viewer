@@ -3,6 +3,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { disposeObject, measure, frameObject } from '../utils/helpers.js';
 import { applyPaperSurface } from '../core/paperSurface.js';
+import { installPrintShading, setPrintWithoutWhite } from '../core/printShading.js';
+
+// Параметры, ради которых картону нужен MeshPhysicalMaterial (в файле он
+// MeshStandardMaterial): бархат soft-touch, лак, коэффициент преломления.
+const PHYSICAL_PARAMS = ['sheen', 'clearcoat', 'ior', 'specularIntensity'];
 
 // Правила печати для модели без записи каталога: макет ложится на материалы,
 // у которых в файле уже есть карта цвета.
@@ -35,12 +40,17 @@ export class ModelLoader {
     this.loader.setDRACOLoader(this.draco);
 
     this.currentModel = null;
-    // Позиция каталога (js/data/models.js) и её правила печати. Для модели не
+    // Запись каталога (catalog/models.json) и её правила печати. Для модели не
     // из каталога — null и правила по умолчанию.
     this.cup = null;
     this.print = DEFAULT_PRINT;
     // Материалы, на которые ложится макет, — уникальные экземпляры.
     this.printMaterials = [];
+    // Где материалы печати висят на мешах, и их физические копии.
+    this.printSlots = [];
+    this.physicalCopies = new Map();
+    // Непечатный картон бумажной модели: красится вместе с крафтом.
+    this.boardMaterials = [];
     // Насколько плотна незапечатанная стенка. У картона — единица, у пластика
     // приходит из справочника. Это читает TextureManager: прозрачность стенки
     // он запекает в сам лист, чтобы печать поверх осталась кроющей.
@@ -91,6 +101,8 @@ export class ModelLoader {
 
     // Картон глухой: лист для него кладётся без прозрачности.
     this.wallOpacity = 1;
+    this.#usePhysical(PHYSICAL_PARAMS.some((key) => finish[key] != null));
+    const withoutWhite = material.printBlend === 'multiply';
 
     let updated = 0;
     for (const material of this.printMaterials) {
@@ -104,10 +116,68 @@ export class ModelLoader {
       if (finish.relief != null) {
         applyPaperSurface(material, finish.relief, finish.reliefScale, finish.normalScale ?? 1);
       }
+      // Цвет картона: у крафта свой, у остальных — тот, что в файле модели.
+      const base = material.userData.base;
+      if (finish.boardColor) material.color.set(finish.boardColor);
+      else if (base) material.color.copy(base.color);
+      setPrintWithoutWhite(material, withoutWhite);
+      if (material.isMeshPhysicalMaterial) this.#applyPhysicalParams(material, finish);
       material.needsUpdate = true;
       updated++;
     }
+    // Картон один на весь стакан: внутренняя сторона и кромка — того же цвета.
+    for (const material of this.boardMaterials) {
+      material.color.copy(finish.boardColor ? new THREE.Color(finish.boardColor) : material.userData.baseColor);
+    }
     return updated;
+  }
+
+  // Параметры физического материала: чего нет в каталоге — то из файла.
+  #applyPhysicalParams(material, finish) {
+    const base = material.userData.base ?? {};
+    material.sheen = finish.sheen ?? 0;
+    material.sheenRoughness = finish.sheenRoughness ?? 1;
+    material.sheenColor.set(finish.sheenColor ?? '#ffffff');
+    material.clearcoat = finish.clearcoat ?? 0;
+    material.clearcoatRoughness = finish.clearcoatRoughness ?? 0;
+    material.ior = finish.ior ?? base.ior ?? 1.5;
+    material.specularIntensity = finish.specularIntensity ?? base.specularIntensity ?? 1;
+  }
+
+  // Картону из файла нужен физический материал только на время soft-touch и
+  // подобных. Экземпляр подменяется в мешах, а не переделывается: прежний
+  // MeshStandardMaterial возвращается нетронутым, и кадры обычного картона
+  // остаются бит в бит прежними.
+  #usePhysical(on) {
+    if (this.printSlots.length === 0) return;
+    for (const slot of this.printSlots) {
+      if (slot.base.isMeshPhysicalMaterial) continue;
+      const target = on ? this.#physicalCopy(slot.base) : slot.base;
+      const current = slot.index < 0 ? slot.node.material : slot.node.material[slot.index];
+      if (current === target) continue;
+      target.map = current.map;
+      target.envMapIntensity = current.envMapIntensity;
+      if (slot.index < 0) slot.node.material = target;
+      else slot.node.material[slot.index] = target;
+    }
+    const active = new Set(
+      this.printSlots.map((slot) => (slot.index < 0 ? slot.node.material : slot.node.material[slot.index])),
+    );
+    this.printMaterials = [...active, ...this.printMaterials.filter((material) => material.userData.backSide)];
+  }
+
+  #physicalCopy(base) {
+    const cached = this.physicalCopies.get(base);
+    if (cached) return cached;
+    const physical = new THREE.MeshPhysicalMaterial();
+    // copy() физического ждёт физический источник — берём копирование
+    // обычного и возвращаем физические define'ы, которые оно затёрло.
+    THREE.MeshStandardMaterial.prototype.copy.call(physical, base);
+    physical.defines = { STANDARD: '', PHYSICAL: '' };
+    physical.userData = { ...base.userData };
+    installPrintShading(physical);
+    this.physicalCopies.set(base, physical);
+    return physical;
   }
 
   // Пластик из каталога материалов.
@@ -134,7 +204,13 @@ export class ModelLoader {
         material.sheen = finish.sheen;
         material.sheenRoughness = finish.sheenRoughness;
         material.sheenColor.set(finish.color);
+        // Коэффициент преломления задаёт силу отражения (F0): у PET он выше,
+        // чем у PP. Нет в каталоге — тот, что в файле модели.
+        const base = material.userData.base ?? {};
+        material.ior = finish.ior ?? base.ior ?? material.ior;
+        material.specularIntensity = finish.specularIntensity ?? base.specularIntensity ?? material.specularIntensity;
       }
+      setPrintWithoutWhite(material, false);
 
       material.transparent = true;
       // Прозрачность приходит ИЗ МАКЕТА, а не отсюда: незапечатанная стенка
@@ -274,8 +350,14 @@ export class ModelLoader {
   // Blender), и тогда замена текстуры обходила бы его дважды.
   #prepareMaterials(model) {
     this.printMaterials = [];
+    this.printSlots = [];
+    this.physicalCopies = new Map();
+    // Остальной картон бумажной модели — внутренняя сторона, кромка.
+    this.boardMaterials = [];
+    const paper = this.cup?.type === 'paper';
     const named = new Set(this.print.materials ?? []);
     const seen = new Set();
+    const takes = (material) => (named.size > 0 ? named.has(material.name) : Boolean(material.map));
 
     model.traverse((node) => {
       if (!node.isMesh) return;
@@ -283,6 +365,13 @@ export class ModelLoader {
       node.receiveShadow = true;
 
       const materials = Array.isArray(node.material) ? node.material : [node.material];
+      // Места, где материал печати висит на меше: сюда подставляется
+      // физическая копия (см. #usePhysical).
+      materials.forEach((material, index) => {
+        if (material && takes(material)) {
+          this.printSlots.push({ node, index: Array.isArray(node.material) ? index : -1, base: material });
+        }
+      });
       for (const material of materials) {
         if (!material || seen.has(material)) continue;
         seen.add(material);
@@ -294,8 +383,20 @@ export class ModelLoader {
           material.userData.sourceNormalMap = material.normalMap ?? null;
         }
 
-        const takesPrint = named.size > 0 ? named.has(material.name) : Boolean(material.map);
-        if (takesPrint) this.printMaterials.push(material);
+        if (takes(material)) {
+          // Исходные значения — чтобы материал без этих полей в каталоге
+          // возвращал то, что было в файле, а не то, что оставил предыдущий.
+          material.userData.base = {
+            color: material.color.clone(),
+            ior: material.ior,
+            specularIntensity: material.specularIntensity,
+          };
+          installPrintShading(material);
+          this.printMaterials.push(material);
+        } else if (paper && material.color) {
+          material.userData.baseColor = material.color.clone();
+          this.boardMaterials.push(material);
+        }
       }
     });
 
@@ -328,6 +429,11 @@ export class ModelLoader {
     this.material = null;
     this.print = DEFAULT_PRINT;
     this.printMaterials = [];
+    // Неактивные копии в сцене не висят — их disposeObject не найдёт.
+    for (const copy of this.physicalCopies?.values() ?? []) copy.dispose();
+    this.physicalCopies = new Map();
+    this.printSlots = [];
+    this.boardMaterials = [];
     this.wallOpacity = 1;
   }
 
