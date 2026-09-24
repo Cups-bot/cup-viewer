@@ -72,6 +72,7 @@ function modelRules(materialIds) {
     ['textureMapping.uv', (v) => Number.isInteger(v) && v >= 0, 'целое ≥ 0'],
     ['textureMapping.sheet', (v) => typeof v === 'boolean', 'true | false'],
     ['textureMapping.unwrapMm', (v) => Array.isArray(v) && v.length === 2 && v.every(isPositive), '[ширина, высота] в мм'],
+    ['textureMapping.seamDeg', (v) => typeof v === 'number' && v >= 0 && v < 360, 'азимут шва 0…359°'],
     ['materialCompatibility', known, 'непустой список известных материалов'],
     ['defaultMaterial', (v, r) => r.materialCompatibility.includes(v), 'материал из materialCompatibility'],
     ['printType', isString, 'непустая строка'],

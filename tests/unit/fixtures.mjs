@@ -10,7 +10,7 @@ export function model({ id, type, compat, def }) {
     volumeMl: 280,
     file: `assets/${id}.glb`,
     size: { heightMm: 88, topMm: 80, bottomMm: 57 },
-    textureMapping: { materials: ['Paper_Print'], uv: 0, sheet: false, unwrapMm: [300, 210] },
+    textureMapping: { materials: ['Paper_Print'], uv: 0, sheet: false, unwrapMm: [300, 210], seamDeg: 180 },
     materialCompatibility: compat,
     defaultMaterial: def,
     printType: 'offset',

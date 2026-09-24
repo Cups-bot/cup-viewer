@@ -186,6 +186,19 @@ export class UnwrapView {
     this.#render();
   }
 
+  // Приблизить или отдалить относительно центра окна (кнопки −/+).
+  zoomBy(factor) {
+    const rect = this.root.getBoundingClientRect();
+    this.#zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+  }
+
+  // Масштаб в процентах от реального размера макета: 100 % — пиксель макета
+  // на пиксель экрана. Так проверяют мелкий текст.
+  get nativePercent() {
+    if (!this.image || !this.fitScale) return null;
+    return this.fitScale * this.zoom * this.dpr * 100;
+  }
+
   reset() {
     this.zoom = 1;
     this.x = 0;
@@ -264,6 +277,7 @@ export class UnwrapView {
     ctx.clearRect(0, 0, this.width, this.height);
     // На исходном масштабе таскать нечего — курсор не обещает лишнего.
     this.root.classList.toggle('is-zoomed', this.zoom > 1);
+    this.onChange?.(this);
     if (!this.image) return;
 
     const scale = this.fitScale * this.zoom;

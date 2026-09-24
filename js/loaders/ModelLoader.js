@@ -207,6 +207,11 @@ export class ModelLoader {
       this.config.model.cameraFitOffset,
       this.config.model.cameraAim,
     );
+    // Кадрирование запоминаем: от него считаются пресеты камеры (§12).
+    this.framing = {
+      target: this.controls.target.clone(),
+      distance: this.camera.position.distanceTo(this.controls.target),
+    };
   }
 
   // Оборачивает модель в pivot, центрированный на начале координат и

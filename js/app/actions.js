@@ -42,7 +42,39 @@ export function createActions({ state, mode, catalog, viewer }) {
     },
 
     resetView() {
-      if (mode.check('camera')) viewer.resetView();
+      if (!mode.check('camera')) return;
+      viewer.resetView();
+      state.set({ view: 'front' });
+    },
+
+    // Пресет камеры (§12). Автоповорот выключается: иначе вид уедет, едва
+    // камера доберётся до пресета.
+    setView(view) {
+      if (!mode.check('camera')) return;
+      if (viewer.setView(view)) state.set({ view, autoRotate: false });
+    },
+
+    // Развёртка — PNG в полном разрешении того растра, что в развёртке.
+    // Имя — из модели, а не из исходного файла: его клиенту не показываем.
+    async downloadUnwrap(view) {
+      if (!mode.canExport('unwrap')) {
+        mode.check('export', 'скачать развёртку');
+        return;
+      }
+      const image = view?.image;
+      if (!image) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth ?? image.width;
+      canvas.height = image.naturalHeight ?? image.height;
+      canvas.getContext('2d').drawImage(image, 0, 0);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      canvas.width = 0;
+      if (!blob) {
+        viewer.hooks.onToast?.('Не удалось сохранить файл. Попробуйте ещё раз.', 'error');
+        return;
+      }
+      const name = `${state.get().modelId ?? 'cup'}_unwrap.png`;
+      await viewer.deliverFile(blob, name, 'image/png');
     },
 
     screenshot() {

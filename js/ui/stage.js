@@ -7,7 +7,7 @@ import { UnwrapView } from './unwrap.js';
 export function initStage({ state, viewer, catalog, actions }) {
   initTabs(state, actions);
   initScenes(state, catalog, actions);
-  const unwrap = initUnwrap();
+  const unwrap = initUnwrap(actions);
   initTurntable(viewer);
   initHelp();
   document.getElementById('stage')?.addEventListener('dblclick', () => actions.resetView());
@@ -93,9 +93,28 @@ function initScenes(state, catalog, actions) {
   render(state.get());
 }
 
-function initUnwrap() {
+// Развёртка (§16) и её панель: зум, «по размеру», полный экран, скачать.
+function initUnwrap(actions) {
   const root = document.getElementById('unwrap');
-  return root ? new UnwrapView(root) : null;
+  if (!root) return null;
+  const view = new UnwrapView(root);
+  const label = document.getElementById('unwrap-zoom');
+  const byId = (id) => document.getElementById(id);
+
+  view.onChange = () => {
+    if (!label) return;
+    const percent = view.nativePercent;
+    label.textContent = percent == null ? '—' : `${Math.round(percent)}%`;
+  };
+  byId('unwrap-zoom-in')?.addEventListener('click', () => view.zoomBy(1.5));
+  byId('unwrap-zoom-out')?.addEventListener('click', () => view.zoomBy(1 / 1.5));
+  byId('unwrap-fit')?.addEventListener('click', () => view.reset());
+  byId('unwrap-fullscreen')?.addEventListener('click', () => actions.toggleFullscreen());
+  byId('unwrap-download')?.addEventListener('click', () => actions.downloadUnwrap(view));
+  // Кнопки панели не должны начинать перетаскивание развёртки.
+  root.querySelector('.unwrap-bar')?.addEventListener('pointerdown', (event) => event.stopPropagation());
+  root.querySelector('.unwrap-bar')?.addEventListener('dblclick', (event) => event.stopPropagation());
+  return view;
 }
 
 // Круг показывается ТОЛЬКО кнопкой — по наведению на сцену он не появляется.
@@ -110,83 +129,37 @@ function initTurntable(viewer) {
   }
   button.addEventListener('click', () => {
     const pinned = turntable.togglePinned();
-    button.classList.toggle('is-active', pinned);
     button.setAttribute('aria-pressed', String(pinned));
   });
 }
 
-// Подсказка «как управлять». Карточка лежит вне сцены — у сцены overflow:
-// hidden, и внутри неё подсказка обрезалась краем. Значит, позицию под кнопкой
-// считаем сами; на телефоне она разворачивается снизу во всю ширину, и считать
-// нечего (см. stage.css).
+// Подсказка «как управлять» — модальное окно: Escape и щелчок по затемнению
+// закрывают, фокус возвращается на кнопку, которой окно открыли.
 function initHelp() {
   const button = document.getElementById('info-btn');
-  const popover = document.getElementById('help-popover');
+  const dialog = document.getElementById('help-popover');
   const backdrop = document.getElementById('help-backdrop');
   const closeBtn = document.getElementById('help-close');
-  if (!button || !popover) return;
+  if (!button || !dialog) return;
 
-  const isPhone = () => window.matchMedia('(max-width: 640px)').matches;
-
-  // Карточка над кнопкой, прижата к правому краю, но не вылезает за окно.
-  const place = () => {
-    if (isPhone()) return;
-    const anchor = button.getBoundingClientRect();
-    const card = popover.getBoundingClientRect();
-    const margin = 12;
-
-    let left = anchor.right - card.width;
-    left = Math.min(Math.max(left, margin), window.innerWidth - card.width - margin);
-
-    // Не хватает места сверху — показываем под кнопкой.
-    const above = anchor.top - card.height - margin;
-    const top = above >= margin ? above : Math.min(anchor.bottom + margin, window.innerHeight - card.height - margin);
-
-    popover.style.left = `${Math.round(left)}px`;
-    popover.style.top = `${Math.round(top)}px`;
-  };
-
+  let opener = null;
   const open = () => {
-    popover.hidden = false;
+    opener = document.activeElement;
+    dialog.hidden = false;
     if (backdrop) backdrop.hidden = false;
-    // Размеры карточки известны только после показа — позицию считаем следом.
-    place();
-    requestAnimationFrame(() => {
-      popover.classList.add('is-open');
-      place();
-    });
-    button.setAttribute('aria-expanded', 'true');
+    closeBtn?.focus();
   };
-
   const close = () => {
-    popover.classList.remove('is-open');
-    button.setAttribute('aria-expanded', 'false');
+    if (dialog.hidden) return;
+    dialog.hidden = true;
     if (backdrop) backdrop.hidden = true;
-    setTimeout(() => {
-      if (!popover.classList.contains('is-open')) popover.hidden = true;
-    }, 180);
+    opener?.focus?.();
   };
 
-  button.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (popover.hidden) open();
-    else close();
-  });
+  button.addEventListener('click', open);
   closeBtn?.addEventListener('click', close);
   backdrop?.addEventListener('click', close);
-
-  document.addEventListener('click', (event) => {
-    if (popover.hidden) return;
-    if (popover.contains(event.target) || button.contains(event.target)) return;
-    close();
-  });
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !popover.hidden) close();
+    if (event.key === 'Escape') close();
   });
-  window.addEventListener('resize', () => {
-    if (!popover.hidden) place();
-  });
-  window.addEventListener('scroll', () => {
-    if (!popover.hidden) place();
-  }, { passive: true });
 }

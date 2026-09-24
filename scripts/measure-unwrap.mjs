@@ -129,14 +129,18 @@ export async function measureUnwrap({ file, materials, uv, heightMm }) {
   const glb = parseGlb(await readFile(resolve(root, file)));
   const primitives = collectPrimitives(glb, uv);
 
-  let minY = Infinity;
-  let maxY = -Infinity;
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
   for (const { positions } of primitives) {
-    for (let i = 1; i < positions.length; i += 3) {
-      minY = Math.min(minY, positions[i]);
-      maxY = Math.max(maxY, positions[i]);
+    for (let i = 0; i < positions.length; i++) {
+      min[i % 3] = Math.min(min[i % 3], positions[i]);
+      max[i % 3] = Math.max(max[i % 3], positions[i]);
     }
   }
+  const [minY, maxY] = [min[1], max[1]];
+  // Ось стакана — центр габарита: азимут шва считается вокруг неё.
+  const cx = (min[0] + max[0]) / 2;
+  const cz = (min[2] + max[2]) / 2;
   const mmPerUnit = heightMm / (maxY - minY);
 
   // Нормальные уравнения для [W², H²].
@@ -164,12 +168,50 @@ export async function measureUnwrap({ file, materials, uv, heightMm }) {
       }
     }
   }
+  // Шов — там, где сходятся края развёртки u = min и u = max. У бумажного
+  // стакана они совпадают; у PP этикетка не замыкается, и шов — середина
+  // незапечатанного промежутка. Азимут считается от +Z модели (туда смотрит
+  // камера вида «спереди»), как азимут пресетов камеры.
+  // Только печатная область UV 0…1: у PP венчик и дно вынесены за её пределы.
+  const inPrint = (uvs, i) => uvs[i * 2] >= -1e-3 && uvs[i * 2] <= 1.001 && uvs[i * 2 + 1] >= -1e-3 && uvs[i * 2 + 1] <= 1.001;
+  let uMin = Infinity;
+  let uMax = -Infinity;
+  for (const prim of primitives) {
+    if (!wanted.has(prim.material) || !prim.uvs) continue;
+    for (let i = 0; i < prim.count; i++) {
+      if (!inPrint(prim.uvs, i)) continue;
+      uMin = Math.min(uMin, prim.uvs[i * 2]);
+      uMax = Math.max(uMax, prim.uvs[i * 2]);
+    }
+  }
+  const edgeDirection = (edge) => {
+    let ex = 0;
+    let ez = 0;
+    for (const prim of primitives) {
+      if (!wanted.has(prim.material) || !prim.uvs) continue;
+      for (let i = 0; i < prim.count; i++) {
+        if (!inPrint(prim.uvs, i) || Math.abs(prim.uvs[i * 2] - edge) > 0.002) continue;
+        const x = prim.positions[i * 3] - cx;
+        const z = prim.positions[i * 3 + 2] - cz;
+        const r = Math.hypot(x, z) || 1;
+        ex += x / r;
+        ez += z / r;
+      }
+    }
+    const length = Math.hypot(ex, ez) || 1;
+    return [ex / length, ez / length];
+  };
+  const [ax, az] = edgeDirection(uMin);
+  const [bx, bz] = edgeDirection(uMax);
+  const seamDeg = Math.round(((Math.atan2(ax + bx, az + bz) * 180) / Math.PI + 360) % 360) % 360;
+
   const det = a11 * a22 - a12 * a12;
   const W2 = (b1 * a22 - b2 * a12) / det;
   const H2 = (a11 * b2 - a12 * b1) / det;
   return {
     widthMm: Math.round(Math.sqrt(W2) * 10) / 10,
     heightMm: Math.round(Math.sqrt(H2) * 10) / 10,
+    seamDeg,
     edges,
   };
 }
@@ -185,7 +227,7 @@ async function main() {
         uv: model.textureMapping.uv,
         heightMm: model.size.heightMm,
       });
-      console.log(`${model.id.padEnd(10)} ${String(m.widthMm).padStart(7)} × ${String(m.heightMm).padEnd(7)} мм  (${m.edges} рёбер)`);
+      console.log(`${model.id.padEnd(10)} ${String(m.widthMm).padStart(7)} × ${String(m.heightMm).padEnd(7)} мм  шов ${String(m.seamDeg).padStart(3)}°  (${m.edges} рёбер)`);
     }
     return;
   }

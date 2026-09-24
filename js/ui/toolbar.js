@@ -1,15 +1,26 @@
-// Плавающая панель управления, кружочки фонов и горячие клавиши. Кнопки
-// показывают состояние из ViewerState, нажатия уходят в actions.
+// Панель инструментов (§21), меню «•••» (фон, ракурс, круг, справка) и
+// горячие клавиши. Кнопки показывают состояние из ViewerState, нажатия
+// уходят в actions.
 
-// Горячие клавиши. Буквы — по physical-независимому event.key, поэтому в
-// русской раскладке они не срабатывают: так и задумано, иначе «ф» в поиске
-// разворачивала бы сцену.
+import { VIEW_NAMES } from '../core/cameraViews.js';
+
+// Буквы — по event.key, поэтому в русской раскладке они не срабатывают: так и
+// задумано, иначе «ф» в поиске разворачивала бы сцену.
 const SHORTCUTS = {
   b: 'cycleBackground',
   a: 'toggleAutoRotate',
   s: 'screenshot',
   f: 'toggleFullscreen',
 };
+
+export const VIEW_LABELS = Object.freeze({
+  front: 'Спереди',
+  right: 'Справа',
+  back: 'Сзади',
+  left: 'Слева',
+  top: 'Сверху',
+  seam: 'Шов',
+});
 
 const TEXT_ENTRY = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'OPTION']);
 
@@ -18,11 +29,43 @@ function isTextEntry(target) {
   return TEXT_ENTRY.has(target.tagName) || target.isContentEditable === true;
 }
 
+// Выпадающее меню у кнопки: щелчок мимо и Escape закрывают. Ловим щелчок на
+// погружении — иначе обработчики, гасящие всплытие, не давали бы закрыться.
+export function bindMenu(button, menu, { onOpen } = {}) {
+  if (!button || !menu) return { toggle() {}, close() {} };
+  const set = (open) => {
+    menu.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    if (open) onOpen?.();
+  };
+  button.addEventListener('click', () => {
+    if (!button.disabled) set(menu.hidden);
+  });
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (menu.hidden) return;
+      if (menu.contains(event.target) || button.contains(event.target)) return;
+      set(false);
+    },
+    true,
+  );
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !menu.hidden) {
+      set(false);
+      button.focus();
+    }
+  });
+  return { toggle: () => !button.disabled && set(menu.hidden), close: () => set(false) };
+}
+
 export function initToolbar({ state, catalog, mode, actions }) {
   const autorotate = document.getElementById('autorotate-btn');
   const fullscreen = document.getElementById('fullscreen-btn');
-  const menu = initExportMenu(actions);
+  const exportMenu = initExportMenu(actions);
+  bindMenu(document.getElementById('more-btn'), document.getElementById('more-menu'));
 
+  document.getElementById('reset-btn')?.addEventListener('click', () => actions.resetView());
   autorotate?.addEventListener('click', () => actions.toggleAutoRotate());
   fullscreen?.addEventListener('click', () => actions.toggleFullscreen());
   document.getElementById('screenshot-btn')?.addEventListener('click', () => actions.screenshot());
@@ -41,6 +84,7 @@ export function initToolbar({ state, catalog, mode, actions }) {
   render(state.get());
 
   initSwatches({ state, catalog, mode, actions });
+  initViews({ state, actions });
 
   window.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -48,16 +92,23 @@ export function initToolbar({ state, catalog, mode, actions }) {
     if (isTextEntry(event.target)) return;
     // Идёт набор через IME: клавиши принадлежат ему.
     if (event.isComposing || event.keyCode === 229) return;
+    // Открыто модальное окно — клавиши принадлежат ему.
+    if (document.querySelector('.dialog:not([hidden])')) return;
     const key = event.key.toLowerCase();
     if (key === 'v') {
-      menu.toggle();
+      exportMenu.toggle();
+      return;
+    }
+    const view = VIEW_NAMES[Number(key) - 1];
+    if (/^[1-6]$/.test(key) && view) {
+      actions.setView(view);
       return;
     }
     const action = SHORTCUTS[key];
     if (action) actions[action]();
   });
 
-  return { setExportBusy: menu.setBusy };
+  return { setExportBusy: exportMenu.setBusy };
 }
 
 // Кружочки фонов: только те, что разрешены режиму (в клиенте — client: true).
@@ -73,7 +124,7 @@ function initSwatches({ state, catalog, mode, actions }) {
       swatch.className = 'swatch';
       swatch.style.background = background.color;
       swatch.dataset.background = background.id;
-      swatch.setAttribute('role', 'menuitem');
+      swatch.title = background.name;
       swatch.setAttribute('aria-label', `Фон: ${background.name}`);
       swatch.addEventListener('click', () => actions.selectBackground(background.id));
       box.appendChild(swatch);
@@ -81,55 +132,59 @@ function initSwatches({ state, catalog, mode, actions }) {
     });
 
   const render = ({ backgroundId }) => {
-    for (const swatch of swatches) swatch.classList.toggle('is-active', swatch.dataset.background === backgroundId);
+    for (const swatch of swatches) {
+      const active = swatch.dataset.background === backgroundId;
+      swatch.classList.toggle('is-active', active);
+      swatch.setAttribute('aria-pressed', String(active));
+    }
   };
   state.subscribe(['backgroundId'], render);
   render(state.get());
 }
 
-// Меню выгрузки оборота раскрывается вверх прямо от кнопки.
+// Пресеты ракурса (§12).
+function initViews({ state, actions }) {
+  const box = document.getElementById('view-presets');
+  if (!box) return;
+  box.replaceChildren();
+  const buttons = VIEW_NAMES.map((name, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'view-btn';
+    button.dataset.view = name;
+    button.textContent = VIEW_LABELS[name];
+    button.title = `${VIEW_LABELS[name]} · ${index + 1}`;
+    button.addEventListener('click', () => actions.setView(name));
+    box.appendChild(button);
+    return button;
+  });
+  const render = ({ view }) => {
+    for (const button of buttons) button.classList.toggle('is-active', button.dataset.view === view);
+  };
+  state.subscribe(['view'], render);
+  render(state.get());
+}
+
+// Меню выгрузки оборота раскрывается от кнопки «Экспорт».
 function initExportMenu(actions) {
   const button = document.getElementById('export-btn');
   const popover = document.getElementById('export-popover');
   const photos = document.getElementById('export-photos');
   const start = document.getElementById('export-start');
+  const menu = bindMenu(button, popover);
 
-  const toggle = (open) => {
-    if (!button || !popover || button.disabled) return;
-    const next = open ?? popover.hidden;
-    popover.hidden = !next;
-    button.classList.toggle('is-active', next);
-    button.setAttribute('aria-expanded', String(next));
-  };
+  start?.addEventListener('click', () => {
+    menu.close();
+    actions.exportTurn({ photos: photos?.checked === true });
+  });
 
-  if (button && popover) {
-    button.addEventListener('click', () => toggle());
-    start?.addEventListener('click', () => {
-      toggle(false);
-      actions.exportTurn({ photos: photos?.checked === true });
-    });
-    // Щелчок мимо меню закрывает его. Ловим на погружении: подсказка гасит
-    // всплытие у себя, и на всплытии этот обработчик до неё не доходил бы.
-    document.addEventListener(
-      'click',
-      (event) => {
-        if (popover.hidden) return;
-        if (popover.contains(event.target) || button.contains(event.target)) return;
-        toggle(false);
-      },
-      true,
-    );
-    window.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !popover.hidden) toggle(false);
-    });
-  }
-
+  let busy = false;
   return {
-    toggle: () => toggle(),
-    setBusy(busy) {
-      if (busy) toggle(false);
-      if (button) button.disabled = busy;
-      if (start) start.disabled = busy;
+    toggle: () => !busy && menu.toggle(),
+    setBusy(value) {
+      busy = value;
+      if (value) menu.close();
+      if (start) start.disabled = value;
     },
   };
 }

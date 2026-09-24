@@ -1,0 +1,745 @@
+/* Сцена вьювера — общая для Design и Client Mode: холст, фото-сцена,
+   развёртка, вкладки, панель инструментов, пустое состояние, пикер стакана. */
+
+/* ── Сцена и холст ──────────────────────────────────────────────────────── */
+
+/* Фон сцены ставит движок (свёртка того же цвета, что и в кадре,
+   js/core/backdrop.js). Значение здесь — только до запуска скрипта. */
+.stage {
+  position: relative;
+  overflow: hidden;
+  background: #eaf5ff;
+  border-radius: var(--radius-xl);
+  isolation: isolate;
+}
+
+#canvas-container {
+  position: absolute;
+  inset: 0;
+}
+
+#canvas-container canvas {
+  display: block;
+  touch-action: none;
+}
+
+.stage.is-fullscreen,
+.stage:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+}
+
+body.has-fullscreen-stage {
+  overflow: hidden;
+}
+
+/* ── Фото-сцена: снимок в рамке ─────────────────────────────────────────── */
+/* Холст сжимается до снимка (размер сообщает движок: --photo-width,
+   --photo-height), вокруг — паспарту. */
+.stage {
+  --photo-mat: 10px;
+  --photo-radius: 10px;
+  --photo-inset: 24px;
+}
+
+.stage.is-photo #canvas-container {
+  inset: calc(var(--photo-inset) + var(--photo-mat) + var(--stage-top, 0px))
+    calc(var(--photo-inset) + var(--photo-mat) + var(--stage-right, 0px))
+    calc(var(--photo-inset) + var(--photo-mat) + var(--stage-bottom, 0px))
+    calc(var(--photo-inset) + var(--photo-mat) + var(--stage-left, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#canvas-container.has-photo::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--photo-width) + 2 * var(--photo-mat));
+  height: calc(var(--photo-height) + 2 * var(--photo-mat));
+  background: var(--surface);
+  border-radius: calc(var(--photo-radius) + var(--photo-mat));
+  box-shadow:
+    0 0 0 1px rgba(16, 24, 40, 0.04),
+    0 2px 5px rgba(16, 24, 40, 0.06),
+    0 24px 48px -18px rgba(16, 24, 40, 0.28);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+#canvas-container.has-photo canvas {
+  position: relative;
+  border-radius: var(--photo-radius);
+}
+
+#canvas-container.has-photo {
+  animation: photo-in 0.34s ease-out both;
+}
+
+@keyframes photo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+/* ── Развёртка ──────────────────────────────────────────────────────────── */
+
+.unwrap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--surface-2);
+  cursor: grab;
+  touch-action: none;
+}
+
+.unwrap.is-zoomed {
+  cursor: grab;
+}
+
+.unwrap.is-dragging {
+  cursor: grabbing;
+}
+
+.unwrap__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.unwrap-bar {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  cursor: default;
+}
+
+.unwrap-bar .icon-btn {
+  width: 36px;
+  height: 36px;
+}
+
+.unwrap-bar__zoom {
+  min-width: 54px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+.unwrap-bar__sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.unwrap-bar .btn {
+  height: 36px;
+  border-color: transparent;
+}
+
+.unwrap__hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 3;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Приблизили — подсказка своё отработала и больше не закрывает макет. */
+.unwrap.is-zoomed .unwrap__hint {
+  opacity: 0;
+}
+
+/* ── Вкладки: сегментированный переключатель ────────────────────────────── */
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: 12px;
+}
+
+.stage-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (hover: hover) {
+  .stage-tab:not(.is-active):hover {
+    color: var(--ink);
+  }
+}
+
+.stage-tab.is-active {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow-s), 0 0 0 1px rgba(16, 24, 40, 0.04);
+}
+
+/* ── Панель инструментов (вертикальная, у правого края сцены) ───────────── */
+
+.toolbar {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(16, 24, 40, 0.06);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform: translateY(-50%);
+  backdrop-filter: blur(8px);
+}
+
+.toolbar__sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: var(--line);
+}
+
+.more-menu {
+  top: 50%;
+  right: 76px;
+  width: 300px;
+  transform: translateY(-50%);
+  animation: none;
+}
+
+/* Кружки фонов. */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+  border: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+
+.swatch.is-active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+/* Сетка пресетов ракурса. */
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.view-btn {
+  height: 34px;
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+}
+
+@media (hover: hover) {
+  .view-btn:hover {
+    border-color: var(--line-strong);
+  }
+}
+
+.view-btn.is-active {
+  color: #fff;
+  background: var(--primary);
+}
+
+.menu-item .switch {
+  margin-left: auto;
+}
+
+/* Переключатель-тумблер внутри пункта меню. */
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: none;
+  background: var(--line-strong);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: var(--shadow-s);
+  transition: transform 0.15s var(--ease);
+}
+
+[aria-pressed='true'] > .switch {
+  background: var(--primary);
+}
+
+[aria-pressed='true'] > .switch::after {
+  transform: translateX(14px);
+}
+
+/* ── Выбор фото-сцены ───────────────────────────────────────────────────── */
+
+.scene-strip {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 16px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+
+.scene-chip {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+}
+
+.scene-chip.is-active {
+  color: #fff;
+  background: var(--primary);
+}
+
+/* ── Пустое состояние (§11) ─────────────────────────────────────────────── */
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.empty-state > * {
+  pointer-events: auto;
+}
+
+.empty-state__art {
+  width: 84px;
+  height: 84px;
+  margin-bottom: 6px;
+  color: var(--line-strong);
+}
+
+.empty-state__title {
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.empty-state__text {
+  max-width: 340px;
+  color: var(--muted);
+}
+
+.empty-state .btn {
+  margin-top: 8px;
+  height: 42px;
+  padding: 0 20px;
+}
+
+/* ── Ошибка запуска ─────────────────────────────────────────────────────── */
+
+.startup-error {
+  position: absolute;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  width: min(420px, calc(100% - 32px));
+  padding: 20px 22px;
+  background: var(--surface);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-l);
+  transform: translate(-50%, -50%);
+}
+
+.startup-error__title {
+  margin-bottom: 6px;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.startup-error__text {
+  color: var(--muted);
+}
+
+/* ── Перетаскивание файла ───────────────────────────────────────────────── */
+
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(47, 111, 237, 0.08);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+}
+
+.drop-overlay__message {
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* ── Подсказка «как управлять» ──────────────────────────────────────────── */
+
+.help-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.help-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.help-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13.5px;
+}
+
+.help-list b {
+  font-weight: 600;
+}
+
+.help-list span {
+  color: var(--muted);
+  text-align: right;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+/* ── Пикер стакана (§10) ────────────────────────────────────────────────── */
+
+.search-field {
+  position: relative;
+}
+
+.search-field .icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--faint);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cup-search {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px 0 38px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+}
+
+.cup-search::placeholder {
+  color: var(--faint);
+}
+
+.cup-search:focus {
+  background: var(--surface);
+  border-color: var(--ink);
+  outline: none;
+}
+
+.cup-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cup-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.cup-filter__count {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+@media (hover: hover) {
+  .cup-filter:not(:disabled):hover {
+    color: var(--ink);
+    background: var(--surface-3);
+  }
+}
+
+.cup-filter.is-active {
+  color: #fff;
+  background: var(--primary);
+}
+
+.cup-filter:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.cup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 200px;
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cup-group__title {
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.cup-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 10px 11px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-l);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s var(--ease);
+}
+
+@media (hover: hover) {
+  .cup-card:hover {
+    border-color: var(--line-strong);
+    transform: translateY(-1px);
+  }
+}
+
+.cup-card.is-active {
+  border-color: var(--ink);
+}
+
+.cup-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  background: var(--ink)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3 4.8 8.6 9.5 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
+  border-radius: 50%;
+}
+
+.cup-card__art {
+  width: 100%;
+  height: 96px;
+}
+
+.cup-card__shadow {
+  fill: rgba(16, 24, 40, 0.09);
+}
+
+.cup-card__floor {
+  stroke: rgba(16, 24, 40, 0.1);
+  stroke-width: 1;
+}
+
+.cup-card__body {
+  fill: #dfe3e9;
+}
+
+.cup-card__rim {
+  fill: #c4cbd4;
+}
+
+.cup-card__sleeve {
+  fill: #ced5de;
+}
+
+.cup-card__seam {
+  stroke: rgba(16, 24, 40, 0.18);
+  stroke-width: 0.8;
+}
+
+.cup-card__emboss line {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 0.9;
+}
+
+.cup-card__art--plastic .cup-card__body {
+  fill: #e7ecf3;
+}
+
+.cup-card__art--plastic .cup-card__rim {
+  fill: #d0d9e4;
+}
+
+.cup-card__name {
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.cup-card__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cup-card__volume {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.cup-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.cup-dialog__foot {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.cup-card__kind {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* Высота окна постоянна: при фильтрации оно не прыгает. */
+.cup-dialog {
+  height: min(720px, calc(100dvh - 48px));
+}
+
+.cup-list {
+  flex: 1;
+}

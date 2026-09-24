@@ -21,25 +21,26 @@
 // Силуэт рисуется по числам из каталога, а не картинкой из assets/: новая
 // модель не требует ни рендера, ни выкладки файла — только строчку размеров.
 
-// Подписи типов стенки: по ним же разделы окна и поиск.
-const WALL_KINDS = Object.freeze({
-  single: { label: 'Однослойный', group: 'Однослойные' },
-  double: { label: 'Двухслойный', group: 'Двухслойные' },
-  embossed: { label: 'С тиснением', group: 'С тиснением' },
-  plastic: { label: 'Полипропилен', group: 'Пластиковые' },
+// Разделы окна (§10) — по материалу стакана. Пустой раздел остаётся кнопкой
+// (неактивной): так видно, что тип в каталоге предусмотрен, но позиций нет.
+const GROUPS = Object.freeze([
+  { type: 'paper', label: 'Бумажные' },
+  { type: 'pp', label: 'PP' },
+  { type: 'pet', label: 'PET' },
+]);
+
+// Подпись типа стенки на карточке; по ней же работает поиск.
+const WALL_LABELS = Object.freeze({
+  single: 'Однослойный',
+  double: 'Двухслойный',
+  embossed: 'С тиснением',
+  plastic: 'Литой пластик',
 });
 
-const groupOf = (model) => WALL_KINDS[model.wall]?.group ?? '';
+const groupOf = (model) => GROUPS.find((group) => group.type === model.type)?.label ?? '';
 
-// Модели, разложенные по разделам в порядке каталога.
 function modelGroups(models) {
-  const groups = new Map();
-  for (const model of models) {
-    const name = groupOf(model);
-    if (!groups.has(name)) groups.set(name, []);
-    groups.get(name).push(model);
-  }
-  return [...groups].map(([group, cups]) => ({ group, cups }));
+  return GROUPS.map(({ type, label }) => ({ group: label, cups: models.filter((model) => model.type === type) }));
 }
 
 // Поле рисунка карточки в единицах SVG. Ширина с запасом: самый широкий
@@ -220,6 +221,7 @@ export class CupPicker {
     }
 
     for (const { group, cups } of groups) {
+      if (cups.length === 0) continue;
       const section = document.createElement('section');
       section.className = 'cup-group';
 
@@ -258,8 +260,11 @@ export class CupPicker {
         volume.textContent = `${cup.volumeMl} мл`;
         meta.appendChild(volume);
         meta.append(document.createTextNode(` · ${Math.round(cup.size.heightMm)} мм`));
+        const kind = document.createElement('span');
+        kind.className = 'cup-card__kind';
+        kind.textContent = WALL_LABELS[cup.wall] ?? '';
 
-        card.append(drawCup(cup, scale), name, meta);
+        card.append(drawCup(cup, scale), name, meta, kind);
         card.addEventListener('click', () => this.#choose(cup.id));
 
         grid.appendChild(card);
@@ -288,6 +293,7 @@ export class CupPicker {
     badge.textContent = String(count);
 
     button.append(text, badge);
+    button.disabled = count === 0;
     button.addEventListener('click', () => this.#setGroup(group));
     this.filters.appendChild(button);
     this.filterButtons.push(button);
@@ -305,6 +311,11 @@ export class CupPicker {
 
   #bind() {
     this.closeButton?.addEventListener('click', () => this.close());
+    this.root.querySelector('#cup-reset-search')?.addEventListener('click', () => {
+      if (this.search) this.search.value = '';
+      this.#setGroup('');
+      this.search?.focus();
+    });
     this.backdrop?.addEventListener('click', () => this.close());
     this.search?.addEventListener('input', () => this.#filter(this.search.value));
 
@@ -355,12 +366,13 @@ export class CupPicker {
   }
 
   #tabStops() {
-    const stops = [this.search, ...this.filterButtons, this.closeButton].filter(Boolean);
+    const reset = this.empty?.hidden ? null : this.root.querySelector('#cup-reset-search');
+    const stops = [this.closeButton, this.search, ...this.filterButtons, reset].filter(Boolean);
     // Из карточек в обход участвует только текущая: остальные достаются
     // стрелками (роving tabindex).
     const current = this.#visibleCards().find(({ card }) => card.tabIndex === 0);
-    if (current) stops.splice(1, 0, current.card);
-    return stops.filter((el) => !el.hidden);
+    if (current) stops.push(current.card);
+    return stops.filter((el) => !el.hidden && !el.disabled);
   }
 
   // Стрелки водят по карточкам, как по сетке: вправо-влево — соседняя,
@@ -414,7 +426,7 @@ export class CupPicker {
     let visible = 0;
 
     for (const { cup, card } of this.cards) {
-      const wall = WALL_KINDS[cup.wall]?.label ?? '';
+      const wall = WALL_LABELS[cup.wall] ?? '';
       const haystack = norm(
         `${cup.id} ${cup.name} ${groupOf(cup)} ${wall} ${cup.volumeMl} мл ${cup.searchTerms.join(' ')}`,
       );

@@ -19,6 +19,7 @@ import {
   paintBackdrop,
 } from './core/backdrop.js';
 import { captureTurn, pickVideoType } from './core/turnCapture.js';
+import { VIEWS, createCameraTween, orbitOf, orbitPosition } from './core/cameraViews.js';
 import {
   frameAspectOf,
   frameSizeOf,
@@ -133,6 +134,11 @@ export class Viewer {
     // Страховка к возвращаемому значению controls.update(): любое изменение
     // камеры обязано приводить к новому кадру.
     this.controls.addEventListener('change', () => this.invalidate());
+    // Любой ввод человека прерывает переход камеры к пресету (§12): камера
+    // не должна вырываться из рук.
+    this.controls.addEventListener('start', () => {
+      this.cameraTween = null;
+    });
 
     if (this.config.shadowCatcher?.enabled) {
       this.shadowCatcher = createShadowCatcher(this.config);
@@ -281,6 +287,11 @@ export class Viewer {
       if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
         this.invalidateModel();
+      }
+
+      if (this.cameraTween) {
+        if (this.cameraTween.step()) this.cameraTween = null;
+        this.invalidate();
       }
 
       // Обе возвращают true, пока продолжают что-то двигать: controls —
@@ -956,13 +967,54 @@ export class Viewer {
     return ((degrees % 360) + 360) % 360;
   }
 
-  // Возвращает камеру в исходный кадр (двойной клик по сцене).
+  // Возвращает камеру в исходный кадр (двойной клик по сцене, кнопка Reset).
   resetView() {
     // В фото-сцене исходный вид один — съёмочная точка. Студийное
     // кадрирование увело бы камеру с неё, и стакан разошёлся бы с фоном.
-    if (this.photo) this.#placePhotoCamera();
-    else this.modelLoader.frameCurrentModel();
+    if (this.photo) {
+      this.#placePhotoCamera();
+      this.invalidate();
+      return;
+    }
+    this.setView('front');
+  }
+
+  // Камера пресета (§12) для текущей модели: { position, target } или null.
+  // Дистанция одна для всех пресетов — та, что даёт кадрирование модели:
+  // на ней же снимаются 4 ракурса экспорта (§20).
+  viewCamera(name) {
+    const view = VIEWS[name];
+    const model = this.modelLoader.currentModel;
+    const framing = this.modelLoader.framing;
+    if (!view || !model || !framing) return null;
+    const seam = this.modelLoader.cup?.textureMapping?.seamDeg ?? 180;
+    const base = orbitOf(new THREE.Vector3().copy(this.config.camera.position), new THREE.Vector3());
+    const azimuth = (view.azimuth === 'seam' ? seam : view.azimuth) + THREE.MathUtils.radToDeg(model.rotation.y);
+    const elevation = view.elevation ?? base.elevation;
+    return {
+      target: framing.target.clone(),
+      position: orbitPosition(framing.target, framing.distance, azimuth, elevation),
+    };
+  }
+
+  // Переводит камеру в пресет. animate: false — сразу, без перехода (экспорт).
+  // В фото-сцене камера стоит в съёмочной точке, и пресетов нет.
+  setView(name, { animate = true } = {}) {
+    if (this.photo) return false;
+    const goal = this.viewCamera(name);
+    if (!goal) return false;
+    this.cameraTween = null;
+    if (!animate) {
+      this.controls.target.copy(goal.target);
+      this.camera.position.copy(goal.position);
+      this.camera.lookAt(goal.target);
+      this.controls.update();
+      this.invalidate();
+      return true;
+    }
+    this.cameraTween = createCameraTween({ camera: this.camera, controls: this.controls, to: goal });
     this.invalidate();
+    return true;
   }
 
   // Меряет след модели для поворотного круга — один раз на загрузку. Замер
@@ -1034,6 +1086,14 @@ export class Viewer {
     const how = await this.#deliver(blob, name, 'image/png');
     if (how === 'shared') return; // системное окно само отчиталось перед пользователем
     this.#toast(how === 'opened' ? 'Снимок открыт в новой вкладке' : 'Снимок сохранён');
+  }
+
+  // Отдать файл пользователю снаружи движка (развёртка, экспорт) — тем же
+  // путём, что снимок: скачивание или системное «Поделиться» на iOS.
+  async deliverFile(blob, name, type) {
+    const how = await this.#deliver(blob, name, type);
+    if (how === 'shared') return;
+    this.#toast(how === 'opened' ? 'Файл открыт в новой вкладке' : 'Файл сохранён');
   }
 
   // Отдаёт готовый файл пользователю — снимок, ролик или архив.
