@@ -1,0 +1,17 @@
+# Окончания строк — LF во всём репозитории и в рабочей копии: исходники
+# правят на Windows и на Unix, а сборка и diff не должны видеть лишних \r.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.glb binary
+*.hdr binary
+*.exr binary
+*.wasm binary
+*.pdf binary
+*.blend binary
+*.docx binary
+*.zip binary
+*.bcmap binary
+*.pfb binary
+*.icc binary
