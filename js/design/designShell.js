@@ -38,6 +38,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initModelMeta({ state, catalog });
+  initExport({ state, mode, viewer, feedback });
 
   // Кнопки, которым нужна модель в сцене.
   const needsModel = ['texture-btn', 'export-btn'].map((id) => document.getElementById(id));
@@ -175,6 +176,21 @@ function initModelMeta({ state, catalog }) {
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());
+}
+
+// Окно экспорта (§20): модуль грузится при первом открытии (§50).
+function initExport(app) {
+  const button = document.getElementById('export-btn');
+  if (!button) return;
+  let center = null;
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    if (!center) {
+      const { createExportCenter } = await import('../export/exportCenter.js');
+      center ??= createExportCenter(app);
+    }
+    center.open(button);
+  });
 }
 
 // Загрузка макета (§6, бриф 03b): кнопка и перетаскивание. Тип — по

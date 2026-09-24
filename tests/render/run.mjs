@@ -136,7 +136,8 @@ async function candidates() {
 }
 
 async function baseline() {
-  const frames = selectFrames();
+  // Кадры со сравнением «против другого эталона» своих эталонов не имеют.
+  const frames = selectFrames().filter((frame) => !frame.compareTo);
   const shots = await captureAll(frames);
   await mkdir(BASELINE, { recursive: true });
   for (const { frame, png } of shots) {
@@ -231,7 +232,7 @@ async function check() {
   const report = { ...shots[0].meta, baselineRenderer: meta.renderer, strict, thresholds: THRESHOLDS, frames: [] };
   const sheetRows = [];
   for (const { frame, png } of shots) {
-    const ref = PNG.sync.read(await readFile(resolve(BASELINE, `${frame.id}.png`)));
+    const ref = PNG.sync.read(await readFile(resolve(BASELINE, `${frame.compareTo ?? frame.id}.png`)));
     await writeFile(resolve(OUT, `${frame.id}.png`), PNG.sync.write(png));
     if (ref.width !== png.width || ref.height !== png.height) {
       report.frames.push({ id: frame.id, pass: false, reason: `размер ${png.width}×${png.height} ≠ ${ref.width}×${ref.height}` });
@@ -244,7 +245,9 @@ async function check() {
     const share = differing / (png.width * png.height);
     const stats = deltaEStats(ref.data, png.data);
     const changed = stats.max > 0;
-    const pass = strict
+    // Кадр, сравниваемый с чужим эталоном, бит в бит совпасть не обязан:
+    // для него всегда действуют пороги §58.
+    const pass = strict && !frame.compareTo
       ? !changed
       : share <= THRESHOLDS.diffShare &&
         stats.mean <= THRESHOLDS.meanDeltaE &&

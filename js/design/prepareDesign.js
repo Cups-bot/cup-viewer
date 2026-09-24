@@ -14,7 +14,7 @@ import {
   detectFileType,
   fitWithin,
 } from './fileType.js';
-import { encodeCanvas } from './encode.js';
+import { encodeCanvas } from '../utils/encode.js';
 
 export class DesignError extends Error {
   // reason: 'too-big' | 'unsupported' | 'broken'

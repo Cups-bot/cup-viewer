@@ -33,13 +33,12 @@ export async function boot({ mode: modeName, initialState }) {
   mode.attach(state, catalog);
 
   const feedback = createFeedback({ toastDuration: CONFIG.ui.toastDuration });
-  let toolbar = null;
-  const hooks = { ...feedback, onExportBusy: (busy) => toolbar?.setExportBusy(busy) };
+  const hooks = { ...feedback };
   const viewer = new Viewer(container, CONFIG, { catalog, hooks });
   const actions = createActions({ state, mode, catalog, viewer });
 
   const { unwrap } = initStage({ state, viewer, catalog, actions });
-  toolbar = initToolbar({ state, catalog, mode, actions });
+  initToolbar({ state, catalog, mode, actions });
   bindEngine({
     state,
     viewer,

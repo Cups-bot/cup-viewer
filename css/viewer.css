@@ -743,3 +743,185 @@ body.has-fullscreen-stage {
 .cup-list {
   flex: 1;
 }
+
+/* ── Экспорт (§20) ──────────────────────────────────────────────────────── */
+
+.export-dialog {
+  width: min(680px, calc(100vw - 32px));
+  height: auto;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: 11px;
+}
+
+.segmented--tabs {
+  display: flex;
+}
+
+.segmented--tabs .segmented__item {
+  flex: 1;
+}
+
+.segmented.is-locked {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.segmented__item {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+}
+
+.segmented__item[aria-checked='true'] {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: var(--shadow-s);
+}
+
+.segmented__item:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.export-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 18px;
+  align-items: start;
+}
+
+.export-fields {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.field-label {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.export-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  background: var(--surface-2);
+  border-radius: var(--radius-l);
+  overflow: hidden;
+}
+
+.export-preview__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+  box-shadow: var(--shadow-s);
+}
+
+.export-note {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.export-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.export-option input {
+  margin-top: 3px;
+}
+
+.export-option small {
+  display: block;
+  color: var(--muted);
+}
+
+.angle-thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.angle-thumbs figure {
+  margin: 0;
+  text-align: center;
+}
+
+.angle-thumbs img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.angle-thumbs figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress__track {
+  height: 6px;
+  overflow: hidden;
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+
+.progress__bar {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.progress__text {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .export-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .angle-thumbs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

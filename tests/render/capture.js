@@ -66,8 +66,9 @@ async function capture() {
   if (!frame) throw new Error(`нет кадра «${id}»`);
 
   const stage = document.getElementById('stage');
-  stage.style.width = `${CANVAS.width}px`;
-  stage.style.height = `${CANVAS.height}px`;
+  const [stageWidth, stageHeight] = frame.container ?? [CANVAS.width, CANVAS.height];
+  stage.style.width = `${stageWidth}px`;
+  stage.style.height = `${stageHeight}px`;
 
   const fixture = `tests/render/fixtures/${fixtureName(frame.model, frame.fixture)}`;
   const container = document.getElementById('canvas-container');
@@ -94,6 +95,10 @@ async function capture() {
   for (let i = 0; i < 3; i++) {
     viewer.invalidateModel();
     await nextFrame();
+  }
+  if (frame.view === 'export') {
+    const still = viewer.renderStill({ width: CANVAS.width, height: CANVAS.height });
+    return { png: still.toDataURL('image/png'), meta };
   }
   return { png: viewer.renderer.domElement.toDataURL('image/png'), meta };
 }

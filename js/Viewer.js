@@ -18,7 +18,6 @@ import {
   createBackdropScreen,
   paintBackdrop,
 } from './core/backdrop.js';
-import { captureTurn, pickVideoType } from './core/turnCapture.js';
 import { VIEWS, createCameraTween, orbitOf, orbitPosition } from './core/cameraViews.js';
 import {
   frameAspectOf,
@@ -31,6 +30,7 @@ import {
   shadowKeyFor,
 } from './core/photoScene.js';
 import { blankSheetUrl } from './utils/blankSheet.js';
+import { MESSAGES } from './ui/messages.js';
 import { createZip } from './utils/zip.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
@@ -492,7 +492,7 @@ export class Viewer {
       this.invalidateModel();
     } catch (error) {
       console.error(error);
-      this.#toast('Не удалось загрузить модель', 'error');
+      this.#toast(MESSAGES.modelFailed, 'error');
       throw error;
     } finally {
       this.#emit('onLoaded');
@@ -525,7 +525,7 @@ export class Viewer {
       return photo;
     } catch (error) {
       console.error(error);
-      this.#toast('Не удалось открыть сцену', 'error');
+      this.#toast(MESSAGES.sceneFailed, 'error');
       return null;
     } finally {
       this.#emit('onLoaded');
@@ -1050,6 +1050,94 @@ export class Viewer {
     this.turntable.setMetrics({ center, baseY: box.min.y, radius });
   }
 
+  // Кадр заданного размера без интерфейса (§20) — холст 2D с фоном.
+  //
+  // Рисует тот же конвейер, что и экран, — значит, тот же тонмаппинг и то же
+  // цветовое пространство. Размер холста WebGL меняется на время одного
+  // синхронного такта и тут же возвращается: браузер показывает кадр только
+  // после такта, и экранный вид не мигает.
+  //
+  // Вертикальный угол камеры сохраняется; если при другом соотношении сторон
+  // стакан не влезает по ширине, камера отъезжает по своему направлению.
+  // view — пресет камеры (§12) или null (текущий вид).
+  renderStill({ width, height, view = null }) {
+    const { renderer, camera, controls } = this;
+    const saved = {
+      position: camera.position.clone(),
+      target: controls.target.clone(),
+      ratio: renderer.getPixelRatio(),
+    };
+    this.cameraTween = null;
+    this.turntable?.setHiddenForCapture(true);
+    try {
+      if (view && !this.photo) {
+        const goal = this.viewCamera(view);
+        if (goal) {
+          controls.target.copy(goal.target);
+          camera.position.copy(goal.position);
+          camera.lookAt(goal.target);
+        }
+      }
+      renderer.setPixelRatio(1);
+      renderer.setSize(width, height, false);
+      this.pipeline.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      this.backdropScreen?.fit(camera);
+      if (!this.photo) this.#keepModelInFrame();
+      camera.updateMatrixWorld();
+
+      this.ambientShadow?.update(renderer, this.scene);
+      this.pipeline.render();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      paintBackdrop(ctx, width, height, this.backdrop);
+      ctx.drawImage(renderer.domElement, 0, 0, width, height);
+      return canvas;
+    } finally {
+      camera.position.copy(saved.position);
+      controls.target.copy(saved.target);
+      camera.lookAt(saved.target);
+      renderer.setPixelRatio(saved.ratio);
+      this.turntable?.setHiddenForCapture(false);
+      // Размеры холста и конвейера — обратно под контейнер.
+      this.resize();
+      this.invalidateModel();
+      this.pipeline.render();
+    }
+  }
+
+  // Отодвигает камеру по её направлению, пока все углы габарита модели не
+  // окажутся внутри кадра с полем 6 %.
+  #keepModelInFrame() {
+    const model = this.modelLoader.currentModel;
+    if (!model) return;
+    const box = new THREE.Box3().setFromObject(model);
+    const corners = [];
+    for (const x of [box.min.x, box.max.x]) {
+      for (const y of [box.min.y, box.max.y]) {
+        for (const z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, z));
+      }
+    }
+    const { camera, controls } = this;
+    const LIMIT = 0.94;
+    for (let i = 0; i < 12; i++) {
+      camera.updateMatrixWorld();
+      const reach = Math.max(...corners.map((corner) => {
+        const p = corner.clone().project(camera);
+        return Math.max(Math.abs(p.x), Math.abs(p.y));
+      }));
+      if (reach <= LIMIT) return;
+      const offset = camera.position.clone().sub(controls.target);
+      camera.position.copy(controls.target).addScaledVector(offset, (reach / LIMIT) * 1.02);
+      camera.far = Math.max(camera.far, offset.length() * 40);
+      camera.updateProjectionMatrix();
+    }
+  }
+
   // Снимок сцены.
   //
   // Обычный путь — скачать файл ссылкой с атрибутом download. Так ждёт человек
@@ -1083,7 +1171,7 @@ export class Viewer {
       this.invalidate();
     }
     if (!blob) {
-      this.#toast('Не удалось сделать снимок', 'error');
+      this.#toast(MESSAGES.exportFailed, 'error');
       return;
     }
 
@@ -1191,8 +1279,10 @@ export class Viewer {
   // браузеры считают подозрительными и половину отбрасывают (js/utils/zip.js).
   //
   // Настройки — js/config.js → turnExport.
-  async exportTurn({ photos = false } = {}) {
+  async exportTurn({ photos = false, onProgress } = {}) {
     if (this.exporting || this.screenshotting) return;
+    // Модуль записи грузится только при первой записи (§50).
+    const { captureTurn, pickVideoType } = await import('./core/turnCapture.js');
 
     const model = this.modelLoader.currentModel;
     if (!model) {
@@ -1235,13 +1325,16 @@ export class Viewer {
           this.pipeline.render();
         },
         photos,
-        onProgress: (value, label) => this.#loading(label, value * 100),
+        onProgress: (value, label) => {
+          this.#loading(label, value * 100);
+          onProgress?.(value, label);
+        },
       });
 
       await this.#deliverTurn(result, settings);
     } catch (error) {
       console.error(error);
-      this.#toast('Не удалось выгрузить оборот', 'error');
+      this.#toast(MESSAGES.exportFailed, 'error');
     } finally {
       // Стакан возвращается туда, где стоял: выгрузка не должна менять кадр,
       // который клиент только что рассматривал.
@@ -1260,7 +1353,7 @@ export class Viewer {
     const base = settings.name;
 
     if (!video && photos.length === 0) {
-      this.#toast('Не удалось выгрузить оборот', 'error');
+      this.#toast(MESSAGES.exportFailed, 'error');
       return;
     }
 

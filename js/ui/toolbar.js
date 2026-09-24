@@ -62,7 +62,6 @@ export function bindMenu(button, menu, { onOpen } = {}) {
 export function initToolbar({ state, catalog, mode, actions }) {
   const autorotate = document.getElementById('autorotate-btn');
   const fullscreen = document.getElementById('fullscreen-btn');
-  const exportMenu = initExportMenu(actions);
   bindMenu(document.getElementById('more-btn'), document.getElementById('more-menu'));
 
   document.getElementById('reset-btn')?.addEventListener('click', () => actions.resetView());
@@ -95,8 +94,9 @@ export function initToolbar({ state, catalog, mode, actions }) {
     // Открыто модальное окно — клавиши принадлежат ему.
     if (document.querySelector('.dialog:not([hidden])')) return;
     const key = event.key.toLowerCase();
+    // V — окно экспорта: его кнопку строит оболочка режима.
     if (key === 'v') {
-      exportMenu.toggle();
+      document.getElementById('export-btn')?.click();
       return;
     }
     const view = VIEW_NAMES[Number(key) - 1];
@@ -108,7 +108,6 @@ export function initToolbar({ state, catalog, mode, actions }) {
     if (action) actions[action]();
   });
 
-  return { setExportBusy: exportMenu.setBusy };
 }
 
 // Кружочки фонов: только те, что разрешены режиму (в клиенте — client: true).
@@ -163,28 +162,4 @@ function initViews({ state, actions }) {
   };
   state.subscribe(['view'], render);
   render(state.get());
-}
-
-// Меню выгрузки оборота раскрывается от кнопки «Экспорт».
-function initExportMenu(actions) {
-  const button = document.getElementById('export-btn');
-  const popover = document.getElementById('export-popover');
-  const photos = document.getElementById('export-photos');
-  const start = document.getElementById('export-start');
-  const menu = bindMenu(button, popover);
-
-  start?.addEventListener('click', () => {
-    menu.close();
-    actions.exportTurn({ photos: photos?.checked === true });
-  });
-
-  let busy = false;
-  return {
-    toggle: () => !busy && menu.toggle(),
-    setBusy(value) {
-      busy = value;
-      if (value) menu.close();
-      if (start) start.disabled = value;
-    },
-  };
 }

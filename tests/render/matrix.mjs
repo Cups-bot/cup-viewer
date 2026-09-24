@@ -12,6 +12,17 @@ export const FRAMES = [
   { id: 'pp-frosted-top', model: 'PP-500', material: 'pp-frosted', view: 'top', fixture: 'lines' },
   { id: 'scene-cafe', model: 'HB80-280', material: 'uncoated', view: 'scene', scene: 'cafe', fixture: 'gradient' },
   { id: 'unwrap', model: 'HB80-280', material: 'uncoated', view: 'unwrap', fixture: 'lines' },
+  // Экспорт (§20, бриф 05 п. 3): окно другого размера, кадр 1600×1200 через
+  // renderStill — должен совпасть с экранным кадром по порогам §58.
+  {
+    id: 'export-still',
+    model: 'HB80-280',
+    material: 'coated',
+    view: 'export',
+    fixture: 'patches',
+    container: [1100, 800],
+    compareTo: 'paper-coated-front',
+  },
 ];
 
 // Кандидаты — кадры новых материалов (этап 04). В сравнение не входят, пока
