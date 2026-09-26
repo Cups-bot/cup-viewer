@@ -75,25 +75,6 @@ CREATE TABLE IF NOT EXISTS payments (
   paid_at TEXT,
   created_at TEXT NOT NULL
 );
--- Ссылки клиенту (перенос scripts/snapshotApi.mjs): токен — только хешем.
-CREATE TABLE IF NOT EXISTS snapshots (
-  token_hash TEXT PRIMARY KEY,
-  user_id INTEGER,
-  state_json TEXT NOT NULL,
-  texture_asset TEXT,
-  unwrap_asset TEXT,
-  texture2_asset TEXT,
-  unwrap2_asset TEXT,
-  expires_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS assets (
-  id TEXT PRIMARY KEY,
-  user_id INTEGER,
-  ext TEXT NOT NULL,
-  expires_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
 """
 
 _local = threading.local()

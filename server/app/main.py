@@ -1,4 +1,4 @@
-"""Сервер CupViewer v2: API (вход, токены, задания, ссылки клиенту, админка)
+"""Сервер CupViewer v2: API (вход, токены, задания, админка)
 и сам сайт — одним процессом, как будет на хостинге (этап Ж).
 
     server/.venv/Scripts/python -m server          (из корня репозитория)
@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
-from . import admin, auth, config, db, jobs, snapshots
+from . import admin, auth, config, db, jobs
 from .security import worker_key
 
 log = logging.getLogger("cupviewer")
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CupViewer", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-for module in (auth, jobs, snapshots, admin):
+for module in (auth, jobs, admin):
     app.include_router(module.router)
 
 
@@ -90,11 +90,20 @@ def api_missing(rest: str):
 @app.get("/{path:path}")
 def site(path: str):
     relative = path or "index.html"
-    head = relative.split("/", 1)[0]
-    if relative not in config.PUBLIC_FILES and head not in config.PUBLIC_DIRS:
+    parts = relative.split("/")
+    # Только прямые пути: «..» (и %2e%2e — Starlette раскодирует его раньше),
+    # «.», скрытые файлы, обратный слэш и диск не пропускаем — иначе
+    # js/../server/data/… выходит из разрешённой папки к базе и ключам.
+    if "\\" in relative or ":" in relative or any(not p or p.startswith(".") for p in parts):
+        raise HTTPException(404, "not_found")
+    if relative in config.PUBLIC_FILES:
+        root = config.REPO
+    elif len(parts) > 1 and parts[0] in config.PUBLIC_DIRS:
+        root = (config.REPO / parts[0]).resolve()
+    else:
         raise HTTPException(404, "not_found")
     target = (config.REPO / relative).resolve()
-    if config.REPO not in target.parents or not target.is_file():
+    if root not in target.parents or not target.is_file():
         raise HTTPException(404, "not_found")
     suffix = target.suffix.lower()
     media = TYPES.get(suffix) or mimetypes.guess_type(target.name)[0] or "application/octet-stream"

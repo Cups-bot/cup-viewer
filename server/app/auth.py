@@ -82,16 +82,26 @@ def verify_code(body: CodeCheck, request: Request, response: Response):
     email = normalize(body.email)
     code = re.sub(r"\D", "", body.code or "")
     ip = request.client.host if request.client else ""
+    # Неверная попытка засчитывается отдельной транзакцией и до ответа: ошибка,
+    # брошенная внутри db.tx(), откатила бы и сам счётчик — код тогда можно
+    # было бы подбирать без предела.
     with db.tx() as con:
         row = con.execute(
             "SELECT * FROM login_codes WHERE email = ? AND expires_at > ? ORDER BY id DESC LIMIT 1",
             (email, db.iso(db.now())),
         ).fetchone()
-        if row is None or row["attempts"] >= config.CODE_ATTEMPTS:
-            raise HTTPException(400, "code_expired")
-        if row["code_hash"] != sha256(f"{email}:{code}"):
+        expired = row is None or row["attempts"] >= config.CODE_ATTEMPTS
+        wrong = not expired and row["code_hash"] != sha256(f"{email}:{code}")
+        if wrong:
             con.execute("UPDATE login_codes SET attempts = attempts + 1 WHERE id = ?", (row["id"],))
-            raise HTTPException(400, "bad_code")
+    if expired:
+        raise HTTPException(400, "code_expired")
+    if wrong:
+        raise HTTPException(400, "bad_code")
+    with db.tx() as con:
+        # Тот же код мог уйти в дело параллельным запросом — сверяем заново.
+        if con.execute("SELECT 1 FROM login_codes WHERE id = ?", (row["id"],)).fetchone() is None:
+            raise HTTPException(400, "code_expired")
         con.execute("DELETE FROM login_codes WHERE email = ?", (email,))
         user = con.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         if user is None:

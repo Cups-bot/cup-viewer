@@ -93,8 +93,10 @@ def job_view(con, job) -> dict:
         "expiresAt": job["expires_at"],
         "error": job["error"],
         "seen": bool(job["seen"]),
-        "thumbUrl": f"api/jobs/{job['id']}/image?kind=thumb" if done and (folder / "thumb.webp").exists() else None,
-        "imageUrl": f"api/jobs/{job['id']}/image" if done else None,
+        # v — со знаком или без: после «Убрать знак» адрес другой, и браузер не
+        # отдаст из кэша прежний кадр со знаком (кэш кадра — 5 минут).
+        "thumbUrl": f"api/jobs/{job['id']}/image?kind=thumb&v={job['marked']}" if done and (folder / "thumb.webp").exists() else None,
+        "imageUrl": f"api/jobs/{job['id']}/image?v={job['marked']}" if done else None,
     }
     out.update(queue_info(con, job))
     return out
@@ -205,6 +207,8 @@ def job_image(job_id: int, request: Request, kind: str = "full", download: int =
 
 @router.post("/api/jobs/{job_id}/unmark")
 def unmark(job_id: int, request: Request):
+    """Знак снимается только купленными токенами (владелец, 2026-09-27): иначе из
+    трёх приветственных выходил чистый кадр, и знак не вёл к покупке."""
     same_origin(request)
     user = require_user(request)
     with db.tx() as con:
@@ -212,9 +216,15 @@ def unmark(job_id: int, request: Request):
         if job["status"] != "done" or not job["marked"]:
             raise HTTPException(409, "not_marked")
         owner = con.execute("SELECT * FROM users WHERE id = ?", (job["user_id"],)).fetchone()
-        tokens.charge(con, owner, config.UNMARK_PRICE, "unmark", job_id=job_id, note="убрать знак")
+        if tokens.balance(con, owner)["paid"] < config.UNMARK_PRICE:
+            raise HTTPException(402, "paid_tokens_required")
+        tokens.add(con, owner["id"], "paid", -config.UNMARK_PRICE, "unmark", job_id=job_id, note="убрать знак")
         con.execute("UPDATE jobs SET marked = 0 WHERE id = ?", (job_id,))
-        return job_view(con, con.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone())
+    # Миниатюра галереи была со знаком — пересобираем из чистого кадра.
+    folder = job_dir(job_id)
+    watermark.thumb(folder / "clean.png", folder / "thumb.webp")
+    con = db.connect()
+    return job_view(con, con.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone())
 
 
 @router.post("/api/jobs/{job_id}/repeat")

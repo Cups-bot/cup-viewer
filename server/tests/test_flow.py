@@ -148,10 +148,27 @@ class Flow(unittest.TestCase):
         self.assertEqual(anon.call("GET", "index.html", raw=True)[0], 200)
         self.assertEqual(anon.call("GET", "server/data/cupviewer.sqlite3", raw=True)[0], 404)
         self.assertEqual(anon.call("GET", "render/README.md", raw=True)[0], 404)
+        # Выход за папки сайта — 404 в любом написании (urllib шлёт путь как есть).
+        for path in ["js/../server/data/worker.key", "js/%2e%2e/server/data/worker.key", "js/..%2fserver/app/config.py",
+                     "catalog/../.git/config", "assets/../server/app/config.py", "js/..%5cserver/app/config.py",
+                     "dist/.gitignore", "view.html"]:
+            self.assertEqual(anon.call("GET", path, raw=True)[0], 404, path)
+        # vendor — Draco (PET, EM90-530) и pdf.js (макеты PDF): без них не открываются.
+        self.assertEqual(anon.call("GET", "vendor/draco/draco_decoder.wasm", raw=True)[0], 200)
+        self.assertEqual(anon.call("GET", "vendor/pdfjs/pdf.worker.min.mjs", raw=True)[0], 200)
         self.assertEqual(anon.call("GET", "api/me")[0], 401)
         self.assertEqual(self.submit(anon)[0], 401)
         self.assertEqual(anon.call("POST", "api/auth/request", {"email": "x@mailinator.com"})[0], 400)
         self.assertEqual(Client(self.server).call("POST", "api/worker/claim")[0], 403)
+        # Код: после 5 неверных попыток верный уже не принимается — нужен новый.
+        brute = Client(self.server)
+        self.assertEqual(brute.call("POST", "api/auth/request", {"email": "brute@example.ru"})[0], 200)
+        code = self.server.code_for("brute@example.ru")
+        wrong = "000000" if code != "000000" else "111111"
+        for _ in range(5):
+            self.assertEqual(brute.call("POST", "api/auth/verify", {"email": "brute@example.ru", "code": wrong})[1]["error"], "bad_code")
+        self.assertEqual(brute.call("POST", "api/auth/verify", {"email": "brute@example.ru", "code": code})[1]["error"], "code_expired")
+        self.assertEqual(brute.call("GET", "api/me")[0], 401)
 
     def test_2_welcome_render_unmark(self):
         user = Client(self.server)
@@ -175,9 +192,24 @@ class Flow(unittest.TestCase):
         self.assertEqual(user.call("GET", jobs[0]["imageUrl"], raw=True)[0], 200)
         self.assertEqual(user.call("GET", jobs[0]["thumbUrl"], raw=True)[0], 200)
         self.assertEqual(user.call("GET", "api/me")[1]["balance"]["welcome"], 2)
+        marked_image = user.call("GET", jobs[0]["imageUrl"], raw=True)[1]
+        marked_thumb = user.call("GET", jobs[0]["thumbUrl"], raw=True)[1]
+        self.assertNotEqual(marked_image, tiny_png(400, 500))
+        # Знак снимается только купленными токенами (владелец, 2026-09-27).
+        status, err = user.call("POST", f"api/jobs/{jobs[0]['id']}/unmark")
+        self.assertEqual((status, err["error"]), (402, "paid_tokens_required"))
+        me = user.call("GET", "api/me")[1]
+        users = user.call("GET", "api/admin/users")[1]["users"]
+        own = [u for u in users if u["email"] == EMAIL][0]
+        self.assertEqual(user.call("POST", f"api/admin/users/{own['id']}/grant", {"amount": 1, "note": "тест знака"})[0], 200)
         status, job = user.call("POST", f"api/jobs/{jobs[0]['id']}/unmark")
         self.assertEqual((status, job["marked"]), (200, False))
-        self.assertEqual(user.call("GET", "api/me")[1]["balance"]["welcome"], 1)
+        after = user.call("GET", "api/me")[1]["balance"]
+        self.assertEqual((after["paid"], after["welcome"]), (0, me["balance"]["welcome"]))
+        # Новый адрес (кэш браузера не отдаст кадр со знаком), кадр и миниатюра — чистые.
+        self.assertNotEqual(job["imageUrl"], jobs[0]["imageUrl"])
+        self.assertEqual(user.call("GET", job["imageUrl"], raw=True)[1], tiny_png(400, 500))
+        self.assertNotEqual(user.call("GET", job["thumbUrl"], raw=True)[1], marked_thumb)
         # Чужой кадр не виден.
         other = Client(self.server)
         other.login("guest@example.ru")
@@ -208,21 +240,12 @@ class Flow(unittest.TestCase):
         self.assertEqual(user.call("DELETE", f"api/jobs/{job['id']}")[0], 200)
         self.assertEqual(user.call("GET", "api/me")[1]["balance"]["paid"], 7)
 
-    def test_4_snapshot_and_admin(self):
+    def test_4_no_links_and_admin(self):
         user = Client(self.server)
         user.login(EMAIL)
-        status, asset = user.call("POST", "api/snapshot-assets", tiny_png(), "image/png")
-        self.assertEqual(status, 201)
-        state = {"modelId": "HB80-280", "materialId": "coated", "sceneId": "living",
-                 "photo": {"preset": "front", "frame": "1:1", "second": {"modelId": "HB80-280", "kind": "pair"}, "angles": [0, 150]}}
-        status, pub = user.call("POST", "api/publish-snapshot", {"state": state, "textureAsset": asset["assetId"],
-                                                                 "unwrapAsset": asset["assetId"]})
-        self.assertEqual(status, 201)
-        anon = Client(self.server)
-        status, snap = anon.call("GET", f"api/get-snapshot?v={pub['token']}")
-        self.assertEqual(status, 200)
-        self.assertEqual(snap["state"]["photo"]["angles"], [0, 150])
-        self.assertEqual(anon.call("GET", snap["design"]["textureUrl"].lstrip("/"), raw=True)[0], 200)
+        # Ссылок клиенту нет (владелец, 2026-09-27: общий сервис).
+        self.assertEqual(user.call("POST", "api/snapshot-assets", tiny_png(), "image/png")[0], 404)
+        self.assertEqual(user.call("POST", "api/publish-snapshot", {"state": {"modelId": "HB80-280"}})[0], 404)
         users = user.call("GET", "api/admin/users")[1]["users"]
         target = [u for u in users if u["email"] == "guest@example.ru"][0]
         self.assertEqual(user.call("POST", f"api/admin/users/{target['id']}/grant", {"amount": 5, "note": "тест"})[0], 200)

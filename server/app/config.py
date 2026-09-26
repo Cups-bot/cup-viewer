@@ -27,7 +27,7 @@ WELCOME_DAYS = 30
 # Пакеты токенов (§5). Цены — заглушка до замера себестоимости (§9).
 PACKS = {10: 490, 30: 1290, 100: 3900}
 
-# Хранение (§10): макеты, кадры и ссылки живут 30 дней.
+# Хранение (§10): макеты и кадры живут 30 дней.
 RETENTION_DAYS = 30
 
 # Вход (§6): код из 6 цифр, живёт 10 минут, 5 попыток; не чаще 5 кодов в час
@@ -53,6 +53,8 @@ MAX_ART_BYTES = 50 * 1024 * 1024
 MAX_IMAGE_BYTES = 80 * 1024 * 1024
 
 # Что сервер отдаёт как сайт: только страницы и их папки, не весь репозиторий
-# (там render/, server/data/, .git).
-PUBLIC_FILES = {"index.html", "view.html", "admin.html"}
-PUBLIC_DIRS = {"dist", "css", "js", "assets", "catalog"}
+# (там render/, server/data/, .git). vendor/ — декодер Draco (PET, EM90-530)
+# и pdf.js (макеты PDF): без них эти стаканы и PDF не открываются.
+# Ссылок клиенту нет (владелец, 2026-09-27: общий сервис) — view.html не отдаётся.
+PUBLIC_FILES = {"index.html", "admin.html"}
+PUBLIC_DIRS = {"dist", "css", "js", "assets", "catalog", "vendor"}
