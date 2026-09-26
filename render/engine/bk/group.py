@@ -17,6 +17,7 @@
 группа помещается в кадр без слишком большого отъезда.
 """
 
+import copy
 import math
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -45,20 +46,26 @@ def specs(cfg: dict) -> List[dict]:
              "print": None if cfg["print"].get("enabled", True) else "none"}]
 
 
-_KEYS = ("cup_key", "cup_variant", "_board", "_art", "_art_page", "_rotate_deg")
+_KEYS = ("cup_key", "cup_variant", "_board", "_art", "_art_page", "_rotate_deg", "_art_given")
 
 
 @contextmanager
 def use(cfg: dict, spec: dict):
     """На время импорта одного стакана — его ключи в cfg, как в одиночном кадре."""
     saved = {k: cfg.get(k) for k in _KEYS}
-    saved_print = dict(cfg["print"])
+    # Глубокая копия: макет PP кладётся во вложенный блок режима печати.
+    saved_print = copy.deepcopy(cfg["print"])
     cfg["cup_key"] = spec.get("id") or cfg.get("cup_key")
     cfg["cup_variant"] = spec.get("variant")
     cfg["_board"] = spec.get("board")
     cfg["_art"] = spec.get("art")
     cfg["_art_page"] = spec.get("page", 1)
     cfg["_rotate_deg"] = spec.get("rotate", 0.0)
+    # Макет стакана из задания. Бумага берёт его из _art, литой PP — из блока
+    # режима печати, как при --art: без этого PP в задании печатал калибровку.
+    if spec.get("art"):
+        cfg["print"].setdefault(cfg["print"].get("mode", "rect"), {})["image"] = spec["art"]
+        cfg["_art_given"] = True
     if spec.get("print") == "none":
         cfg["print"]["enabled"] = False
     try:

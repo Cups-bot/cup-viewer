@@ -1383,6 +1383,18 @@ export class Viewer {
   // теней, света и постобработки. Для сверки с маской рендера Blender
   // (tests/photoreal/check.mjs): совпадают ли места стаканов и кадр.
   renderSilhouette({ width, height }) {
+    return this.#renderFlat({ width, height, art: false });
+  }
+
+  // Макет без света: стенка — ровно цвета макета, как он лёг по развёртке,
+  // остальное чёрное. Пара к preview_mask.py --art: сайт и рендер сверяют, куда
+  // ложится макет и какой стороной стакан смотрит в камеру
+  // (tests/photoreal/art-check.mjs).
+  renderArt({ width, height }) {
+    return this.#renderFlat({ width, height, art: true });
+  }
+
+  #renderFlat({ width, height, art }) {
     if (!this.photo) return null;
     const { renderer, scene, camera } = this;
     const hidden = [this.shadowCatcher?.plane, this.ambientShadow?.group].filter((o) => o?.visible);
@@ -1394,11 +1406,54 @@ export class Viewer {
       ratio: renderer.getPixelRatio(),
     };
     const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const black = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    // Макет: материал печати → плоский с той же текстурой (тот же UV-набор,
+    // сдвиг и повтор); остальное — чёрное. Материалы возвращаются в finally.
+    const swapped = [];
+    const flat = new Map();
+    if (art) {
+      // Поля «печатного листа» PP и PET несут прозрачность самой стенки
+      // (TextureManager#layOnSheet), краска — полную: ниже порога между ними
+      // стенка чёрная, как у рендера (макет с CLIP). Именно чёрная, а не
+      // прозрачная: иначе сквозь шов была бы видна печать дальней стенки.
+      const flatOf = (material, wall) => {
+        if (!flat.has(material)) {
+          const threshold = (wall < 1 ? (1 + wall) / 2 : 0.5).toFixed(3);
+          const basic = new THREE.MeshBasicMaterial({ map: material.map, side: material.side });
+          basic.onBeforeCompile = (shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              '#include <map_fragment>',
+              `#include <map_fragment>
+	diffuseColor.rgb *= step(${threshold}, diffuseColor.a);
+	diffuseColor.a = 1.0;`,
+            );
+          };
+          basic.customProgramCacheKey = () => `art-${threshold}`;
+          flat.set(material, basic);
+        }
+        return flat.get(material);
+      };
+      for (const loader of [this.modelLoader, this.companion?.loader].filter(Boolean)) {
+        const print = new Set([...(loader.printMaterials ?? []), ...(loader.physicalCopies?.values() ?? [])]);
+        const models = loader === this.modelLoader
+          ? [loader.currentModel, this.companion?.clone ? this.companion.model : null]
+          : [loader.currentModel];
+        for (const model of models.filter(Boolean)) {
+          model.traverse((node) => {
+            if (!node.isMesh) return;
+            swapped.push([node, node.material]);
+            // Печать изнутри (копия для полупрозрачного PP) рендер не рисует.
+            const pick = (m) => (print.has(m) && m.map && !m.userData.backSide ? flatOf(m, loader.wallOpacity ?? 1) : black);
+            node.material = Array.isArray(node.material) ? node.material.map(pick) : pick(node.material);
+          });
+        }
+      }
+    }
     this.turntable?.setHiddenForCapture(true);
     for (const object of hidden) object.visible = false;
     scene.background = new THREE.Color(0x000000);
     scene.environment = null;
-    scene.overrideMaterial = white;
+    scene.overrideMaterial = art ? null : white;
     renderer.toneMapping = THREE.NoToneMapping;
     try {
       renderer.setPixelRatio(1);
@@ -1421,6 +1476,9 @@ export class Viewer {
       renderer.toneMapping = saved.toneMapping;
       renderer.setPixelRatio(saved.ratio);
       white.dispose();
+      black.dispose();
+      for (const [node, material] of swapped) node.material = material;
+      for (const material of flat.values()) material.dispose();
       this.resize();
       this.invalidateModel();
     }

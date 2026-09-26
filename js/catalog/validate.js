@@ -10,6 +10,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const isString = (v) => typeof v === 'string' && v.trim() !== '';
 const isPositive = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
 const isUnit = (v) => typeof v === 'number' && v >= 0 && v <= 1;
+const isPair = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
 const isStringList = (v) => Array.isArray(v) && v.every(isString);
 
 // Проверяет запись по списку правил [путь, проверка, что ожидается].
@@ -74,6 +75,8 @@ function modelRules(materialIds) {
     ['textureMapping.sheet', (v) => typeof v === 'boolean', 'true | false'],
     ['textureMapping.unwrapMm', (v) => Array.isArray(v) && v.length === 2 && v.every(isPositive), '[ширина, высота] в мм'],
     ['textureMapping.seamDeg', (v) => typeof v === 'number' && v >= 0 && v < 360, 'азимут шва 0…359°'],
+    ['textureMapping.field', (v) => v === undefined || (isPair(v?.u) && isPair(v?.v) && v.u[1] > 0 && v.v[1] > v.v[0]),
+      '{ u: [начало, доля], v: [низ, верх] } или без поля'],
     ['materialCompatibility', known, 'непустой список известных материалов'],
     ['defaultMaterial', (v, r) => r.materialCompatibility.includes(v), 'материал из materialCompatibility'],
     ['printType', isString, 'непустая строка'],

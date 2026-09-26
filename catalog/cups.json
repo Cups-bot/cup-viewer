@@ -49,8 +49,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            299.7,
-            209.6
+            297.0,
+            210.0
           ],
           "seamDeg": 188
         }
@@ -106,8 +106,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            299.3,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 186
         }
@@ -163,8 +163,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            298.8,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -220,8 +220,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            298.6,
-            209.6
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -277,8 +277,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            299,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -334,8 +334,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            299.2,
-            209.8
+            297.0,
+            210.0
           ],
           "seamDeg": 186
         }
@@ -391,8 +391,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            300,
-            209.6
+            297.0,
+            210.0
           ],
           "seamDeg": 186
         }
@@ -402,6 +402,7 @@
         "blend": "cups/paper/HB80-280/HB80-280.blend",
         "root": "CUPS_Product",
         "hero_rotation_deg": 90.0,
+        "front_deg": -90.0,
         "print": {
           "mode": "sheet",
           "page_mm": [
@@ -448,8 +449,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            300.3,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -505,8 +506,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            300.2,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 186
         }
@@ -562,8 +563,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            299.3,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 185
         }
@@ -619,8 +620,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            300.1,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 186
         }
@@ -677,8 +678,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            295.4,
-            221.4
+            297.0,
+            210.0
           ],
           "seamDeg": 188
         }
@@ -688,6 +689,7 @@
         "blend": "cups/paper/DW80-280/DW80-280.blend",
         "root": "CUPS_Product",
         "hero_rotation_deg": 80.0,
+        "front_deg": -80.0,
         "print": {
           "mode": "sheet",
           "page_mm": [
@@ -735,8 +737,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            293.7,
-            218
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -746,6 +748,7 @@
         "blend": "cups/paper/DW90-430/DW90-430.blend",
         "root": "CUPS_Product",
         "hero_rotation_deg": 79.0,
+        "front_deg": -79.0,
         "print": {
           "mode": "sheet",
           "page_mm": [
@@ -793,8 +796,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            294.4,
-            222.7
+            297.0,
+            210.0
           ],
           "seamDeg": 187
         }
@@ -853,8 +856,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            297.1,
-            209.7
+            297.0,
+            210.0
           ],
           "seamDeg": 266
         }
@@ -924,8 +927,8 @@
           "uv": 0,
           "sheet": false,
           "unwrapMm": [
-            296.9,
-            209.8
+            297.0,
+            210.0
           ],
           "seamDeg": 265
         }
@@ -995,10 +998,20 @@
           "uv": 1,
           "sheet": true,
           "unwrapMm": [
-            203.7,
-            86.7
+            200.0,
+            85.0
           ],
-          "seamDeg": 270
+          "seamDeg": 270,
+          "field": {
+            "u": [
+              0.008744,
+              0.982511
+            ],
+            "v": [
+              0.027959,
+              1.013502
+            ]
+          }
         }
       },
       "render": {
@@ -1059,10 +1072,20 @@
           "uv": 1,
           "sheet": true,
           "unwrapMm": [
-            202.4,
-            100.6
+            200.0,
+            110.0
           ],
-          "seamDeg": 270
+          "seamDeg": 270,
+          "field": {
+            "u": [
+              0.008841,
+              0.982318
+            ],
+            "v": [
+              -0.109095,
+              0.982221
+            ]
+          }
         }
       },
       "render": {
@@ -1123,10 +1146,20 @@
           "uv": 1,
           "sheet": true,
           "unwrapMm": [
-            200.2,
-            153.6
+            200.0,
+            150.0
           ],
-          "seamDeg": 270
+          "seamDeg": 270,
+          "field": {
+            "u": [
+              0.008358,
+              0.983284
+            ],
+            "v": [
+              0.029449,
+              1.00705
+            ]
+          }
         }
       },
       "render": {

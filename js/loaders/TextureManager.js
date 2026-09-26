@@ -244,11 +244,18 @@ export class TextureManager {
       // за прямоугольником, упирается в край листа, поэтому заворачивание здесь
       // «до края», а не по кругу: по кругу непечатаемая геометрия получила бы
       // кусок макета.
+      //
+      // field — где макет стоит в развёртке модели, как у рендера (узел Mapping
+      // над UVPrint, render/engine/bk/place.py rect_fit): u — [начало, доля],
+      // v — [низ, верх] в осях Blender (снизу вверх); UV glTF перевёрнуты по v.
+      // Без field макет занимает развёртку целиком.
       const inner = 1 - 2 * SHEET_MARGIN;
+      const [u0, uw] = print.field?.u ?? [0, 1];
+      const [va, vb] = print.field?.v ?? [0, 1];
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.repeat.set(inner, inner);
-      texture.offset.set(SHEET_MARGIN, SHEET_MARGIN);
+      texture.repeat.set(inner / uw, inner / (vb - va));
+      texture.offset.set(SHEET_MARGIN - (inner * u0) / uw, SHEET_MARGIN - (inner * (1 - vb)) / (vb - va));
     } else {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;

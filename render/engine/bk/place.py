@@ -314,7 +314,12 @@ def remove_hero(scene, names: Sequence[str]) -> Tuple[List[str], List[str]]:
 
 def import_cup(cfg: dict, coll):
     obj = _import_cup(cfg, coll)
-    turn = cfg.get("_rotate_deg")
+    # front_deg — поправка модели: после неё к камере смотрит середина листа
+    # развёртки, как у стакана на сайте при повороте 0. В трёх файлах аддона
+    # (HB80-280, DW80-280, DW90-430) поворот к логотипу тестового макета
+    # запечён в пустышку CUPS_Product — сайт и рендер из-за этого смотрели на
+    # разные стороны одного макета (tests/photoreal/art-check.mjs).
+    turn = (cfg.get("_rotate_deg") or 0.0) + (resolve_cup(cfg).get("front_deg") or 0.0)
     if turn:
         # Поворот вокруг оси — в самой сетке: сцены задают свой поворот
         # объекту и перезаписали бы его, а сетку не трогают. Маски материалов
@@ -622,6 +627,41 @@ def cone_sector(cfg: dict) -> dict:
                           f"uv_island_bounds или uv_fit")
 
 
+def print_spec(cfg: dict, shot: dict) -> dict:
+    """Настройки печати кадра: общие, поверх — фона, поверх — блока режима."""
+    spec = dict(cfg.get("print") or {})
+    spec.update(shot.get("print") or {})
+    spec.update(spec.get(spec.get("mode", "rect")) or {})
+    return spec
+
+
+def rect_fit(cfg: dict, spec: dict, cup_height_mm: float) -> dict:
+    """Поле печати PP (режим rect) в развёртке UVPrint — ровно то, что ставит
+    узел Mapping: u — [начало, доля ширины], v — [низ, верх] поля (оси
+    Blender, v снизу вверх). Эти же числа берёт сайт (catalog/cups.json →
+    web.textureMapping.field, render/engine/tools/site_print_fields.py), чтобы
+    макет лёг на его модель так же.
+    """
+    # Полоса печати задаётся общая, а объём может её переопределить: у 410,
+    # 500 и 650 разные высоты поля при одной и той же длине макета.
+    band_spec = dict(spec.get("band") or {})
+    band_spec.update(resolve_cup(cfg).get("band") or {})
+    geo = place_band(print_band(cfg), band_spec, cup_height_mm, visible_band(cfg))
+    # Формат макета по умолчанию равен реальной области печати этого
+    # стакана: тогда рисунок ложится один в один. Явный формат нужен
+    # только там, где принята своя договорённость — например 220 x 110
+    # у 500 мл, ради которой мирятся со сжатием.
+    field = (resolve_cup(cfg).get("field_mm") or spec.get("field_mm")
+             or [geo["printed_width_mid_mm"], geo["height_gen_mm"]])
+    fit = fit_field(geo, field, spec.get("width_ref", "band"))
+    fit["band"] = geo
+    fit["field_mm"] = [float(field[0]), float(field[1])]
+    wf = fit["width_frac"]
+    fit["u"] = [(1.0 - wf) / 2.0, wf]
+    fit["v"] = [geo["v_a"], geo["v_b"]]
+    return fit
+
+
 def apply_print(cfg: dict, shot: dict, mat, cup, cup_height_mm: float) -> Optional[dict]:
     """Наложить макет на стенку. Два режима, переключаются ключом mode.
 
@@ -640,16 +680,13 @@ def apply_print(cfg: dict, shot: dict, mat, cup, cup_height_mm: float) -> Option
     0..1 по u, в режиме cone за пределами сектора лежат венчик и дно. При
     повторе картинка заползла бы и туда и туда.
     """
-    spec = dict(cfg.get("print") or {})
-    spec.update(shot.get("print") or {})
+    spec = print_spec(cfg, shot)
     if not spec.get("enabled"):
         return None
 
     mode = spec.get("mode", "rect")
     if mode not in ("rect", "cone"):
         raise ConfigError(f"print.mode = {mode!r} — ожидается rect или cone")
-    # блок режима лежит рядом и перекрывает общие ключи
-    spec.update(spec.get(mode) or {})
 
     layer = spec.get("uv_layer", "UVPrint" if mode == "rect" else "UVMap")
     if layer not in [l.name for l in cup.data.uv_layers]:
@@ -692,19 +729,8 @@ def apply_print(cfg: dict, shot: dict, mat, cup, cup_height_mm: float) -> Option
     uvnode.location = (tex.location.x - 500, tex.location.y)
 
     if mode == "rect":
-        # Полоса печати задаётся общая, а объём может её переопределить: у 410,
-        # 500 и 650 разные высоты поля при одной и той же длине макета.
-        band_spec = dict(spec.get("band") or {})
-        band_spec.update(resolve_cup(cfg).get("band") or {})
-        geo = place_band(print_band(cfg), band_spec, cup_height_mm, visible_band(cfg))
-        # Формат макета по умолчанию равен реальной области печати этого
-        # стакана: тогда рисунок ложится один в один. Явный формат нужен
-        # только там, где принята своя договорённость — например 220 x 110
-        # у 500 мл, ради которой мирятся со сжатием.
-        field = (resolve_cup(cfg).get("field_mm") or spec.get("field_mm")
-                 or [geo["printed_width_mid_mm"], geo["height_gen_mm"]])
-        fit = fit_field(geo, field, spec.get("width_ref", "band"))
-        fit["band"] = geo
+        fit = rect_fit(cfg, spec, cup_height_mm)
+        geo = fit["band"]
         # Макет занимает не всё поле, а его долю, и стоит по центру. Пересчёт
         # координат делает Mapping, а не правка развёртки: сама развёртка
         # лежит в меше из cup500 и здесь не трогается.
