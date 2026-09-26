@@ -8,8 +8,8 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
-    <link rel="stylesheet" href="css/viewer.css?v=0909be70" />
-    <link rel="stylesheet" href="css/design.css?v=1a195f74" />
+    <link rel="stylesheet" href="css/viewer.css?v=15a02211" />
+    <link rel="stylesheet" href="css/design.css?v=2a377a3d" />
   </head>
   <body>
     <div class="app">
@@ -128,9 +128,6 @@
               <button class="btn btn--accent" id="empty-pick" type="button">Выбрать стакан</button>
             </div>
 
-            <!-- Выбор интерьера: со второй сцены в каталоге. -->
-            <div class="scene-strip" id="scene-picker" role="group" aria-label="Интерьер" hidden></div>
-
             <!-- Панель инструментов (§21). -->
             <nav class="toolbar stage-controls" id="toolbar" aria-label="Управление просмотром">
               <button class="icon-btn" id="reset-btn" type="button" aria-label="Исходный вид" data-tip="Исходный вид" data-tip-side="left">
@@ -162,19 +159,46 @@
             <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
           </div>
 
-          <!-- «Фотореал» (CupViewer v2): ракурс сцены, формат, стаканы, рендер.
-               Стаканы не двигаются — только поворот жестом по кадру. -->
-          <div class="stage-card__foot photo-foot" id="photo-foot" hidden>
-            <span class="stage-card__label">Ракурс</span>
-            <div class="segmented" id="photo-presets" role="radiogroup" aria-label="Ракурс сцены"></div>
-            <span class="stage-card__label">Формат</span>
-            <div class="segmented" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
-            <span class="stage-card__label">Стаканы</span>
-            <div class="segmented" id="photo-cups" role="radiogroup" aria-label="Стаканы в кадре"></div>
-            <span class="photo-foot__gap" aria-hidden="true"></span>
-            <button class="btn" id="photo-job" type="button" title="Задание рендера (JSON) — для запуска Blender вручную">Задание</button>
-            <button class="btn btn--accent" id="photo-render" type="button" disabled title="Рендер появится вместе с личным кабинетом">Рендер · 1 кредит</button>
-          </div>
+          <!-- «Фотореал» (CupViewer v2): панель справа от кадра (на узком экране —
+               под ним). Стаканы не двигаются — только поворот жестом по кадру. -->
+          <aside class="photo-panel" id="photo-panel" aria-label="Фотореал" hidden>
+            <!-- На узком экране группы открываются по одной, вкладками: кадру
+                 остаётся больше места. На широком вкладок нет — видно всё. -->
+            <div class="segmented photo-panel__tabs" id="photo-tabs" role="tablist" aria-label="Настройки кадра">
+              <button class="segmented__item" type="button" role="tab" data-group="scene" aria-controls="photo-group-scene">Сцена</button>
+              <button class="segmented__item" type="button" role="tab" data-group="preset" aria-controls="photo-group-preset">Ракурс</button>
+              <button class="segmented__item" type="button" role="tab" data-group="frame" aria-controls="photo-group-frame">Формат</button>
+              <button class="segmented__item" type="button" role="tab" data-group="second" aria-controls="photo-group-second">Второй стакан</button>
+            </div>
+            <div class="photo-panel__body">
+              <section class="photo-panel__group" id="photo-group-scene" data-group="scene">
+                <p class="photo-panel__label">Сцена</p>
+                <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Сцена"></div>
+              </section>
+              <section class="photo-panel__group" id="photo-group-preset" data-group="preset">
+                <p class="photo-panel__label">Ракурс</p>
+                <div class="segmented photo-panel__seg" id="photo-presets" role="radiogroup" aria-label="Ракурс сцены"></div>
+              </section>
+              <section class="photo-panel__group" id="photo-group-frame" data-group="frame">
+                <p class="photo-panel__label">Формат</p>
+                <div class="segmented photo-panel__seg" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
+              </section>
+              <section class="photo-panel__group" id="photo-group-second" data-group="second">
+                <p class="photo-panel__label">Второй стакан</p>
+                <div class="second-list" id="photo-second" role="radiogroup" aria-label="Второй стакан"></div>
+              </section>
+            </div>
+            <div class="photo-panel__actions">
+              <div class="photo-panel__row">
+                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" disabled aria-describedby="photo-render-note">Рендер · 1 кредит</button>
+                <!-- Задание (JSON) — пока рендер запускают руками (render/README.md). -->
+                <button class="icon-btn photo-panel__job" id="photo-job" type="button" aria-label="Задание для рендера" data-tip="Задание для рендера (JSON)" data-tip-side="left">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+                </button>
+              </div>
+              <p class="photo-panel__note" id="photo-render-note">Рендер появится вместе с личным кабинетом</p>
+            </div>
+          </aside>
         </section>
       </main>
 
@@ -261,6 +285,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=cb9cb884"></script>
+    <script type="module" src="dist/design.js?v=67afcb6c"></script>
   </body>
 </html>

@@ -46,6 +46,12 @@ body.has-fullscreen-stage {
   --photo-inset: 24px;
 }
 
+/* Поля вокруг снимка — нейтральные, а не цвет студийной подложки: снимок
+   несёт свой фон, а голубая или серая рамка вокруг спорила бы с ним. */
+.stage.is-photo {
+  background: var(--surface-2);
+}
+
 .stage.is-photo #canvas-container {
   inset: calc(var(--photo-inset) + var(--photo-mat) + var(--stage-top, 0px))
     calc(var(--photo-inset) + var(--photo-mat) + var(--stage-right, 0px))

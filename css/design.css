@@ -316,27 +316,6 @@
   white-space: nowrap;
 }
 
-/* «Фотореал»: строка под сценой — ракурс, формат, стаканы, рендер. На узком
-   экране строка прокручивается вбок, как строка ракурсов студии. */
-.photo-foot .segmented {
-  flex-wrap: nowrap;
-  flex: none;
-}
-
-.photo-foot .segmented__item,
-.photo-foot .btn {
-  white-space: nowrap;
-}
-
-.photo-foot__gap {
-  flex: 1 0 8px;
-}
-
-.photo-foot[hidden],
-#studio-foot[hidden] {
-  display: none;
-}
-
 /* Фото-сцена: панель инструментов справа, снимок вписывается левее неё. */
 .stage.is-photo {
   --stage-right: 60px;
@@ -760,32 +739,400 @@
   transition: transform 0.45s var(--spring);
 }
 
-/* «Фотореал» на широком экране: строка переносится, а не уезжает вбок — кнопки
-   рендера и задания всегда на виду. */
+/* ── «Фотореал»: кадр и панель ──────────────────────────────────────────── */
+/* Карточка становится сеткой «кадр | панель»: снимок занимает всю высоту
+   карточки, настройки сцены — справа, а не полосами поверх и под кадром. */
+
+.stage-card__foot[hidden],
+.photo-panel[hidden] {
+  display: none;
+}
+
+.stage-card.is-photo .stage {
+  --photo-inset: 14px;
+  --photo-mat: 6px;
+}
+
 @media (min-width: 1024px) {
-  .photo-foot {
-    flex-wrap: wrap;
-    overflow-x: visible;
+  .stage-card.is-photo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .stage-card.is-photo > .stage-card__bar {
+    grid-column: 1 / -1;
+  }
+
+  .stage-card.is-photo > .stage {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .stage-card.is-photo > .photo-panel {
+    grid-column: 2;
+    grid-row: 2;
+    border-left: 1px solid var(--line);
+  }
+
+  .photo-panel__tabs {
+    display: none;
   }
 }
 
-/* Узкий экран: полоса сцен уходит наверх кадра (внизу — панель инструментов)
-   и прокручивается вбок — сцен семь. */
-@media (max-width: 600px), (max-height: 620px) and (max-width: 1023px) {
-  .scene-strip {
-    top: 8px;
-    bottom: auto;
-    max-width: calc(100% - 16px);
+.photo-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+}
+
+.photo-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px 14px 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.photo-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.photo-panel__label {
+  margin: 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Ракурсы и форматы — в строку; четыре ракурса — сеткой 2 × 2: подписи
+   вроде «Сверху, 25°» вчетвером в строку не помещаются. button:nth-of-type —
+   не nth-child: первым ребёнком стоит бегущая подложка (motion.js). */
+.photo-panel__seg {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.photo-panel__seg:has(> button:nth-of-type(4)) {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.photo-panel__seg .segmented__item {
+  justify-content: center;
+  min-width: 0;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* Сцены — карточками со снимком (catalog/scenes/<id>/thumb.webp), подпись
+   под снимком: поверх снимка она закрывала бы и без того маленькую картинку. */
+.scene-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 6px;
+}
+
+.scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.scene-card__img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  background: var(--surface-3);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.scene-card.is-active .scene-card__img {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.scene-card__name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.scene-card.is-active .scene-card__name {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+@media (hover: hover) {
+  .scene-card:hover {
+    color: var(--ink);
+  }
+
+  .scene-card:hover .scene-card__img {
+    box-shadow: 0 0 0 1px var(--line-strong);
+  }
+
+  .scene-card.is-active:hover .scene-card__img {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+
+/* Второй стакан — список вариантов, как радиокнопки. */
+.second-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: 12px;
+}
+
+.second-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 3px 10px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+}
+
+.second-row.is-active {
+  background: var(--segment-on);
+  box-shadow: var(--segment-shadow);
+}
+
+.second-row:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.second-row__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.second-row.is-active .second-row__dot {
+  box-shadow: inset 0 0 0 4.5px var(--accent);
+}
+
+.second-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.second-row__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.second-row__sub {
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.second-row__sub:empty {
+  display: none;
+}
+
+.second-row__art {
+  position: relative;
+  width: 26px;
+  height: 32px;
+}
+
+.second-row__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.second-row__img--dark,
+:root[data-theme='dark'] .second-row__img--light {
+  display: none;
+}
+
+:root[data-theme='dark'] .second-row__img--dark {
+  display: block;
+}
+
+.photo-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.photo-panel__row {
+  display: flex;
+  gap: 6px;
+}
+
+.photo-panel__render {
+  flex: 1;
+  height: 40px;
+}
+
+.photo-panel__job {
+  flex: none;
+  background: var(--surface-3);
+}
+
+.photo-panel__note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Узкий экран: панель под кадром, группы — вкладками, по одной. Кнопки
+   просмотра прячутся: стакан крутится жестом по кадру, снимок — «Скачать»
+   внизу, а их строка отняла бы у кадра 56 px. */
+@media (max-width: 1023px) {
+  .stage-card.is-photo > .stage {
+    --stage-bottom: 0px;
+    flex: 1 1 auto;
+  }
+
+  .stage-card.is-photo .stage-controls {
+    display: none;
+  }
+
+  .stage-card.is-photo > .photo-panel {
+    flex: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .photo-panel__tabs {
+    display: flex;
+    margin: 10px 12px 0;
+  }
+
+  .photo-panel__tabs .segmented__item {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  /* Высота строки постоянная: иначе кадр прыгал бы при смене вкладки. */
+  .photo-panel__body {
+    flex: none;
+    justify-content: center;
+    height: 98px;
+    padding: 8px 12px;
+    overflow: hidden;
+  }
+
+  .photo-panel__group:not(.is-open),
+  .photo-panel__label {
+    display: none;
+  }
+
+  .scene-cards,
+  .photo-panel__seg,
+  .second-list {
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .scene-strip::-webkit-scrollbar {
+  .scene-cards::-webkit-scrollbar,
+  .photo-panel__seg::-webkit-scrollbar,
+  .second-list::-webkit-scrollbar {
     display: none;
   }
 
-  .scene-chip {
+  .scene-cards {
+    grid-auto-columns: 84px;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    padding: 2px;
+  }
+
+  .scene-card__name {
+    -webkit-line-clamp: 1;
+  }
+
+  .photo-panel__seg,
+  .photo-panel__seg:has(> button:nth-of-type(4)) {
+    grid-auto-columns: minmax(max-content, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+  }
+
+  .photo-panel__seg .segmented__item {
+    height: 36px;
+    padding: 0 12px;
+  }
+
+  .second-list {
+    flex-direction: row;
+  }
+
+  .second-row {
     flex: none;
+    grid-template-columns: auto;
+    min-height: 36px;
+    padding: 4px 12px;
     white-space: nowrap;
+  }
+
+  .second-row__text {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  /* Из подписей остаётся одна — почему в сцене только один стакан. */
+  .second-row__dot,
+  .second-row__art,
+  .second-row:not(:first-child) .second-row__sub {
+    display: none;
+  }
+
+  .photo-panel__actions {
+    padding: 10px 12px;
+  }
+
+  .photo-panel__note {
+    display: none;
   }
 }

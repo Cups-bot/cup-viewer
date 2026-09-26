@@ -43,7 +43,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPublish({ state, mode, catalog, feedback, viewer });
-  initPhotoPanel({ state, viewer, catalog, mode });
+  initPhotoPanel({ state, viewer, catalog, mode, picker });
   initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
@@ -112,7 +112,29 @@ function initModelPicker({ state, catalog, actions }) {
   };
   state.subscribe(['modelId'], render);
   render(state.get());
-  return { open: async (from) => (await ensure()).open(from) };
+
+  // То же окно — для второго стакана «Фотореала»: на одно открытие другой
+  // заголовок и другой обработчик выбора, потом всё как было.
+  const title = document.getElementById('cup-dialog-title');
+  const pickSecond = async ({ activeId, onSelect, from }) => {
+    const p = await ensure();
+    const saved = { onSelect: p.onSelect, onToggle: p.onToggle, title: title?.textContent };
+    const restore = () => {
+      p.onSelect = saved.onSelect;
+      p.onToggle = saved.onToggle;
+      if (title) title.textContent = saved.title;
+      p.setActive(state.get().modelId);
+    };
+    p.onSelect = (id) => onSelect(id);
+    // Закрытие приходит раньше выбора (CupPicker#choose) — возвращаем после.
+    p.onToggle = (open) => {
+      if (!open) queueMicrotask(restore);
+    };
+    if (title) title.textContent = 'Второй стакан в кадре';
+    p.setActive(activeId);
+    p.open(from);
+  };
+  return { open: async (from) => (await ensure()).open(from), pickSecond };
 }
 
 // Материал (§14) — переключатель в шапке, как выбор картона на colorcups.ru:

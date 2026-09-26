@@ -25,6 +25,7 @@ function initTabs(state, actions) {
   const swatches = document.querySelector('.stage-swatches');
   const scenes = document.getElementById('scene-picker');
   const studioFoot = document.getElementById('studio-foot');
+  const card = document.querySelector('.stage-card');
 
   tabs.forEach((tab) => tab.addEventListener('click', () => actions.setTab(tab.dataset.tab)));
 
@@ -47,8 +48,11 @@ function initTabs(state, actions) {
     // фото-сцене фон — это снятая комната, плоский цвет там выбирать нечего.
     if (swatches) swatches.hidden = mode !== '3d';
     if (scenes) scenes.hidden = mode !== 'scene';
-    // В «Фотореале» ракурсы студии уступают место ракурсам сцены (photoPanel).
-    if (studioFoot && document.getElementById('photo-foot')) studioFoot.hidden = mode === 'scene';
+    // В «Фотореале» ракурсы студии уступают место панели сцены (photoPanel):
+    // карточка становится сеткой «кадр | панель».
+    const panel = document.getElementById('photo-panel');
+    if (studioFoot && panel) studioFoot.hidden = mode === 'scene';
+    card?.classList.toggle('is-photo', Boolean(panel) && mode === 'scene');
   };
   state.subscribe(['tab'], render);
   render(state.get());

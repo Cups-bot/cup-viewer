@@ -659,9 +659,13 @@ export class Viewer {
       },
     });
 
-    // Заливку сцены и свёртку убираем: снятый кадр закрывает их целиком.
+    // Заливку сцены и свёртку убираем: снятый кадр закрывает их целиком. Поля
+    // вокруг снимка — нейтральные (CSS .stage.is-photo), а не цвет студийной
+    // подложки; setBackground при выходе вернёт его.
     this.scene.background = null;
     this.backdropScreen.mesh.visible = false;
+    const stage = this.container.closest('.stage');
+    if (stage) stage.style.background = '';
 
     // Подставка: поворот стакана в сцене (в «Воде» он наклонён). Место —
     // начало площадки; свой поворот стакан получает уже на ней (rotation.y).
@@ -1205,8 +1209,9 @@ export class Viewer {
     // свёртка почему-либо не дотянулась.
     this.scene.background = new THREE.Color(this.backdrop.base);
 
+    // В фото-сцене поля вокруг снимка нейтральные (CSS .stage.is-photo).
     const stage = this.container.closest('.stage') ?? this.container;
-    stage.style.background = backdropCss(this.backdrop);
+    stage.style.background = this.photo ? '' : backdropCss(this.backdrop);
 
     // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
     this.turntable?.setBackground(new THREE.Color(value));

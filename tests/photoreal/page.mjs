@@ -38,12 +38,24 @@ for (const width of widths.length ? widths : [1280, 390]) {
     state.set({ tab: 'scene', sceneId: 'living' });
     await settle();
   });
-  // Выбор делаем кнопками панели — как человек.
-  await page.locator('#photo-cups [data-id="pair"]').click();
+  // Выбор делаем кнопками панели — как человек: пара, формат 4:5. На узком
+  // экране группы панели открываются вкладками.
+  const tab = async (id) => {
+    const button = page.locator(`#photo-tabs [data-group="${id}"]`);
+    if (await button.isVisible()) await button.click();
+  };
+  await tab('second');
+  await page.locator('#photo-second .second-row').nth(1).click();
+  await tab('frame');
   await page.locator('#photo-frames [data-id="4:5"]').click();
+  await tab('scene');
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.cupViewer.viewer.whenReady());
   await page.screenshot({ path: resolve(OUT, `page-${width}.png`) });
+  // И та же страница в тёмной теме.
+  await page.locator('[data-theme-set="dark"]').first().click();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: resolve(OUT, `page-${width}-dark.png`) });
   console.log(`page-${width}: ${JSON.stringify(await page.evaluate(() => window.cupViewer.viewer.photoJob()))}`);
   await page.close();
 }
