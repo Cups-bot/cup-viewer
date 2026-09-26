@@ -1,7 +1,7 @@
 # Cup Viewer
 
 Концепция: `docs/CONCEPT.md` (v1.0). Ссылки §N — на её разделы. Читай только § из брифа этапа, не весь файл.
-Концепция v2 (публичный сайт, фотореал-рендер за кредиты, этапы А–Ж): `docs/CONCEPT-v2.md` — её разделы заменяют §2–§4 и §33–§35 v1.0.
+Концепция v2 (публичный сайт, фотореал-рендер за токены, этапы А–Ж): `docs/CONCEPT-v2.md` — её разделы заменяют §2–§4 и §33–§35 v1.0.
 Этапы: `docs/briefs/NN-*.md`. Журнал: `.claude/journal.md`. Аудит текущего кода: `docs/audit/00-current.md`.
 
 ## Команды
@@ -13,6 +13,8 @@ render:baseline  npm run render:baseline — только с «ок» челов
 catalog:      npm run catalog — собрать catalog/models.json из catalog/cups.json (build и check сверяют сами)
 фотореал:     из render/ — blender -b --factory-startup -P engine\run.py -- --list; подробно render/README.md
 тяжёлые файлы рендера: python render/engine/tools/assets.py check (index — переписать список)
+фотореал-сверка: node tests/photoreal/check.mjs — кадр сайта → задание → маска Blender, 10 кадров, ≤ 2 px (нужен npm run serve)
+фотореал-снимки: node tests/photoreal/page.mjs [ширина…] — страница «Фотореал» (1280/390, светлая и тёмная); shoot.mjs — отдельные кадры сцен
 
 ## Устройство
 - Движок: `js/Viewer.js` + `js/core/*` + `js/loaders/*`. Один renderer, одна сцена. Об UI не знает: получает каталог и `hooks`, сцену доводит `present({ model, material, designUrl })`; пресеты камеры `setView()`, кадр для экспорта `renderStill()`.
@@ -20,6 +22,7 @@ catalog:      npm run catalog — собрать catalog/models.json из catalo
 - Данные: `catalog/*.json`, сцены `catalog/scenes/<id>/`; проверка — `js/catalog/validate.js`.
 - Каталог стаканов — `catalog/cups.json`, один на сайт и рендер (общие поля + `web` + `render`); `catalog/models.json` из него собирает `npm run catalog`, руками не править. Стакан с `"web": null` на сайт не выходит.
 - Фотореал-рендер: `render/` — Blender + Python (бывший 3DCupRender), своё README и ТЗ в `render/docs/`. Нагрузка на ноутбук владельца: тяжёлое — по одному процессу, низкий приоритет, черновое качество.
+- Вкладка «Фотореал» (v2): сцены рендера в `catalog/scenes/<id>/` (scene.json, снимки фона, панорама); движок — `js/core/photoScene.js` + `js/core/frame.js`, UI — `js/design/photoPanel.js`, право `arrangeScene` (клиент только смотрит). Что видно на сайте, то и рендерит Blender: задание — `viewer.photoJob()`.
 - Входы: `index.html` → `js/entries/design.js` (+ `js/design/`), `view.html` → `js/entries/view.js` (+ `js/client/`). Экспорт — `js/export/`, по требованию.
 - Материалы печати: `ModelLoader.applyMaterial`; крафт — хук `js/core/printShading.js`, soft-touch — физическая копия материала.
 - Ссылки клиенту: dev — `scripts/snapshotApi.mjs` (контракт этапа 06).
@@ -52,6 +55,7 @@ catalog:      npm run catalog — собрать catalog/models.json из catalo
 - Python на Windows пишет CRLF — нормализует `.gitattributes`, но предупреждения git при коммите ожидаемы.
 - Меню, вложенные в скрытый контейнер (`display: none`), не показываются даже с `position: fixed` — на телефоне прятать кнопки, а не контейнер.
 - Правило `pointer: coarse` для кнопки должно стоять после её базового стиля: design.css грузится позже app.css.
+- Кадр фото-сцены считают двое — `js/core/frame.js` и `render/engine/bk/frame.py` (+ `compose.py`): правка одного без другого ломает сверку `tests/photoreal/check.mjs`.
 - Предупреждения ANGLE «glGetProgramiv: Program object expected» при первой смене фото-сцены кликом — побочный эффект параллельной компиляции шейдеров и освобождения PMREM; кадр корректный.
 
 ## Не делать
