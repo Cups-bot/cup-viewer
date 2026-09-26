@@ -331,7 +331,8 @@ def main() -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--preset", nargs="*", default=None, help="переснять только эти ракурсы")
     ap.add_argument("--quick", action="store_true", help="черновик: 1200 px, 48 сэмплов, сетка 8 мм")
-    ap.add_argument("--out", default=os.path.join(PROJECT, "web", "scenes"))
+    # сцены рендера живут в каталоге сайта: catalog/scenes/<фон>/ (CupViewer, этап Б)
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(PROJECT), "catalog", "scenes"))
     ap.add_argument("--grid-only", action="store_true", help="пересчитать только карту площадки в scene.json")
     ap.add_argument("--index-only", action="store_true", help="переписать только web/scenes/index.json")
     ap.add_argument("--meta-only", action="store_true",
@@ -367,16 +368,23 @@ def main() -> int:
         export_set(cfg, name, out, args.quick, args.preset, meta_only=args.meta_only,
                    missing=args.missing, pause=args.pause)
         log(f"{name}: всё за {time.time() - t0:.0f} с")
+    # Список сцен — в формате каталога сайта (catalog/scenes/index.json, схема 2):
+    # порядок — ключ order в файле фона, первая сцена открывается по умолчанию.
     index = []
-    for name in place.enabled_sets(cfg):
+    for name in sorted(place.enabled_sets(cfg), key=lambda n: (cfg["shots"][n].get("order", 99), n)):
         p = os.path.join(out, name, "scene.json")
-        if os.path.isfile(p):
-            with io.open(p, "r", encoding="utf-8") as fh:
-                d = json.load(fh)
-            index.append({"id": name, "label": d["label"], "maxCups": d["maxCups"],
-                          "presets": [{"id": x["id"], "label": x["label"]} for x in d["presets"]]})
-    with io.open(os.path.join(out, "index.json"), "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({"schema": 1, "scenes": index}, ensure_ascii=False, indent=1) + "\n")
+        if not os.path.isfile(p):
+            continue
+        with io.open(p, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        row = {"id": name, "name": d["label"]}
+        if cfg["shots"][name].get("note"):
+            row["note"] = cfg["shots"][name]["note"]
+        row["maxCups"] = d["maxCups"]
+        row["presets"] = [{"id": x["id"], "label": x["label"]} for x in d["presets"]]
+        index.append(row)
+    with io.open(os.path.join(out, "index.json"), "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps({"schemaVersion": 2, "scenes": index}, ensure_ascii=False, indent=2) + "\n")
     return 0
 
 
