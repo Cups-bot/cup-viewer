@@ -51,6 +51,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
         return;
       }
       if (state.get().tab !== 'scene') await viewer.exitPhotoScene();
+      state.get().photo?.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
     });
     return sceneJob;
   };
@@ -73,6 +74,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
       if (!viewer.photo) return;
       if (p.preset && viewer.photo.preset.id !== p.preset) await viewer.setPhotoPreset(p.preset);
       if (p.frame && viewer.photo.frameId !== p.frame) viewer.setPhotoFrame(p.frame);
+      p.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
     });
     return sceneJob;
   };

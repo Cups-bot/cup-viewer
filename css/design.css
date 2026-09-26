@@ -316,6 +316,27 @@
   white-space: nowrap;
 }
 
+/* «Фотореал»: строка под сценой — ракурс, формат, стаканы, рендер. На узком
+   экране строка прокручивается вбок, как строка ракурсов студии. */
+.photo-foot .segmented {
+  flex-wrap: nowrap;
+  flex: none;
+}
+
+.photo-foot .segmented__item,
+.photo-foot .btn {
+  white-space: nowrap;
+}
+
+.photo-foot__gap {
+  flex: 1 0 8px;
+}
+
+.photo-foot[hidden],
+#studio-foot[hidden] {
+  display: none;
+}
+
 /* Фото-сцена: панель инструментов справа, снимок вписывается левее неё. */
 .stage.is-photo {
   --stage-right: 60px;
@@ -737,4 +758,34 @@
 
 .cup-current__img {
   transition: transform 0.45s var(--spring);
+}
+
+/* «Фотореал» на широком экране: строка переносится, а не уезжает вбок — кнопки
+   рендера и задания всегда на виду. */
+@media (min-width: 1024px) {
+  .photo-foot {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* Узкий экран: полоса сцен уходит наверх кадра (внизу — панель инструментов)
+   и прокручивается вбок — сцен семь. */
+@media (max-width: 600px), (max-height: 620px) and (max-width: 1023px) {
+  .scene-strip {
+    top: 8px;
+    bottom: auto;
+    max-width: calc(100% - 16px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scene-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scene-chip {
+    flex: none;
+    white-space: nowrap;
+  }
 }

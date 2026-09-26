@@ -88,7 +88,13 @@ const BACKGROUND_RULES = [
   ['client', (v) => v === undefined || typeof v === 'boolean', 'true | false'],
 ];
 
-const SCENE_RULES = [['name', isString, 'непустая строка']];
+// Сцены фотореал-рендера (CupViewer v2): ракурсы и сколько стаканов в кадре.
+const SCENE_RULES = [
+  ['name', isString, 'непустая строка'],
+  ['presets', (v) => Array.isArray(v) && v.length > 0 && v.every((p) => isString(p?.id) && isString(p?.label)),
+    'непустой список ракурсов { id, label }'],
+  ['maxCups', (v) => v === 1 || v === 2, '1 или 2'],
+];
 
 const BRAND_RULES = [
   ['name', isString, 'непустая строка'],

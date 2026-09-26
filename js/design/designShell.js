@@ -9,6 +9,7 @@ import { saveSession } from './session.js';
 import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
+import { initPhotoPanel } from './photoPanel.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -41,7 +42,8 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
-  initPublish({ state, mode, catalog, feedback });
+  initPublish({ state, mode, catalog, feedback, viewer });
+  initPhotoPanel({ state, viewer, catalog, mode });
   initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.

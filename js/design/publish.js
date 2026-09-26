@@ -54,8 +54,14 @@ async function textureRaster(url) {
   }
 }
 
-export async function publishSnapshot({ state, brandId, title, onStage }) {
+export async function publishSnapshot({ state, viewer, brandId, title, onStage }) {
   const s = state.get();
+  // Фото-сцена: клиент видит её такой, какой её собрал пользователь, — с той
+  // же стороной дизайна к камере (углы стаканов в движке, а не в состоянии).
+  const angles = viewer?.photo
+    ? [viewer.getCupRotation(0), ...(viewer.companion ? [viewer.getCupRotation(1)] : [])].map((a) => Math.round(a * 10) / 10)
+    : null;
+  const photo = s.photo || angles ? { ...(s.photo ?? {}), angles } : null;
   let textureAsset = null;
   let unwrapAsset = null;
   if (s.design) {
@@ -73,6 +79,7 @@ export async function publishSnapshot({ state, brandId, title, onStage }) {
       materialId: s.materialId,
       backgroundId: s.backgroundId,
       sceneId: s.sceneId,
+      photo,
       brandId,
       title: title || null,
     },
@@ -93,7 +100,7 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 
-export function createPublishDialog({ state, mode, catalog, feedback }) {
+export function createPublishDialog({ state, mode, catalog, feedback, viewer }) {
   const backdrop = el('div', { class: 'dialog-backdrop', hidden: '' });
   const close = el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Закрыть' });
   close.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
@@ -138,6 +145,7 @@ export function createPublishDialog({ state, mode, catalog, feedback }) {
     result.hidden = true;
     try {
       const link = await publishSnapshot({
+        viewer,
         state,
         brandId,
         title: titleInput.value.trim(),

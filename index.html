@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=0909be70" />
-    <link rel="stylesheet" href="css/design.css?v=31555a4b" />
+    <link rel="stylesheet" href="css/design.css?v=1a195f74" />
   </head>
   <body>
     <div class="app">
@@ -84,7 +84,7 @@
             <nav class="tabs" role="tablist" aria-label="Режим просмотра">
               <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
               <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
-              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">В интерьере</button>
+              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">Фотореал</button>
             </nav>
             <div class="stage-swatches">
               <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
@@ -157,9 +157,23 @@
             </div>
           </section>
 
-          <div class="stage-card__foot">
+          <div class="stage-card__foot" id="studio-foot">
             <span class="stage-card__label">Ракурс</span>
             <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
+          </div>
+
+          <!-- «Фотореал» (CupViewer v2): ракурс сцены, формат, стаканы, рендер.
+               Стаканы не двигаются — только поворот жестом по кадру. -->
+          <div class="stage-card__foot photo-foot" id="photo-foot" hidden>
+            <span class="stage-card__label">Ракурс</span>
+            <div class="segmented" id="photo-presets" role="radiogroup" aria-label="Ракурс сцены"></div>
+            <span class="stage-card__label">Формат</span>
+            <div class="segmented" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
+            <span class="stage-card__label">Стаканы</span>
+            <div class="segmented" id="photo-cups" role="radiogroup" aria-label="Стаканы в кадре"></div>
+            <span class="photo-foot__gap" aria-hidden="true"></span>
+            <button class="btn" id="photo-job" type="button" title="Задание рендера (JSON) — для запуска Blender вручную">Задание</button>
+            <button class="btn btn--accent" id="photo-render" type="button" disabled title="Рендер появится вместе с личным кабинетом">Рендер · 1 кредит</button>
           </div>
         </section>
       </main>
@@ -247,6 +261,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=60700703"></script>
+    <script type="module" src="dist/design.js?v=334a2e28"></script>
   </body>
 </html>

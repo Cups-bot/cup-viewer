@@ -70,6 +70,11 @@ async function start() {
         // Дизайнер мог смотреть на студийном фоне — клиенту только клиентские.
         backgroundId: mode.canUseBackground(background) ? background.id : undefined,
         sceneId: catalog.scene(s.sceneId) ? s.sceneId : (catalog.scenes[0]?.id ?? null),
+        // Раскладка фото-сцены — как её собрал пользователь; второй стакан,
+        // которого больше нет в каталоге, отбрасывается.
+        photo: s.photo
+          ? { ...s.photo, second: s.photo.second && catalog.model(s.photo.second.modelId) ? s.photo.second : null }
+          : null,
         brandId: catalog.brand(s.brandId) ? s.brandId : (catalog.brands[0]?.id ?? null),
         title: s.title ?? null,
         autoRotate: false,

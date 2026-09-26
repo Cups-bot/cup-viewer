@@ -107,7 +107,8 @@ test('photo: формат и второй стакан проверяются, �
   assert.throws(() => state.set({ photo: { second: { modelId: 'HB80-280', kind: 'stack' } } }), /раскладка/);
   state.set({ photo: { preset: 'high', second: { modelId: 'HB80-280' } } });
   const { photo } = state.get();
-  assert.deepEqual(photo, { preset: 'high', frame: '1:1', second: { modelId: 'HB80-280', kind: 'pair' } });
+  assert.deepEqual(photo, { preset: 'high', frame: '1:1', second: { modelId: 'HB80-280', kind: 'pair' }, angles: null });
+  assert.throws(() => state.set({ photo: { angles: [0, 1, 2] } }), /angles/);
   assert.ok(Object.isFrozen(photo) && Object.isFrozen(photo.second));
   state.set({ photo: null });
   assert.equal(state.get().photo, null);

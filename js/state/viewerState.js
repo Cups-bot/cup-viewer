@@ -89,7 +89,16 @@ export function createViewerState({ catalog, initial = {}, dev = false, warn = c
         if (!PHOTO_KINDS.includes(kind)) fail(`раскладка «${kind}» — ожидается ${PHOTO_KINDS.join(' | ')}`);
         second = Object.freeze({ modelId: p.second.modelId, kind });
       }
-      out.photo = Object.freeze({ preset: p.preset ?? null, frame, second });
+      // angles — углы стаканов, как их повернул пользователь: пишет публикация
+      // ссылки, чтобы клиент увидел ту же сторону дизайна.
+      let angles = null;
+      if (p.angles != null) {
+        if (!Array.isArray(p.angles) || p.angles.length > 2 || !p.angles.every(Number.isFinite)) {
+          fail('photo.angles — ожидается [угол главного, угол второго?] в градусах');
+        }
+        angles = Object.freeze([...p.angles]);
+      }
+      out.photo = Object.freeze({ preset: p.preset ?? null, frame, second, angles });
     }
     if ('design' in out && out.design !== null) {
       if (typeof out.design !== 'object' || typeof out.design.textureUrl !== 'string') {
