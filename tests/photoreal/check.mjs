@@ -183,7 +183,11 @@ async function compare() {
     }
     const h = b.window[3] - b.window[2];
     const win = Math.max(...s.window.map((v, i) => Math.abs(v - b.window[i]))) / h;
-    const pass = dev !== null && dev <= LIMIT_PX && win < 1e-3;
+    // Окно — в той же мере, что силуэт: не дальше LIMIT_PX по длинной стороне.
+    // Сайт берёт габарит стакана из каталога, рендер — из сетки (с бортиком):
+    // кадр пары от этого гуляет на доли пикселя, и 0,1 % (0,8 px) было строже
+    // самого силуэта.
+    const pass = dev !== null && dev <= LIMIT_PX && win * LONG_SIDE <= LIMIT_PX;
     if (!pass) failed++;
     console.log(`${c.name.padEnd(32)} ${String(dev ?? '>8').padStart(3)}  ${(both / Math.max(1, any)).toFixed(4)}  ${(win * 100).toFixed(3)}%  ${pass ? 'совпадает' : 'РАСХОДИТСЯ'}`);
   }

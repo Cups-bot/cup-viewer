@@ -15,6 +15,9 @@ const config = {
   ...CONFIG,
   renderer: { ...CONFIG.renderer, maxPixelRatio: 1 },
   autoRotate: { ...CONFIG.autoRotate, enabled: false },
+  // Цвет проверяется на крупном кадре: стакан во весь кадр, без масштаба
+  // линейки (model.scaleFeel — про композицию, не про цвет).
+  model: { ...CONFIG.model, scaleFeel: 0 },
   security: { ...CONFIG.security, debugApi: 'never' },
 };
 

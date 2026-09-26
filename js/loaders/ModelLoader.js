@@ -344,6 +344,18 @@ export class ModelLoader {
     }
   }
 
+  // Во сколько раз дальше эталона встать камере, чтобы стакан выглядел своего
+  // размера (config.model.scaleFeel): модель нормализована, и без этого 120 мл
+  // во весь кадр не отличить от 500 мл. Ближе эталона — не дальше, чем пока
+  // стакан не займёт scaleMaxFill высоты кадра.
+  #scaleDistance() {
+    const { scaleFeel = 0, scaleReferenceMm, scaleMaxFill = 1, cameraFitOffset } = this.config.model;
+    const size = this.cup?.size;
+    const real = Math.max(size?.heightMm ?? 0, size?.topMm ?? 0);
+    if (!(real > 0) || !(scaleReferenceMm > 0)) return 1;
+    return Math.max((scaleReferenceMm / real) ** scaleFeel, 1 / (cameraFitOffset * scaleMaxFill));
+  }
+
   // Перекадрирует камеру вокруг текущей модели, сохраняя угол обзора.
   frameCurrentModel() {
     if (!this.currentModel) return;
@@ -351,7 +363,7 @@ export class ModelLoader {
       this.camera,
       this.controls,
       measure(this.currentModel).box,
-      this.config.model.cameraFitOffset,
+      this.config.model.cameraFitOffset * this.#scaleDistance(),
       this.config.model.cameraAim,
     );
     // Кадрирование запоминаем: от него считаются пресеты камеры (§12).

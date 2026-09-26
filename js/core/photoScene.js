@@ -208,7 +208,7 @@ export function frameFor(photo, preset, placed, aspect) {
   const refCentre = tan(new THREE.Vector3(0, mm(data.reference.heightMm) / 2, 0));
   const heroBox = boxOf(tan, new THREE.Vector3(), hero);
   const singleWin = single(preset.baseWindow, refCentre, tan(new THREE.Vector3(0, height / 2, 0)), zoom, aspect,
-    data.fit.zoomLimits, heroBox, data.fit.maxW);
+    data.fit.zoomLimits, heroBox, data.fit.maxW, data.fit.scaleFeel);
   const atOrigin = placed.length === 1 && !placed[0].posMm?.[0] && !placed[0].posMm?.[1] && !placed[0].floorMm;
   let win = singleWin;
   if (!atOrigin) {

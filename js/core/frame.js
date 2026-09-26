@@ -16,6 +16,14 @@ export const ASPECTS = Object.freeze({ '1:1': 1, '3:4': 0.75, '4:5': 0.8 });
 // (сцены, выгруженные раньше, его в fit не несут).
 export const MAX_W = 0.6;
 
+// Стакан не выше этой доли кадра — как MAX_H в render/engine/bk/frame.py.
+export const MAX_H = 0.8;
+
+// Масштаб линейки — как SCALE_FEEL в render/engine/bk/frame.py: 1 — кадр сцены
+// один на все стаканы, и 120 мл выглядит маленьким рядом с вещами комнаты, а
+// 655 мл — большим (пока влезает в MAX_H); 0 — каждый стакан во весь кадр.
+export const SCALE_FEEL = 1;
+
 export const size = (w) => [w[1] - w[0], w[3] - w[2]];
 export const centre = (w) => [(w[0] + w[1]) / 2, (w[2] + w[3]) / 2];
 export const union = (a, b) => [
@@ -72,17 +80,20 @@ export function projector(matrixWorld) {
 // стакан — окно масштабируется вокруг центра эталона и сдвигается так, чтобы
 // тот пришёлся на центр стакана. Масштаб прямо вокруг центра стакана сдвигал
 // композицию: низкому стакану не хватало воздуха снизу, высокому — сверху.
-// zoom — рост стакана к эталону; узкий формат обрезает бока. Низкий широкий
-// стакан ростом с эталон занял бы узкий кадр почти во всю ширину (в 3:4 — до
-// 80 %): тогда окно раздвигается вокруг стакана, пока он не уже maxW кадра.
-export function single(base, refCentre, cupCentre, zoom, aspect, limits, cupBox = null, maxW = MAX_W) {
+// zoom — рост стакана к эталону; кадр подстраивается под него лишь на долю
+// 1 − feel (SCALE_FEEL). Узкий формат обрезает бока. Стакан шире maxW или
+// выше MAX_H кадра — окно раздвигается вокруг него, пока он не влезет.
+export function single(base, refCentre, cupCentre, zoom, aspect, limits, cupBox = null, maxW = MAX_W,
+  feel = SCALE_FEEL) {
   const [w0, h0] = size(base);
-  const k = Math.max(limits[0], Math.min(limits[1], zoom));
+  const k = Math.max(limits[0], Math.min(limits[1], zoom ** (1 - feel)));
   const w = scaleAbout(base, refCentre, (aspect * k * h0) / w0, k);
   const dx = cupCentre[0] - refCentre[0];
   const dy = cupCentre[1] - refCentre[1];
   const win = [w[0] + dx, w[1] + dx, w[2] + dy, w[3] + dy];
-  const f = cupBox ? size(cupBox)[0] / (size(win)[0] * maxW) : 0;
+  const [cw, ch] = cupBox ? size(cupBox) : [0, 0];
+  const [ww, wh] = size(win);
+  const f = Math.max(cw / (ww * maxW), ch / (wh * MAX_H));
   return f > 1 ? scaleAbout(win, cupCentre, f, f) : win;
 }
 
