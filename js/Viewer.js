@@ -1361,6 +1361,53 @@ export class Viewer {
     this.turntable.setMetrics({ center, baseY: box.min.y, radius });
   }
 
+  // Силуэт стаканов фото-сцены: белое на чёрном, тем же окном кадра, без фона,
+  // теней, света и постобработки. Для сверки с маской рендера Blender
+  // (tests/photoreal/check.mjs): совпадают ли места стаканов и кадр.
+  renderSilhouette({ width, height }) {
+    if (!this.photo) return null;
+    const { renderer, scene, camera } = this;
+    const hidden = [this.shadowCatcher?.plane, this.ambientShadow?.group].filter((o) => o?.visible);
+    const saved = {
+      background: scene.background,
+      environment: scene.environment,
+      override: scene.overrideMaterial,
+      toneMapping: renderer.toneMapping,
+      ratio: renderer.getPixelRatio(),
+    };
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    this.turntable?.setHiddenForCapture(true);
+    for (const object of hidden) object.visible = false;
+    scene.background = new THREE.Color(0x000000);
+    scene.environment = null;
+    scene.overrideMaterial = white;
+    renderer.toneMapping = THREE.NoToneMapping;
+    try {
+      renderer.setPixelRatio(1);
+      renderer.setSize(width, height, false);
+      this.#layoutPhotoScene({ clientWidth: width, clientHeight: height });
+      camera.updateMatrixWorld();
+      renderer.setRenderTarget(null);
+      renderer.render(scene, camera);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(renderer.domElement, 0, 0, width, height);
+      return canvas;
+    } finally {
+      for (const object of hidden) object.visible = true;
+      this.turntable?.setHiddenForCapture(false);
+      scene.background = saved.background;
+      scene.environment = saved.environment;
+      scene.overrideMaterial = saved.override;
+      renderer.toneMapping = saved.toneMapping;
+      renderer.setPixelRatio(saved.ratio);
+      white.dispose();
+      this.resize();
+      this.invalidateModel();
+    }
+  }
+
   // Кадр заданного размера без интерфейса (§20) — холст 2D с фоном.
   //
   // Рисует тот же конвейер, что и экран, — значит, тот же тонмаппинг и то же

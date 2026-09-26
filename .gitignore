@@ -57,10 +57,7 @@ render/cups/plastic/library/
 # выгрузки для превью и кадры — пересобираются инструментами
 render/web/scenes/
 render/web/cups/
-render/out/*
-!render/out/preview_check/
-render/out/preview_check/*
-!render/out/preview_check/jobs/
+render/out/
 __pycache__/
 *.pyc
 *.blend1
