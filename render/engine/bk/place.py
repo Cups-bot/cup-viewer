@@ -37,22 +37,48 @@ def _abs(rel: str) -> str:
     return os.path.normpath(os.path.join(PROJECT, rel))
 
 
-def load_catalog(cfg: dict) -> None:
-    """Реестр стаканов из catalog/cups.json: по ID и по псевдонимам (410/500/650).
+def _render_entry(cup: dict) -> dict:
+    """Стакан единого каталога CupViewer (schemaVersion 2) → запись движка.
 
-    Для PP поле печати раскладывается туда, где его ждёт код печати
-    (field_mm, band), — печать PP от переезда в каталог не меняется.
+    Каталог общий с сайтом: общие поля там в стиле сайта (volumeMl, size.heightMm,
+    wall), а движок читает прежние имена (brim_ml, size_mm, group). Переходник
+    держит всё остальное в движке нетронутым; раздел render — как было.
+    """
+    size = cup.get("size") or {}
+    e = {
+        "id": cup["id"], "aliases": cup.get("aliases", []), "label": cup.get("label", cup["id"]),
+        "type": cup["type"], "group": cup["wall"],
+        "volume_ml": cup.get("volumeMl"), "brim_ml": cup.get("fullVolumeMl"),
+        "size_mm": {"height": size.get("heightMm"), "top": size.get("topMm"), "bottom": size.get("bottomMm")},
+    }
+    e.update(cup["render"])
+    if cup["type"] == "paper":
+        e.setdefault("boards", cup.get("materialCompatibility"))
+        e.setdefault("board_default", cup.get("defaultMaterial"))
+    return e
+
+
+def load_catalog(cfg: dict) -> None:
+    """Реестр стаканов из единого каталога: по ID и по псевдонимам (410/500/650).
+
+    Каталог один на сайт и рендер (catalog/cups.json в корне репозитория);
+    стакан без раздела render движку не виден. Для PP поле печати
+    раскладывается туда, где его ждёт код печати (field_mm, band).
     """
     rel = cfg.get("catalog")
     if not rel:
         return
     path = _abs(rel)
     if not os.path.isfile(path):
-        raise ConfigError(f"{path}: каталог стаканов не найден (engine/tools/make_catalog.py)")
+        raise ConfigError(f"{path}: каталог стаканов не найден")
     with open(path, "r", encoding="utf-8") as fh:
         data = json.load(fh)
     cups = {}
     for c in data["cups"]:
+        if data.get("schemaVersion", 1) >= 2:
+            if not c.get("render"):
+                continue
+            c = _render_entry(c)
         e = dict(c)
         pr = e.get("print") or {}
         if pr.get("mode") == "pp":

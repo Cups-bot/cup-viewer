@@ -1,13 +1,13 @@
 {
   "_about": [
     "Общие настройки съёмки: какой стакан по умолчанию, материал PP, печать PP, чем рендерить.",
-    "Стаканы — в catalog/cups.json (engine/tools/make_catalog.py), фоны — по файлу в sets/.",
+    "Стаканы — в едином каталоге CupViewer ../catalog/cups.json (раздел render), фоны — по файлу в sets/.",
     "Материал pp — единственный источник правды для литого PP во всех кадрах.",
     "Пути — от корня render/ (движок рендера CupViewer).",
     "scale_reference_mm — рост эталонного стакана (BM90-500): масштаб сцены считается по нему, все стаканы ставятся 1:1."
   ],
   "source_blend": "scenes/4.blend",
-  "catalog": "catalog/cups.json",
+  "catalog": "../catalog/cups.json",
   "cup_key": "BM90-500",
   "scale_reference_mm": 135.3,
   "color": {
