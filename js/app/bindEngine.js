@@ -5,6 +5,20 @@ import { blankSheetUrl } from '../utils/blankSheet.js';
 // помимо воли человека: модель не загрузилась, сцена не открылась, полный
 // экран закрыли клавишей Escape.
 export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
+  // Ключ второго стакана, который последним отдали движку (null — второго нет).
+  let secondKey = null;
+  // Второй стакан не загрузился — движок снял желание (photoSecond = null);
+  // состояние следует за ним, как за главным в present, иначе кнопка второго
+  // показывала бы стакан, которого нет ни в кадре, ни в задании рендера.
+  // Смотрим только на стакан, который действительно отдавали движку: до
+  // первого setPhotoSecond у движка второго ещё нет, и это не сбой.
+  const dropFailedSecond = () => {
+    const photo = state.get().photo;
+    if (secondKey === null || viewer.photoSecond || !photo?.second) return;
+    secondKey = null;
+    state.set({ photo: { ...photo, second: null } });
+  };
+
   const present = async (s) => {
     const result = await viewer.present({
       model: catalog.model(s.modelId),
@@ -14,6 +28,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     // Сбой загрузки: сцена осталась на прежней модели — состояние тоже.
     const shownId = result.model?.id ?? null;
     if (!viewer.presenting && shownId && shownId !== state.get().modelId) state.set({ modelId: shownId });
+    dropFailedSecond();
     return result;
   };
   state.subscribe(['modelId', 'materialId', 'design'], present);
@@ -35,9 +50,17 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
   // Фото-сцена грузится с первым открытием вкладки и дальше остаётся в памяти.
   // Вкладку могли переключить, пока сцена грузилась: тогда после загрузки
   // сразу возвращаемся в студию.
+  //
+  // Сцена и второй стакан идут одной цепочкой. Сбой шага ловится в нём самом:
+  // отклонённое звено пропустило бы все следующие, и «Фотореал» замер бы до
+  // перезагрузки — ни второго стакана, ни ракурса, ни формата.
   let sceneJob = Promise.resolve();
-  const syncScene = () => {
-    sceneJob = sceneJob.then(async () => {
+  const enqueue = (step) => {
+    sceneJob = sceneJob.then(step).catch((error) => console.error('Фото-сцена:', error));
+    return sceneJob;
+  };
+  const syncScene = () =>
+    enqueue(async () => {
       const s = state.get();
       // Автоповорот в фоне только жрёт кадры, пока смотрят развёртку.
       viewer.setManualRotate(s.tab === 'unwrap');
@@ -50,18 +73,16 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
         onSceneFailed?.();
         return;
       }
+      dropFailedSecond();
       if (state.get().tab !== 'scene') await viewer.exitPhotoScene();
       state.get().photo?.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
     });
-    return sceneJob;
-  };
   state.subscribe(['tab', 'sceneId'], syncScene);
 
   // Ракурс, формат и второй стакан фото-сцены. Второй стакан — в материале
   // главного, если он ему подходит; иначе в своём материале по умолчанию.
-  let secondKey = null;
-  const syncPhoto = () => {
-    sceneJob = sceneJob.then(async () => {
+  const syncPhoto = () =>
+    enqueue(async () => {
       const s = state.get();
       const p = s.photo ?? {};
       const model = p.second ? catalog.model(p.second.modelId) : null;
@@ -74,14 +95,14 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
         await viewer.setPhotoSecond(model
           ? { model, material: catalog.material(materialId), kind: p.second.kind, designUrl }
           : null);
+        dropFailedSecond();
       }
       if (!viewer.photo) return;
-      if (p.preset && viewer.photo.preset.id !== p.preset) await viewer.setPhotoPreset(p.preset);
-      if (p.frame && viewer.photo.frameId !== p.frame) viewer.setPhotoFrame(p.frame);
-      p.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
+      const q = state.get().photo ?? {};
+      if (q.preset && viewer.photo.preset.id !== q.preset) await viewer.setPhotoPreset(q.preset);
+      if (q.frame && viewer.photo.frameId !== q.frame) viewer.setPhotoFrame(q.frame);
+      q.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
     });
-    return sceneJob;
-  };
   state.subscribe(['photo', 'materialId', 'design2'], syncPhoto);
 
   viewer.hooks.onFullscreen = (on) => state.set({ fullscreen: on });

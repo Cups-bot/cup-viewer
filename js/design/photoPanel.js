@@ -51,6 +51,11 @@ export function buildJob({ viewer, state, catalog }) {
   const job = viewer.photoJob();
   if (!job) return null;
   const s = state.get();
+  // Задание — то, что в кадре. Кадр ещё не догнал выбор (стакан грузится или
+  // не загрузился) — такое задание ушло бы с другими стаканами, чем на экране.
+  const scene = catalog.scene(s.sceneId);
+  const second = (scene?.maxCups ?? 2) > 1 ? s.photo?.second?.modelId ?? null : null;
+  if (job.cups[0]?.id !== s.modelId || (job.cups[1]?.id ?? null) !== second) return null;
   // Картон — тот же набор, что у рендера (render/engine/params/boards.json).
   for (const cup of job.cups) {
     if (catalog.model(cup.id)?.type === 'paper') cup.board = s.materialId;
@@ -295,6 +300,8 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
         const minutes = Math.max(1, Math.round((job.etaSeconds ?? 60) / 60));
         feedback?.onToast(`В очереди${job.position > 1 ? ` · ${job.position}-й` : ''} · готово примерно через ${minutes} мин`, 'success');
         account.watchJobs();
+      } else {
+        feedback?.onToast('Кадр ещё собирается — нажмите «Рендер» через пару секунд', 'warning');
       }
     } catch (error) {
       if (error.code === 'not_enough_tokens') account.openBuy(renderButton);

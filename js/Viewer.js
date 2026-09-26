@@ -614,7 +614,7 @@ export class Viewer {
       const texture = await backdropOf(photo, chosen);
       this.#applyPhotoScene(photo, chosen, texture, frame ?? this.photo?.frameId ?? '1:1');
       if (this.photoSecond) {
-        await this.#buildCompanion();
+        await this.#buildCompanionSafe();
         this.#layoutCups();
         this.resize();
       }
@@ -753,7 +753,7 @@ export class Viewer {
   async setPhotoSecond(target) {
     this.photoSecond = target?.model ? target : null;
     if (!this.photo) return;
-    if (this.photoSecond) await this.#buildCompanion();
+    if (this.photoSecond) await this.#buildCompanionSafe();
     else this.#dropCompanion();
     this.#layoutCups();
     this.resize();
@@ -851,7 +851,12 @@ export class Viewer {
         config: this.config,
         maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
       });
-      await loader.load(target.model.file, null, target.model, target.material);
+      try {
+        await loader.load(target.model.file, null, target.model, target.material);
+      } catch (error) {
+        loader.dispose();
+        throw error;
+      }
       if (gen !== this.#companionGen) {
         loader.dispose();
         return;
@@ -895,6 +900,22 @@ export class Viewer {
     this.rotateCupTo(1, keepAngle ?? (target.kind === 'pair' ? heroAngle + 150 : heroAngle));
     this.#layoutCups();
     this.resize();
+  }
+
+  // Второй не загрузился (сеть, файл модели) — в кадре остаётся один главный:
+  // сцена не рушится целиком, а желание снимается (photoSecond = null), чтобы
+  // состояние узнало об этом и не просило тот же стакан снова и снова.
+  async #buildCompanionSafe() {
+    try {
+      await this.#buildCompanion();
+      return true;
+    } catch (error) {
+      console.error(error);
+      this.photoSecond = null;
+      this.#dropCompanion();
+      this.#toast(MESSAGES.secondFailed, 'error');
+      return false;
+    }
   }
 
   #dropCompanion() {
@@ -1170,7 +1191,7 @@ export class Viewer {
       this.#shadeCavity();
       // Второй стакан пары — копия главного: после смены модели, материала или
       // макета копия снимается заново, иначе пара разойдётся.
-      if (this.photo && this.photoSecond) await this.#buildCompanion();
+      if (this.photo && this.photoSecond) await this.#buildCompanionSafe();
       return { updated, model: shown.model };
     }
   }
