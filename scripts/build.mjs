@@ -39,12 +39,15 @@ const OUTDIR = resolve(root, 'dist');
 const PAGES = {
   'index.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/design.css', 'dist/design.js'],
   'view.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/client.css', 'dist/view.js'],
+  'admin.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/admin.css', 'dist/admin.js'],
 };
 
 const options = {
   entryPoints: {
     design: resolve(root, 'js/entries/design.js'),
     view: resolve(root, 'js/entries/view.js'),
+    // Админка кабинета (этап Е) — без движка: только таблицы и запросы.
+    admin: resolve(root, 'js/entries/admin.js'),
   },
   bundle: true,
   splitting: true,
@@ -141,7 +144,7 @@ async function run() {
   const result = await build(options);
   await writeFile(resolve(OUTDIR, 'meta.json'), JSON.stringify(result.metafile));
   await stampPages();
-  console.log('Готово: dist/design.js, dist/view.js');
+  console.log('Готово: dist/design.js, dist/view.js, dist/admin.js');
 }
 
 run().catch((error) => {

@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=15a02211" />
-    <link rel="stylesheet" href="css/design.css?v=6897d040" />
+    <link rel="stylesheet" href="css/design.css?v=2d946d7e" />
   </head>
   <body>
     <div class="app">
@@ -23,6 +23,8 @@
         <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Материал"></div>
 
         <div class="site-header__actions">
+          <!-- Кабинет (js/account/account.js): «Войти» или баланс с меню. Без сервера — скрыт. -->
+          <div class="account" id="account" hidden></div>
           <div class="theme-toggle" role="group" aria-label="Тема">
             <button class="theme-toggle__btn" type="button" data-theme-set="light" aria-label="Светлая тема" aria-pressed="false">
               <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#sun" /></svg>
@@ -229,10 +231,15 @@
               <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон"></div>
             </div>
             <div class="photo-panel__actions">
+              <!-- Размер кадра: цену считает сервер (server/app/config.py PRICES), здесь — подсказка. -->
+              <div class="segmented render-size" id="render-size" role="radiogroup" aria-label="Размер кадра">
+                <button class="segmented__item" type="button" role="radio" data-size="1600">1600 px</button>
+                <button class="segmented__item" type="button" role="radio" data-size="3000">Для печати · 3000</button>
+              </div>
               <div class="photo-panel__row">
-                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" disabled aria-describedby="photo-render-note">Рендер · 1 токен</button>
-                <!-- Задание (JSON) — пока рендер запускают руками (render/README.md). -->
-                <button class="icon-btn photo-panel__job" id="photo-job" type="button" aria-label="Задание для рендера" data-tip="Задание для рендера — с макетом" data-tip-side="left">
+                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" aria-describedby="photo-render-note">Рендер · 1 токен</button>
+                <!-- Задание вручную (dev-сервер без кабинета): папка для Blender, render/README.md. -->
+                <button class="icon-btn photo-panel__job" id="photo-job" type="button" hidden aria-label="Задание для рендера" data-tip="Задание для рендера — с макетом" data-tip-side="left">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
                 </button>
               </div>
@@ -333,6 +340,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=b38feb10"></script>
+    <script type="module" src="dist/design.js?v=5c7dfec6"></script>
   </body>
 </html>

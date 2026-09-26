@@ -64,3 +64,9 @@ __pycache__/
 *.pyc
 *.blend1
 tests/photoreal/out/
+
+# server/ — API CupViewer v2 (этапы Г–Е): окружение и данные (база, макеты,
+# кадры, ключ исполнителя) в git не кладутся.
+server/.venv/
+server/data/
+tests/account/out/

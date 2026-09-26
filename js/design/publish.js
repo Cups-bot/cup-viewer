@@ -18,7 +18,7 @@ async function postJson(url, body) {
     credentials: 'same-origin',
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error(`${url}: HTTP ${response.status}`), { status: response.status });
   return response.json();
 }
 
@@ -29,7 +29,7 @@ async function uploadAsset(blob) {
     credentials: 'same-origin',
     body: blob,
   });
-  if (!response.ok) throw new Error(`upload: HTTP ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error(`upload: HTTP ${response.status}`), { status: response.status });
   return (await response.json()).assetId;
 }
 
@@ -112,7 +112,7 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 
-export function createPublishDialog({ state, mode, catalog, feedback, viewer }) {
+export function createPublishDialog({ state, mode, catalog, feedback, viewer, account }) {
   const backdrop = el('div', { class: 'dialog-backdrop', hidden: '' });
   const close = el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Закрыть' });
   close.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
@@ -155,14 +155,22 @@ export function createPublishDialog({ state, mode, catalog, feedback, viewer }) 
     busy = true;
     go.disabled = true;
     result.hidden = true;
+    // Ссылка — после входа (§3 концепции): на сервере CupViewer без входа 401.
+    const publish = () => publishSnapshot({
+      viewer,
+      state,
+      brandId,
+      title: titleInput.value.trim(),
+      onStage: (text) => (status.textContent = `${text}…`),
+    });
     try {
-      const link = await publishSnapshot({
-        viewer,
-        state,
-        brandId,
-        title: titleInput.value.trim(),
-        onStage: (text) => (status.textContent = `${text}…`),
-      });
+      let link;
+      try {
+        link = await publish();
+      } catch (error) {
+        if (error.status !== 401 || !(await account?.requireLogin(go))) throw error;
+        link = await publish();
+      }
       status.textContent = '';
       linkInput.value = link;
       open.href = link;

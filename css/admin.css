@@ -1,0 +1,167 @@
+/* Админка CupViewer (admin.html): простые таблицы поверх общих стилей app.css. */
+
+.admin {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--header-bg, var(--surface));
+  border-bottom: 1px solid var(--line);
+}
+
+/* Логотип и поля — как на сайте (design.css): страница его стили не грузит. */
+.admin-head .site-logo {
+  display: inline-flex;
+  color: var(--ink);
+}
+
+.admin-head .site-logo__full {
+  width: 123px;
+  height: 28px;
+}
+
+.admin .text-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+}
+
+.admin .text-input:focus {
+  background: var(--surface);
+  border-color: var(--action);
+  outline: none;
+}
+
+.admin-head__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-head__who {
+  margin: 0 0 0 auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.admin-main {
+  padding: 20px 24px 40px;
+}
+
+.admin-main section[hidden],
+.admin-panel[hidden],
+.admin-denied[hidden],
+.admin-ops[hidden] {
+  display: none;
+}
+
+.admin-denied {
+  max-width: 460px;
+  margin: 80px auto;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.admin-tabs {
+  margin-bottom: 16px;
+}
+
+.admin-search {
+  max-width: 320px;
+  margin-bottom: 12px;
+}
+
+.admin-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.admin-table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.admin-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-actions .btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.admin-amount {
+  width: 80px;
+  height: 32px;
+}
+
+.admin-note-input {
+  width: 150px;
+  height: 32px;
+}
+
+.admin-badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 6px;
+}
+
+.admin-status--failed {
+  color: #d70015;
+}
+
+.admin-status--rendering {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.admin-ops__list {
+  margin: 0;
+  padding: 4px 0 4px 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: normal;
+}

@@ -1249,3 +1249,312 @@
   background: none;
   border: none;
 }
+
+/* ── Кабинет: вход, баланс, «Мои рендеры», пакеты (этапы Г–Е) ───────────── */
+
+.account {
+  position: relative;
+  display: flex;
+}
+
+.account[hidden],
+.account__login[hidden],
+.account__me[hidden],
+.account-menu[hidden],
+.login-step[hidden] {
+  display: none;
+}
+
+.account__me {
+  gap: 8px;
+  padding-left: 5px;
+}
+
+.account__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.account__dot {
+  width: 8px;
+  height: 8px;
+  background: #ff3b30;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 250px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.25);
+}
+
+.account-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.account-menu__head b {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.account-menu__item {
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 9px;
+}
+
+@media (hover: hover) {
+  .account-menu__item:hover {
+    background: var(--surface-3);
+  }
+}
+
+.login-dialog,
+.buy-dialog {
+  width: min(420px, calc(100vw - 32px));
+  height: auto;
+  gap: 10px;
+}
+
+.login-step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-lead {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.login-code {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+}
+
+.login-status {
+  min-height: 1.2em;
+  margin: 0;
+  font-size: 13px;
+  color: #d70015;
+}
+
+.packs {
+  display: grid;
+  gap: 8px;
+}
+
+.pack {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.pack__tokens {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pack__price {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pack__each {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .pack:hover {
+    border-color: var(--accent);
+  }
+}
+
+.renders-dialog {
+  width: min(980px, calc(100vw - 32px));
+  height: min(780px, calc(100dvh - 48px));
+  gap: 12px;
+}
+
+.renders__balance {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.renders__empty {
+  margin: 40px auto;
+  max-width: 360px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+
+.renders__empty[hidden] {
+  display: none;
+}
+
+.renders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.render {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.render__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: var(--surface-3);
+}
+
+.render__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 4px;
+}
+
+.render__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.render__status,
+.render__mark {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.render--failed .render__status {
+  color: #d70015;
+}
+
+.render__error {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.render__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  margin-top: auto;
+}
+
+.render__actions .btn {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.render__remove {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+}
+
+/* Размер кадра над кнопкой рендера. */
+.render-size {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.render-size .segmented__item {
+  justify-content: center;
+  padding: 0 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .account__me .pill-btn__text {
+    display: none;
+  }
+}
+
+/* Узкий экран прячет подписи кнопок шапки, но «Войти» без подписи — пустой кружок. */
+@media (max-width: 1023px) {
+  .site-header .account__login .pill-btn__text {
+    display: inline;
+  }
+
+  .site-header .account__login {
+    width: auto;
+    padding: 0 14px;
+  }
+}

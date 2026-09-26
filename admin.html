@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>CupViewer · Админка</title>
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <script src="js/ui/themeBoot.js?v=404de260"></script>
+    <link rel="stylesheet" href="css/app.css?v=f34d1730" />
+    <link rel="stylesheet" href="css/viewer.css?v=15a02211" />
+    <link rel="stylesheet" href="css/admin.css?v=dc8aa9a4" />
+  </head>
+  <body class="admin">
+    <header class="admin-head">
+      <a class="site-logo" href="./" aria-label="CupViewer — на сайт">
+        <svg class="site-logo__full" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-logo" /></svg>
+      </a>
+      <p class="admin-head__title">Админка</p>
+      <p class="admin-head__who" id="admin-who"></p>
+    </header>
+
+    <main class="admin-main">
+      <p class="admin-denied" id="admin-denied" hidden>
+        Войдите на <a href="./">сайте</a> под почтой администратора и откройте эту страницу снова.
+      </p>
+
+      <section id="admin-app" hidden>
+        <div class="segmented admin-tabs" role="tablist" aria-label="Разделы">
+          <button class="segmented__item is-active" type="button" role="tab" data-tab="users" aria-selected="true">Пользователи</button>
+          <button class="segmented__item" type="button" role="tab" data-tab="queue" aria-selected="false">Очередь</button>
+          <button class="segmented__item" type="button" role="tab" data-tab="payments" aria-selected="false">Платежи</button>
+        </div>
+
+        <div class="admin-panel" data-panel="users">
+          <input class="text-input admin-search" id="user-search" type="search" placeholder="Поиск по почте" aria-label="Поиск по почте" />
+          <div class="admin-table-wrap"><table class="admin-table" id="users-table"></table></div>
+        </div>
+        <div class="admin-panel" data-panel="queue" hidden>
+          <div class="admin-table-wrap"><table class="admin-table" id="queue-table"></table></div>
+        </div>
+        <div class="admin-panel" data-panel="payments" hidden>
+          <p class="admin-note">Оплата пока тестовая: эквайринг подключается при выгрузке (этап Ж).</p>
+          <div class="admin-table-wrap"><table class="admin-table" id="payments-table"></table></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="dist/admin.js?v=e23e0e7d"></script>
+  </body>
+</html>

@@ -10,6 +10,7 @@
 
 import { PHOTO_FRAMES } from '../state/viewerState.js';
 import { sceneFolder } from '../catalog/catalog.js';
+import { api, errorText, tokensText } from '../account/account.js';
 
 const el = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
@@ -40,50 +41,76 @@ function download(name, text) {
 // сбоку от главного, как у рендера (run.py --second).
 const secondFor = (modelId, heroId) => ({ modelId, kind: modelId === heroId ? 'pair' : 'side' });
 
-// Задание рендера с макетами. Растр макета — тот же, что лёг на 3D-модель
-// (развёртка в полном размере, design.unwrapUrl), исходник не уходит. Пока
-// сервера нет (этап Г), задание принимает dev-сервер (scripts/renderJobApi.mjs)
-// и кладёт папкой в render/jobs/; без него — JSON скачивается как раньше.
+// Задание рендера с макетами: раскладка сцены (viewer.photoJob), картон
+// бумажных стаканов и растры макетов — те же, что легли на 3D-модели
+// (развёртка в полном размере, у PET — сведённый лист сторон), исходник не
+// уходит. У главного — свой макет; у второго — свой (design2), у пары без
+// своего — главного. Стакан без макета — чистый: иначе рендер взял бы печать из
+// файла модели (там тестовый рисунок).
+export function buildJob({ viewer, state, catalog }) {
+  const job = viewer.photoJob();
+  if (!job) return null;
+  const s = state.get();
+  // Картон — тот же набор, что у рендера (render/engine/params/boards.json).
+  for (const cup of job.cups) {
+    if (catalog.model(cup.id)?.type === 'paper') cup.board = s.materialId;
+  }
+  const raster = (d) => d?.unwrapUrl ?? d?.textureUrl ?? null;
+  const rasters = [raster(s.design)];
+  if (job.cups[1]) rasters.push(raster(s.design2) ?? (job.cups[1].id === job.cups[0].id ? rasters[0] : null));
+  job.cups.forEach((cup, index) => {
+    if (!rasters[index]) cup.print = 'none';
+  });
+  return { job, rasters };
+}
+
+const blobOf = async (url) => (await fetch(url)).blob();
+
+// Рендер за токены: задание и растры — на сервер (server/app/jobs.py).
+async function submitRender({ viewer, state, catalog }, size) {
+  const built = buildJob({ viewer, state, catalog });
+  if (!built) return null;
+  const form = new FormData();
+  form.append('job', JSON.stringify(built.job));
+  form.append('size', size);
+  const blobs = new Map();
+  for (const [index, url] of built.rasters.entries()) {
+    if (!url) continue;
+    if (!blobs.has(url)) blobs.set(url, await blobOf(url));
+    const blob = blobs.get(url);
+    form.append(`art${index}`, blob, `art-${index + 1}.${blob.type.includes('png') ? 'png' : 'jpg'}`);
+  }
+  return api('api/jobs', { method: 'POST', body: form });
+}
+
+// Ручное задание (dev-сервер без кабинета, scripts/renderJobApi.mjs): папка
+// render/jobs/<время>/ для run.py --job.
 async function uploadRaster(url) {
-  const blob = await (await fetch(url)).blob();
-  const res = await fetch('api/snapshot-assets', { method: 'POST', body: blob });
+  const res = await fetch('api/snapshot-assets', { method: 'POST', body: await blobOf(url) });
   if (!res.ok) throw new Error(`растр: ${res.status}`);
   return (await res.json()).assetId;
 }
 
 export async function sendRenderJob({ viewer, state, catalog }) {
-  const job = viewer.photoJob();
-  if (!job) return null;
-  const s = state.get();
-  // Картон бумажного стакана — тот же набор, что у рендера (render/engine/params/boards.json).
-  for (const cup of job.cups) {
-    if (catalog.model(cup.id)?.type === 'paper') cup.board = s.materialId;
-  }
-  // Макеты: у главного — свой; у второго — свой (design2), у пары без своего —
-  // главного. Стакан без макета — чистый: иначе рендер взял бы печать из файла
-  // модели (там тестовый рисунок).
+  const built = buildJob({ viewer, state, catalog });
+  if (!built) return null;
   const arts = {};
-  const raster = (d) => d?.unwrapUrl ?? d?.textureUrl ?? null;
-  const hero = raster(s.design);
-  if (hero) arts[0] = await uploadRaster(hero);
-  if (job.cups[1]) {
-    const own = raster(s.design2);
-    if (own) arts[1] = await uploadRaster(own);
-    else if (hero && job.cups[1].id === job.cups[0].id) arts[1] = arts[0];
+  const ids = new Map();
+  for (const [index, url] of built.rasters.entries()) {
+    if (!url) continue;
+    if (!ids.has(url)) ids.set(url, await uploadRaster(url));
+    arts[index] = ids.get(url);
   }
-  job.cups.forEach((cup, index) => {
-    if (!arts[index]) cup.print = 'none';
-  });
   const res = await fetch('api/render-job', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ job, arts }),
+    body: JSON.stringify({ job: built.job, arts }),
   });
   if (!res.ok) throw new Error(`задание: ${res.status}`);
   return res.json();
 }
 
-export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, cupPhoto, describe }) {
+export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto, describe }) {
   const panel = document.getElementById('photo-panel');
   const bar = document.getElementById('photo-bar');
   const secondBox = document.getElementById('second-cup');
@@ -218,7 +245,66 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
   state.subscribe(['tab', 'sceneId', 'photo', 'modelId'], render);
   render();
 
+  // ── рендер за токены ────────────────────────────────────────────────────
+  const renderButton = document.getElementById('photo-render');
+  const renderNote = document.getElementById('photo-render-note');
+  const sizeButtons = [...document.querySelectorAll('#render-size [data-size]')];
   const jobButton = document.getElementById('photo-job');
+  let size = '1600';
+  let busy = false;
+  const price = () => account?.me?.prices?.[size] ?? (size === '3000' ? 3 : 1);
+  const showRender = () => {
+    for (const button of sizeButtons) radio(button, button.dataset.size === size);
+    const me = account?.me;
+    const cost = price();
+    const b = me?.balance;
+    const enough = Boolean(b) && (b.paid >= cost || b.welcome >= cost);
+    // Без сервера (dev) — ручное задание вместо рендера.
+    const server = Boolean(account?.available);
+    if (jobButton) jobButton.hidden = server;
+    renderButton.disabled = busy || !server;
+    renderButton.textContent = me && !enough ? 'Пополнить токены' : `Рендер · ${tokensText(cost)}`;
+    if (!server) renderNote.textContent = 'Рендер — с сервером CupViewer (python -m server)';
+    else if (!me) renderNote.textContent = 'Войдите — 3 кадра бесплатно';
+    else if (!enough) renderNote.textContent = `На балансе ${tokensText(b.paid + b.welcome)} — не хватает на кадр`;
+    else if (b.paid >= cost) renderNote.textContent = `Кадр без знака · останется ${tokensText(b.paid - cost)}`;
+    else renderNote.textContent = `Приветственный токен: кадр с небольшим знаком · осталось ${b.welcome}`;
+  };
+  for (const button of sizeButtons) {
+    button.addEventListener('click', () => {
+      size = button.dataset.size;
+      showRender();
+    });
+  }
+  account?.onChange(showRender);
+  showRender();
+
+  renderButton.addEventListener('click', async () => {
+    if (busy || !account?.available) return;
+    if (!(await account.requireLogin(renderButton))) return;
+    const b = account.me.balance;
+    if (b.paid < price() && b.welcome < price()) {
+      account.openBuy(renderButton);
+      return;
+    }
+    busy = true;
+    showRender();
+    try {
+      const job = await submitRender({ viewer, state, catalog }, size);
+      if (job) {
+        const minutes = Math.max(1, Math.round((job.etaSeconds ?? 60) / 60));
+        feedback?.onToast(`В очереди${job.position > 1 ? ` · ${job.position}-й` : ''} · готово примерно через ${minutes} мин`, 'success');
+        account.watchJobs();
+      }
+    } catch (error) {
+      if (error.code === 'not_enough_tokens') account.openBuy(renderButton);
+      feedback?.onToast(errorText(error, 'Задание не ушло — попробуйте ещё раз'), 'error');
+    } finally {
+      busy = false;
+      await account.refresh();
+    }
+  });
+
   jobButton?.addEventListener('click', async () => {
     jobButton.disabled = true;
     try {
@@ -228,11 +314,11 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
         feedback?.onToast(`Задание в ${saved.dir} — команда рендера скопирована`, 'success');
       }
     } catch {
-      // Без dev-сервера (статический хостинг) — задание без макета, файлом.
-      const job = viewer.photoJob();
-      if (job) {
+      // Совсем без API (статический хостинг) — задание без макета, файлом.
+      const built = buildJob({ viewer, state, catalog });
+      if (built) {
         const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-        download(`job_${job.set}_${stamp}.json`, `${JSON.stringify(job, null, 1)}\n`);
+        download(`job_${built.job.set}_${stamp}.json`, `${JSON.stringify(built.job, null, 1)}\n`);
       }
     } finally {
       jobButton.disabled = false;

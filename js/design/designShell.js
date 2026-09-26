@@ -10,6 +10,7 @@ import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
 import { initPhotoPanel } from './photoPanel.js';
+import { initAccount } from '../account/account.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -38,13 +39,15 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   };
 
   const picker = initModelPicker({ state, catalog, actions });
+  // Кабинет: вход, токены, рендер, «Мои рендеры» (без сервера CupViewer — скрыт).
+  const account = initAccount({ catalog, feedback });
   initMaterialSwitch({ state, catalog, actions });
   initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
-  initPublish({ state, mode, catalog, feedback, viewer });
-  initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
+  initPublish({ state, mode, catalog, feedback, viewer, account });
+  initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
   initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
