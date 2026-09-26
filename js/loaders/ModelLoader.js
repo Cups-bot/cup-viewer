@@ -492,7 +492,8 @@ export class ModelLoader {
   // Убирает текущую модель и освобождает её ресурсы GPU.
   dispose() {
     if (!this.currentModel) return;
-    this.scene.remove(this.currentModel);
+    // Родитель — сцена или подставка фото-сцены (Viewer#standCupInScene).
+    this.currentModel.removeFromParent();
     disposeObject(this.currentModel);
     this.currentModel = null;
     this.sourceSize = null;

@@ -21,15 +21,16 @@ import {
 } from './core/backdrop.js';
 import { VIEWS, createCameraTween, orbitOf, orbitPosition } from './core/cameraViews.js';
 import {
-  frameAspectOf,
-  frameSizeOf,
-  fovFor,
-  heightInScene,
+  ASPECTS,
+  backdropOf,
+  cupHeight,
+  cupRotation,
+  frameFor,
   loadPhotoScene,
-  loadShadowLayer,
-  pickFrame,
-  shadowKeyFor,
+  presetOf,
 } from './core/photoScene.js';
+import { applyWindow, backdropRect } from './core/frame.js';
+import { NEUTRAL_TONE_MAPPING } from './core/postprocessing.js';
 import { blankSheetUrl } from './utils/blankSheet.js';
 import { MESSAGES } from './ui/messages.js';
 import { createZip } from './utils/zip.js';
@@ -88,7 +89,7 @@ export class Viewer {
 
     this.#initCore();
     this.#initModules();
-    this.#trackAsync(['loadHDRI', 'loadModel', 'applyTexture', 'enterPhotoScene', 'exitPhotoScene', 'present']);
+    this.#trackAsync(['loadHDRI', 'loadModel', 'applyTexture', 'enterPhotoScene', 'exitPhotoScene', 'setPhotoPreset', 'present']);
   }
 
   // Незавершённые загрузки. whenReady() ждёт, пока их не останется: без этого
@@ -360,7 +361,9 @@ export class Viewer {
 
       // Обе возвращают true, пока продолжают что-то двигать: controls —
       // затухающую орбиту, turntable — появление круга и доворот до засечки.
-      const cameraMoving = this.controls.update(delta);
+      // В фото-сцене камера — точная камера Blender: controls.update развернул
+      // бы её на цель (lookAt) и потерял бы крен, поэтому орбиту не трогаем.
+      const cameraMoving = this.photo ? false : this.controls.update(delta);
       const turntableMoving = this.turntable?.update(this.getModelRotation(), delta);
       if (cameraMoving || turntableMoving) this.invalidate();
 
@@ -545,6 +548,8 @@ export class Viewer {
         applyEnvironmentIntensity(this.modelLoader.currentModel, photoEnvIntensity(this.photo.data));
         this.#placePhotoCamera();
         this.#standCupInScene();
+        // Кадр зависит от роста стакана (вырез вокруг него).
+        this.resize();
       } else {
         applyEnvironmentIntensity(
           this.modelLoader.currentModel,
@@ -576,16 +581,22 @@ export class Viewer {
 
   // ── Фото-сцена ──────────────────────────────────────────────────────────
   //
-  // Стакан переезжает из студии в настоящую снятую сцену: фон приходит
-  // картинкой, свет — панорамой из точки, где стакан стоял при съёмке, камера
-  // встаёт ровно туда, где была в Blender. Подробности — в js/core/photoScene.js.
-  async enterPhotoScene(id) {
+  // Стакан переезжает из студии в сцену фотореал-рендера: фон — снимок из
+  // камеры ракурса, свет — панорама из точки стакана, камера — та же камера,
+  // что у Blender, кадр — вырез из снимка (окно, js/core/frame.js). Поэтому то,
+  // что видно здесь, совпадает с кадром рендера. Подробности — photoScene.js.
+  //
+  // options.preset — ракурс сцены (по умолчанию прежний или первый — «как в
+  // сцене»); options.frame — формат кадра '1:1' | '3:4' | '4:5'.
+  async enterPhotoScene(id, { preset = null, frame = null } = {}) {
     this.#loading('Загрузка сцены…');
     try {
       const photo = await loadPhotoScene(id, this.renderer, (percent) =>
         this.#loading('Загрузка сцены…', percent),
       );
-      this.#applyPhotoScene(photo);
+      const chosen = presetOf(photo, preset ?? this.photo?.preset?.id);
+      const texture = await backdropOf(photo, chosen);
+      this.#applyPhotoScene(photo, chosen, texture, frame ?? this.photo?.frameId ?? '1:1');
       return photo;
     } catch (error) {
       console.error(error);
@@ -596,38 +607,31 @@ export class Viewer {
     }
   }
 
-  #applyPhotoScene(photo) {
+  #applyPhotoScene(photo, preset, texture, frameId) {
     const { data } = photo;
     // Студийный вид запоминаем на входе: вернуться в 3D нужно туда же, где
-    // клиент был, — с его углом облёта и приближением. Смена одной сцены на
+    // человек был, — с его углом облёта и приближением. Смена одной сцены на
     // другую студию не трогает.
     if (!this.photo) this.#saveStudioView();
-    this.photo = photo;
+    this.photo = { ...photo, preset, backdrop: texture, frameId: ASPECTS[frameId] ? frameId : '1:1' };
     this.#applyShadingProfile();
 
-    // Стакан живёт в сцене по панораме env.hdr — это линейная яркость
-    // комнаты, и без тонмаппинга его блики выбьет в белое. В обычном режиме
-    // тонмаппинг выключен ради цветопередачи — там согласуют цвет печати.
-    // Фона тонмаппинг не касается: конвейер кладёт снимок под стакан уже
-    // после него (см. RenderPipeline#setBackdrop).
-    //
-    // Какой именно — говорит сцена: стакан обязан пройти ту же кривую, что
-    // и в рендере, по которому сцену утвердили. Сцена, сведённая в Blender
-    // в Standard, — это обычный sRGB с обрезкой; AgX на ней сжимал белый
-    // стакан до серого. Filmic и AgX из Blender в three ближе всего к AgX.
+    // Стакан проходит ту же кривую, что и в кадре рендера: сцены рендера
+    // сведены в Blender в Khronos PBR Neutral (своя ветка в SafeOutputPass),
+    // экспозиция — сцены. Фона тонмаппинг не касается: конвейер кладёт снимок
+    // под стакан уже после него (RenderPipeline#setBackdrop). В студии
+    // тонмаппинг прежний — его вернёт exitPhotoScene.
+    const transform = data.color?.transform;
     this.renderer.toneMapping =
-      data.view?.transform === 'Standard' ? THREE.LinearToneMapping : THREE.AgXToneMapping;
-    this.renderer.toneMappingExposure = 2 ** (data.view?.exposure ?? 0);
+      transform === 'Khronos PBR Neutral' ? NEUTRAL_TONE_MAPPING
+        : transform === 'Standard' ? THREE.LinearToneMapping : THREE.AgXToneMapping;
+    this.renderer.toneMappingExposure = 2 ** (data.color?.exposure ?? 0);
 
-    // Свет сцены. Интенсивность здесь полная: панорама снята в этой самой
-    // комнате и уже несёт её яркость — ослаблять нечего.
+    // Свет сцены. Интенсивность полная: панорама снята в этой самой сцене.
     this.scene.environment = photo.envMap;
     applyEnvironmentIntensity(this.modelLoader.currentModel, photoEnvIntensity(data));
 
-    // Ключевой свет наводится по самому яркому пятну панорамы — он нужен
-    // ради ТЕНИ, а не ради освещения: освещает сцену сама панорама. В студии
-    // источнику отдают восьмую часть яркости софтбокса, и для снятой комнаты
-    // этого мало — тень получается еле заметной. Долю задаёт сцена.
+    // Ключевой свет нужен ради ТЕНИ: освещает сцену сама панорама.
     this.sun = photo.sun;
     aimKeyLight(this.lightingRig, photo.sun, {
       ...this.config,
@@ -644,17 +648,54 @@ export class Viewer {
     this.scene.background = null;
     this.backdropScreen.mesh.visible = false;
 
+    // Подставка: поворот стакана в сцене (в «Воде» он наклонён). Место —
+    // начало площадки; свой поворот стакан получает уже на ней (rotation.y).
+    if (!this.photoStand) {
+      this.photoStand = new THREE.Group();
+      this.photoStand.name = 'PhotoStand';
+      this.scene.add(this.photoStand);
+    }
+    this.photoStand.position.set(0, 0, 0);
+    this.photoStand.quaternion.copy(cupRotation(data));
+
     this.#placePhotoCamera();
-
-    // Зерно поверх кадра: оно есть в снятой сцене и его нет в 3D, и без него
-    // стакан читается как наклейка (см. RenderPipeline).
+    // Зерно поверх кадра: оно есть в снятой сцене и его нет в 3D.
     this.pipeline.setGrain(data.grain ?? 0.03);
-
     this.#standCupInScene();
-    // Через resize, а не сразу раскладкой: холст ужимается до снимка.
+    // Через resize: холст ужимается до формы кадра, окно режется под стакан.
     this.resize();
-    this.#track(this.#loadPhotoShadow());
     this.invalidateModel();
+  }
+
+  // Ракурс сцены (id из scene.json). Камера встаёт в его точку, фон — его снимок.
+  async setPhotoPreset(id) {
+    if (!this.photo) return null;
+    const preset = presetOf(this.photo, id);
+    const texture = await backdropOf(this.photo, preset);
+    if (!this.photo) return null;
+    this.photo.preset = preset;
+    this.photo.backdrop = texture;
+    this.#placePhotoCamera();
+    this.resize();
+    this.invalidateModel();
+    return preset.id;
+  }
+
+  // Формат кадра фото-сцены: '1:1' | '3:4' | '4:5'.
+  setPhotoFrame(frameId) {
+    if (!this.photo || !ASPECTS[frameId]) return;
+    this.photo.frameId = frameId;
+    this.resize();
+    this.invalidateModel();
+  }
+
+  // Кадр фото-сцены сейчас — для оболочки и задания рендера: сцена, ракурс,
+  // формат, окно, влез ли кадр в снимок фона, крупность к кадру фона.
+  photoFrame() {
+    const photo = this.photo;
+    if (!photo) return null;
+    const fit = frameFor(photo, photo.preset, this.modelLoader.cup, ASPECTS[photo.frameId]);
+    return { scene: photo.id, preset: photo.preset.id, frame: photo.frameId, ...fit };
   }
 
   #saveStudioView() {
@@ -686,42 +727,40 @@ export class Viewer {
     this.controls.update();
   }
 
-  // Камера сцены. Облёт выключен: фон плоский, и поворот камеры мгновенно
-  // его выдаёт. Крутится только сам стакан — кругом под ним и автоповоротом.
+  // Камера ракурса — точная камера Blender: позиция и поворот как есть, с
+  // креном. Облёт выключен: фон плоский, и поворот камеры мгновенно его выдаёт.
   #placePhotoCamera() {
-    const { data } = this.photo ?? {};
-    if (!data) return;
+    const view = this.photo?.preset?.view;
+    if (!view) return;
     this.controls.enabled = false;
-    this.camera.position.set(...data.camera.position);
-    this.controls.target.set(...data.camera.target);
-    this.camera.lookAt(this.controls.target);
+    this.camera.position.copy(view.position);
+    this.camera.quaternion.copy(view.quaternion);
+    this.camera.near = view.near;
+    this.camera.far = view.far;
+    this.camera.updateMatrixWorld();
   }
 
-  // Ставит стакан на пол сцены в натуральную величину и подтягивает за ним
-  // тени: в этом режиме важны реальные миллиметры, а не привычный размер.
+  // Ставит стакан на подставку сцены в натуральную величину и подтягивает за
+  // ним тени: в этом режиме важны реальные миллиметры, а не привычный размер.
   #standCupInScene() {
-    const { data } = this.photo ?? {};
-    if (!data) return;
-
-    const cup = this.modelLoader.cup;
-    const height = heightInScene(data, cup);
-    const origin = data.cup?.origin ?? [0, data.floor?.y ?? 0, 0];
-
+    if (!this.photo) return;
+    const model = this.modelLoader.currentModel;
+    if (model) this.photoStand.add(model);
+    const height = cupHeight(this.modelLoader.cup);
     if (height) {
-      const scale = this.modelLoader.setNaturalHeight(height, origin);
+      const scale = this.modelLoader.setNaturalHeight(height, [0, 0, 0]);
       const { x, y, z } = this.modelLoader.sourceSize;
       this.#fitAmbientOcclusion((Math.max(x, y, z) * scale) / this.config.model.targetSize);
     } else {
       this.modelLoader.normalize();
       this.#fitAmbientOcclusion(1);
     }
-
     this.#placeGround();
     this.#measureTurntable();
   }
 
-  // Фото-сцены используют исходный профиль, включая запасную расчётную
-  // тень для моделей без запечённого слоя. Настройки 3D на них не переносятся.
+  // Фото-сцены используют исходный профиль тени и затенения; настройки
+  // студийного 3D на них не переносятся.
   #applyShadingProfile() {
     const studio = this.photo ? null : this.config.studioShading;
     this.shadowCatcher?.setOpacity(studio?.shadowOpacity ?? this.config.shadowCatcher.opacity);
@@ -757,27 +796,21 @@ export class Viewer {
     });
   }
 
-  // Снимок сцены, вписанный в контейнер w×h без искажений: [ширина, высота].
-  // Какой из двух кадров брать, решает форма места на странице.
+  // Холст фото-сцены — форма кадра (формат), вписанная в контейнер w×h.
   #photoCanvasSize(w, h) {
-    const frameAspect = frameAspectOf(this.photo.data, pickFrame(aspectOf(w, h)));
+    const frameAspect = ASPECTS[this.photo.frameId] ?? 1;
     if (w / h >= frameAspect) return [Math.max(1, Math.round(h * frameAspect)), h];
     return [w, Math.max(1, Math.round(w / frameAspect))];
   }
 
-  // Угол камеры и кроп фона под текущую форму сцены. target — размер кадра
-  // экспорта: тогда и кадр снимка выбирается под него, а не под страницу.
+  // Окно кадра и вырез фона под текущий холст. target — размер кадра экспорта:
+  // тогда окно режется под его форму, а не под страницу.
   #layoutPhotoScene(target = null) {
-    const { data, backdrops } = this.photo ?? {};
-    if (!data) return;
-
-    // Кадр выбирается по месту на странице, угол — по самому холсту: он уже
-    // вписан в форму кадра (см. resize).
-    const { clientWidth: w, clientHeight: h } = target ?? this.container;
-    const frame = pickFrame(aspectOf(w, h));
-    const size = target ? new THREE.Vector2(target.clientWidth, target.clientHeight) : this.renderer.getSize(new THREE.Vector2());
-    const aspect = aspectOf(size.x, size.y);
-    const backdrop = backdrops[frame] ?? backdrops.wide;
+    const photo = this.photo;
+    if (!photo) return;
+    const size = target
+      ? new THREE.Vector2(target.clientWidth, target.clientHeight)
+      : this.renderer.getSize(new THREE.Vector2());
 
     // Размер снимка — странице: рамку вокруг него рисует CSS
     // (#canvas-container.has-photo в stage.css). Кадр экспорта странице
@@ -788,55 +821,13 @@ export class Viewer {
       this.container.style.setProperty('--photo-height', `${size.y}px`);
     }
 
-    this.camera.fov = fovFor(data, frame, aspect);
-    this.camera.aspect = aspect;
-    this.camera.updateProjectionMatrix();
-
-    // Тень снимается под оба кадра, поэтому берётся та, что к нему подходит.
-    const shadow = this.photoShadow?.[frame] ?? null;
-    this.#useBakedShadow(Boolean(shadow));
-
+    const fit = frameFor(photo, photo.preset, this.modelLoader.cup, aspectOf(size.x, size.y));
+    applyWindow(this.camera, fit.window);
     this.pipeline.setBackdrop({
-      texture: backdrop,
-      frameSize: frameSizeOf(aspect, frameAspectOf(data, frame)),
-      shadow,
-      shadowOpacity: data.shadowOpacity ?? 1,
+      texture: photo.backdrop,
+      rect: backdropRect(fit.window, photo.preset.backdropWindow),
     });
     this.invalidate();
-  }
-
-  // Снятая тень и расчётная — взаимоисключающие: вторая легла бы поверх первой
-  // и удвоила её.
-  #useBakedShadow(baked) {
-    if (this.shadowCatcher) this.shadowCatcher.plane.visible = !baked;
-    if (this.ambientShadow) this.ambientShadow.group.visible = !baked;
-  }
-
-  // Слой тени под текущую модель. Тень зависит от того, что её отбрасывает,
-  // поэтому у каждого объёма он свой; для модели, которую в сцене не снимали
-  // (бумажные стаканы), слоя нет — там считается обычная тень.
-  async #loadPhotoShadow() {
-    this.#setPhotoShadow(await this.#fetchPhotoShadow(this.modelLoader.cup));
-  }
-
-  // Слои тени модели под оба кадра; null — у сцены такой тени нет.
-  async #fetchPhotoShadow(cup) {
-    const { id, data } = this.photo ?? {};
-    if (!data) return null;
-
-    const key = shadowKeyFor(cup);
-    const [wide, tall] = await Promise.all([
-      loadShadowLayer(id, data, key, 'wide'),
-      loadShadowLayer(id, data, key, 'tall'),
-    ]);
-    return wide || tall ? { wide, tall } : null;
-  }
-
-  #setPhotoShadow(layers) {
-    if (!this.photo) return;
-    this.photoShadow = layers;
-    this.#layoutPhotoScene();
-    this.invalidateModel();
   }
 
   // Возврат в студию: фон снова плоский цвет, камера снова летает.
@@ -851,13 +842,19 @@ export class Viewer {
     this.renderer.toneMappingExposure = this.config.renderer.toneMappingExposure;
 
     this.pipeline.setBackdrop(null);
-    this.photoShadow = null;
-    this.#useBakedShadow(false);
     this.pipeline.setGrain(0);
+    this.camera.clearViewOffset();
     this.controls.enabled = true;
     this.container.classList.remove('has-photo');
     this.container.style.removeProperty('--photo-width');
     this.container.style.removeProperty('--photo-height');
+
+    // Стакан — с подставки обратно в сцену, до нормализации: иначе остался бы
+    // наклон подставки («Вода»).
+    const model = this.modelLoader.currentModel;
+    if (model) this.scene.add(model);
+    this.photoStand?.removeFromParent();
+    this.photoStand = null;
 
     this.modelLoader.normalize();
     this.#fitAmbientOcclusion(1);
@@ -909,9 +906,6 @@ export class Viewer {
     for (;;) {
       const target = this.target;
       if (target.model && target.model !== shown.model) {
-        // Тень новой модели грузится одновременно с ней: иначе под новым
-        // стаканом лежала бы тень прежнего, пока не догрузится своя.
-        const shadow = this.photo ? this.#fetchPhotoShadow(target.model) : null;
         try {
           await this.loadModel(target.model.file, target.model, target.material);
         } catch {
@@ -919,7 +913,6 @@ export class Viewer {
           this.target = { ...this.target, model: shown.model, material: shown.material };
           continue;
         }
-        if (shadow) this.#setPhotoShadow(await shadow);
         shown.model = target.model;
         shown.material = target.material;
         // Загрузка сбрасывает материалы: в файле модели лежит техническая
@@ -1221,9 +1214,14 @@ export class Viewer {
         model.rotation.y = saved.rotation;
         model.updateMatrixWorld(true);
       }
-      camera.position.copy(saved.position);
-      controls.target.copy(saved.target);
-      camera.lookAt(saved.target);
+      if (this.photo) {
+        // Камера фото-сцены — точная камера Blender с креном; lookAt его бы потерял.
+        this.#placePhotoCamera();
+      } else {
+        camera.position.copy(saved.position);
+        controls.target.copy(saved.target);
+        camera.lookAt(saved.target);
+      }
       renderer.setPixelRatio(saved.ratio);
       this.turntable?.setHiddenForCapture(false);
       // Размеры холста и конвейера — обратно под контейнер.

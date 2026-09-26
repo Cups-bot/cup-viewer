@@ -10,7 +10,7 @@ export const FRAMES = [
   { id: 'paper-uncoated-top', model: 'HB80-280', material: 'uncoated', view: 'top', fixture: 'lines' },
   { id: 'pp-frosted-front', model: 'BM90-500', material: 'pp-frosted', view: 'front', fixture: 'patches' },
   { id: 'pp-frosted-top', model: 'BM90-500', material: 'pp-frosted', view: 'top', fixture: 'lines' },
-  { id: 'scene-cafe', model: 'HB80-280', material: 'uncoated', view: 'scene', scene: 'cafe', fixture: 'gradient' },
+  { id: 'scene-living', model: 'HB80-280', material: 'uncoated', view: 'scene', scene: 'living', fixture: 'gradient' },
   { id: 'unwrap', model: 'HB80-280', material: 'uncoated', view: 'unwrap', fixture: 'lines' },
   // Экспорт (§20, бриф 05 п. 3): окно другого размера, кадр 1600×1200 через
   // renderStill — должен совпасть с экранным кадром по порогам §58.

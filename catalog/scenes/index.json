@@ -1,6 +1,161 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scenes": [
-    { "id": "cafe", "name": "Кофейня", "note": "Утренний свет из окна" }
+    {
+      "id": "studio",
+      "name": "Серый фотобокс",
+      "note": "Серый фон, мягкий свет — как в каталоге",
+      "maxCups": 2,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Каталог, 8°"
+        },
+        {
+          "id": "level",
+          "label": "Прямо, 2°"
+        },
+        {
+          "id": "high",
+          "label": "Сверху, 25°"
+        },
+        {
+          "id": "top",
+          "label": "Сверху, 45°"
+        }
+      ]
+    },
+    {
+      "id": "living",
+      "name": "Гостиная",
+      "note": "Тумба у стены, дневной свет и тени от окна",
+      "maxCups": 2,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "low",
+          "label": "Ниже"
+        },
+        {
+          "id": "right",
+          "label": "Справа"
+        }
+      ]
+    },
+    {
+      "id": "window",
+      "name": "Городской подоконник",
+      "note": "Подоконник с видом на город",
+      "maxCups": 2,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "low",
+          "label": "Ниже"
+        }
+      ]
+    },
+    {
+      "id": "spotlight",
+      "name": "Тёмная студия",
+      "note": "Тёмная студия, луч прожектора",
+      "maxCups": 2,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "low",
+          "label": "Ниже"
+        },
+        {
+          "id": "left",
+          "label": "Слева"
+        }
+      ]
+    },
+    {
+      "id": "podium",
+      "name": "Подиум",
+      "note": "Подиум с лентой",
+      "maxCups": 1,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "left",
+          "label": "Слева"
+        }
+      ]
+    },
+    {
+      "id": "cream",
+      "name": "Кремовые формы",
+      "note": "Кремовые скульптурные формы",
+      "maxCups": 1,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "low",
+          "label": "Ниже"
+        },
+        {
+          "id": "left",
+          "label": "Слева"
+        }
+      ]
+    },
+    {
+      "id": "water",
+      "name": "Вода",
+      "note": "Стакан над водой",
+      "maxCups": 1,
+      "presets": [
+        {
+          "id": "front",
+          "label": "Как в сцене"
+        },
+        {
+          "id": "high",
+          "label": "Сверху"
+        },
+        {
+          "id": "low",
+          "label": "Ниже"
+        }
+      ]
+    }
   ]
 }

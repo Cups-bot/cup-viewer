@@ -87,6 +87,13 @@ const GrainShader = {
 //    умноженному цвету, они высветляют край — вокруг стакана появляется светлая
 //    кайма. Поэтому цвет сначала делится на покрытие, а после перевода
 //    умножается обратно.
+//
+// 3. PBR NEUTRAL. Сцены фотореал-рендера сведены в Blender в Khronos PBR
+//    Neutral; в three 0.160 его нет (появился в r162). Стакан в фото-сцене
+//    обязан пройти ту же кривую, что и в кадре рендера, иначе цвет печати в
+//    превью и в рендере разойдётся. Кривая — опубликованная формула Khronos,
+//    включается дефайном NEUTRAL_TONE_MAPPING (см. SafeOutputPass.render);
+//    студия её не видит.
 const OUTPUT_FRAGMENT = /* glsl */ `
   precision highp float;
 
@@ -96,6 +103,23 @@ const OUTPUT_FRAGMENT = /* glsl */ `
   #include <colorspace_pars_fragment>
 
   varying vec2 vUv;
+
+  // Khronos PBR Neutral (https://modelviewer.dev/examples/tone-mapping).
+  vec3 NeutralToneMapping( vec3 color ) {
+    const float StartCompression = 0.8 - 0.04;
+    const float Desaturation = 0.15;
+    color *= toneMappingExposure;
+    float x = min( color.r, min( color.g, color.b ) );
+    float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+    color -= offset;
+    float peak = max( color.r, max( color.g, color.b ) );
+    if ( peak < StartCompression ) return color;
+    float d = 1.0 - StartCompression;
+    float newPeak = 1.0 - d * d / ( peak + d - StartCompression );
+    color *= newPeak / peak;
+    float g = 1.0 - 1.0 / ( Desaturation * ( peak - newPeak ) + 1.0 );
+    return mix( color, vec3( newPeak ), g );
+  }
 
   void main() {
     gl_FragColor = texture2D( tDiffuse, vUv );
@@ -112,6 +136,8 @@ const OUTPUT_FRAGMENT = /* glsl */ `
       gl_FragColor.rgb = ACESFilmicToneMapping( gl_FragColor.rgb );
     #elif defined( AGX_TONE_MAPPING )
       gl_FragColor.rgb = AgXToneMapping( gl_FragColor.rgb );
+    #elif defined( NEUTRAL_TONE_MAPPING )
+      gl_FragColor.rgb = NeutralToneMapping( gl_FragColor.rgb );
     #endif
 
     gl_FragColor.rgb = max( gl_FragColor.rgb, vec3( 0.0 ) );
@@ -124,6 +150,10 @@ const OUTPUT_FRAGMENT = /* glsl */ `
   }
 `;
 
+// renderer.toneMapping === CustomToneMapping здесь значит PBR Neutral (см. выше):
+// дефайн для него OutputPass не знает, поэтому ставим его сами.
+export const NEUTRAL_TONE_MAPPING = THREE.CustomToneMapping;
+
 class SafeOutputPass extends OutputPass {
   constructor() {
     super();
@@ -131,6 +161,20 @@ class SafeOutputPass extends OutputPass {
     // подменяем только текст шейдера, до компиляции.
     this.material.fragmentShader = OUTPUT_FRAGMENT;
     this.material.vertexShader = OutputShader.vertexShader;
+  }
+
+  render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
+    if (renderer.toneMapping === NEUTRAL_TONE_MAPPING
+      && (this._toneMapping !== renderer.toneMapping || this._outputColorSpace !== renderer.outputColorSpace)) {
+      this._toneMapping = renderer.toneMapping;
+      this._outputColorSpace = renderer.outputColorSpace;
+      this.material.defines = { NEUTRAL_TONE_MAPPING: '' };
+      if (THREE.ColorManagement.getTransfer(this._outputColorSpace) === THREE.SRGBTransfer) {
+        this.material.defines.SRGB_TRANSFER = '';
+      }
+      this.material.needsUpdate = true;
+    }
+    super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
   }
 }
 
@@ -142,31 +186,22 @@ class SafeOutputPass extends OutputPass {
 // насыщенные места чернели (см. SafeOutputPass). Здесь он кладётся под готовый
 // стакан как есть, пиксель в пиксель, и тонмаппинг достаётся только стакану.
 //
-// Тень ложится на кадр в ЛИНЕЙНОМ пространстве обычным alpha-over — ровно так,
-// как её считал экспортёр (export_photo_scene.py → shadow_layer), поэтому
-// плотность совпадает с рендером без подгонки. Стакан — поверх, уже в экранном
-// пространстве, как в любом фоторедакторе.
+// Холст — ровно окно кадра, снимок снят с запасом: кадр — вырез из снимка.
+// rect — где окно лежит в снимке: [u0, v0, du, dv] (js/core/frame.js).
+// Часть окна вне снимка (кадр шире запаса) — нейтральный серый.
 const BackdropShader = {
   uniforms: {
     tDiffuse: { value: null },
     backdrop: { value: null },
-    shadow: { value: null },
     hasBackdrop: { value: false },
-    hasShadow: { value: false },
-    shadowOpacity: { value: 1 },
-    // Доля холста, которую занимает кадр по ширине и высоте: кадр вписан
-    // целиком и по центру (см. photoScene.fovFor).
-    frameSize: { value: new THREE.Vector2(1, 1) },
+    rect: { value: new THREE.Vector4(0, 0, 1, 1) },
   },
   vertexShader: GrainShader.vertexShader,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform sampler2D backdrop;
-    uniform sampler2D shadow;
     uniform bool hasBackdrop;
-    uniform bool hasShadow;
-    uniform float shadowOpacity;
-    uniform vec2 frameSize;
+    uniform vec4 rect;
     varying vec2 vUv;
 
     vec3 toDisplay(vec3 c) {
@@ -177,18 +212,16 @@ const BackdropShader = {
 
     void main() {
       vec4 cup = texture2D(tDiffuse, vUv);
-      vec2 uv = (vUv - 0.5) / frameSize + 0.5;
-      // Выборки — до ветвления: уровни мипмапа считаются по производным, а
+      vec2 uv = rect.xy + vUv * rect.zw;
+      // Выборка — до ветвления: уровни мипмапа считаются по производным, а
       // внутри условия они не определены.
       vec3 room = texture2D(backdrop, uv).rgb;
-      vec4 shade = texture2D(shadow, uv);
-
-      bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
-      if (!hasBackdrop || !inside) {
+      if (!hasBackdrop) {
         gl_FragColor = cup;
         return;
       }
-      if (hasShadow) room = mix(room, shade.rgb, clamp(shade.a * shadowOpacity, 0.0, 1.0));
+      bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+      if (!inside) room = vec3(0.23);
       gl_FragColor = vec4(cup.rgb + toDisplay(room) * (1.0 - cup.a), 1.0);
     }
   `,
@@ -286,9 +319,8 @@ export class RenderPipeline {
     this.gtao.output = on ? GTAOPass.OUTPUT.Denoise : GTAOPass.OUTPUT.Default;
   }
 
-  // Кадр фото-сцены под стаканом; null — убрать. frameSize — доля холста,
-  // которую кадр занимает по ширине и высоте, shadow — слой запечённой тени
-  // (или null), shadowOpacity — её плотность (scene.shadowOpacity).
+  // Кадр фото-сцены под стаканом; null — убрать. rect — где окно кадра лежит
+  // в снимке: [u0, v0, du, dv] (js/core/frame.js → backdropRect).
   //
   // Фон живёт только в конвейере: с выключенной постобработкой
   // (quality.postProcessing: false) фото-сцена останется без кадра.
@@ -298,10 +330,7 @@ export class RenderPipeline {
     this.backdrop.enabled = Boolean(layer?.texture);
     u.backdrop.value = layer?.texture ?? null;
     u.hasBackdrop.value = Boolean(layer?.texture);
-    u.shadow.value = layer?.shadow ?? null;
-    u.hasShadow.value = Boolean(layer?.shadow);
-    u.shadowOpacity.value = layer?.shadowOpacity ?? 1;
-    u.frameSize.value.set(...(layer?.frameSize ?? [1, 1]));
+    u.rect.value.set(...(layer?.rect ?? [0, 0, 1, 1]));
   }
 
   // Сила зерна: 0 — выключено. Ставится фото-сценой.

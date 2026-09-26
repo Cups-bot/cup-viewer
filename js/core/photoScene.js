@@ -2,44 +2,44 @@ import * as THREE from 'three';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { analyzeSun } from './environment.js';
 import { sceneFolder } from '../catalog/catalog.js';
+import { ASPECTS, cupPoints, box, fitInto, projector, single, zoomOf } from './frame.js';
 
-// Фото-сцена: стакан стоит в настоящей снятой сцене, а не в студии из
-// софтбоксов.
+// Фото-сцена — сцена фотореал-рендера (render/, CupViewer v2): стакан стоит в
+// натуральную величину в настоящей снятой сцене, а кадр совпадает с кадром
+// рендера Blender.
 //
-// КАК ЭТО УСТРОЕНО. Из Blender приезжают три вещи (их снимает
-// 3D_plast/mockup/tools/export_web_scene.py):
+// ИЗ ЧЕГО. Папка catalog/scenes/<id>/, её выгружает
+// render/engine/tools/export_preview.py:
 //
-//   backdrop   — кадр сцены БЕЗ стакана и без его тени;
-//   env.hdr    — панорама из точки, где стакан стоял: это и есть свет сцены,
-//                вместе с цветными отсветами и бликами;
-//   scene.json — камера, плоскость пола и масштаб сцены.
+//   scene.json      камеры ракурсов, окна кадра, оси и карта площадки, свет, цвет;
+//   <ракурс>.webp   снимок сцены без стакана — окно с запасом (backdropWindow);
+//   env.hdr         панорама из точки стакана: свет сцены, линейный.
 //
-// Браузер ставит камеру ровно туда, где она была в Blender, кладёт стакан на
-// то же место в натуральную величину и освещает его панорамой. Тень и
-// затенение у основания считаются здесь же, вживую: запечённая тень зависела
-// бы от модели, и её пришлось бы переснимать под каждую позицию каталога.
+// КООРДИНАТЫ. scene.json — в мировых осях Blender (Z вверх, единицы сцены).
+// Здесь всё переводится в «площадку»: начало — место героя сцены (дно
+// стакана), Y вверх, единица — метр. Сдвиг и масштаб не меняют углов, поэтому
+// окна кадра остаются как есть, а свет, тени и затенение работают в тех же
+// метрах в любой сцене (в сцене «Вода» Blender держит стакан в 22 раза крупнее).
 //
-// ПОЧЕМУ КАМЕРА НЕ ДВИГАЕТСЯ. Фон плоский. Любой поворот камеры — и он
-// перестаёт совпадать с перспективой стакана. Поэтому в этом режиме крутится
-// только сам стакан, а облёт выключен.
+// КАДР. Камера ракурса неподвижна; стакан другого роста и формат кадра — вырез
+// из кадра фона (js/core/frame.js). Снимок фона режется тем же окном.
 
-// Сцена, которая заметно выше, чем шире, берёт вертикальный кадр. Порог
-// подобран так, чтобы телефон и узкий планшет получили его, а десктопная
-// колонка — нет.
-const TALL_FRAME_BELOW = 0.85;
+// Blender Z-вверх → three Y-вверх: (x, y, z) → (x, z, −y).
+const BLENDER_TO_THREE = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
 
-// Загруженные сцены. Ключ — идентификатор, значение — промис: два быстрых
-// переключения подряд не должны грузить одно и то же дважды.
+const toThree = (v) => new THREE.Vector3(v[0], v[2], -v[1]);
+
+// Загруженные сцены: ключ — id, значение — промис (быстрое переключение не
+// должно грузить одно и то же дважды).
 const loaded = new Map();
 
-function backdropTexture(url) {
+function loadTexture(url) {
   return new Promise((resolve, reject) => {
     new THREE.TextureLoader().load(
       url,
       (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
-        // Кадрирование двигает выборку внутрь картинки, поэтому края не
-        // должны заворачиваться.
+        // Кадр — вырез из снимка: края не заворачиваются.
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
         resolve(texture);
@@ -55,14 +55,12 @@ function lightProbe(url, renderer, onProgress) {
     new RGBELoader().load(
       url,
       (texture) => {
-        // Направление ключевого света ищется до фильтрации: только сырая
-        // панорама хранит яркость по пикселям. Дальше она размыта.
+        // Главный свет ищется до фильтрации: только сырая панорама хранит
+        // яркость по пикселям.
         const sun = analyzeSun(texture);
-
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(texture).texture;
-
         texture.dispose();
         pmrem.dispose();
         resolve({ envMap, sun });
@@ -73,30 +71,60 @@ function lightProbe(url, renderer, onProgress) {
   });
 }
 
+// Место на площадке (мм вправо по кадру фона, мм вглубь) → точка в метрах.
+export function stagePoint(data, posMm = [0, 0], floorMm = 0) {
+  const r = toThree(data.stage.right);
+  const f = toThree(data.stage.fwd);
+  return r.multiplyScalar(posMm[0] / 1000)
+    .add(f.multiplyScalar(posMm[1] / 1000))
+    .add(new THREE.Vector3(0, floorMm / 1000, 0));
+}
+
+// Камера ракурса в площадке: позиция, поворот, ближняя и дальняя плоскости.
+function presetCamera(data, preset) {
+  const m = new THREE.Matrix4().fromArray(preset.camera.matrix);
+  const position = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  m.decompose(position, rotation, new THREE.Vector3());
+  const origin = new THREE.Vector3(...data.stage.origin);
+  const s = data.unitsPerM;
+  return {
+    position: toThree(position.sub(origin).divideScalar(s).toArray()),
+    quaternion: BLENDER_TO_THREE.clone().multiply(rotation),
+    near: preset.camera.near / s,
+    far: preset.camera.far / s,
+  };
+}
+
+// Поворот стакана в сцене (Euler XYZ Blender) — в осях three.
+export function cupRotation(data) {
+  const [x, y, z] = (data.stage.cupRotationDeg ?? [0, 0, 0]).map(THREE.MathUtils.degToRad);
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, 'ZYX'));
+  return BLENDER_TO_THREE.clone().multiply(q).multiply(BLENDER_TO_THREE.clone().invert());
+}
+
 async function fetchScene(id, renderer, onProgress) {
   const folder = sceneFolder(id);
-
   const response = await fetch(`${folder}/scene.json`, { credentials: 'same-origin' });
   if (!response.ok) throw new Error(`описание сцены ${id}: HTTP ${response.status}`);
   const data = await response.json();
-
-  const [wide, tall, light] = await Promise.all([
-    backdropTexture(`${folder}/${data.backdrop.wide}`),
-    backdropTexture(`${folder}/${data.backdrop.tall}`),
-    lightProbe(`${folder}/${data.environment}`, renderer, onProgress),
-  ]);
-
-  return { id, data, backdrops: { wide, tall }, envMap: light.envMap, sun: light.sun };
+  if (data.schema !== 1 || data.coords !== 'blender-z-up' || !data.presets?.length) {
+    throw new Error(`сцена ${id}: не тот формат scene.json`);
+  }
+  const light = await lightProbe(`${folder}/${data.environment}`, renderer, onProgress);
+  // Направление главного света — из Blender, если он его отдал: лампы в
+  // панораму не попадают, и самое яркое пятно на ней — не всегда источник.
+  if (data.key?.direction) light.sun.direction = toThree(data.key.direction).normalize();
+  const presets = new Map(data.presets.map((p) => [p.id, { ...p, view: presetCamera(data, p) }]));
+  return { id, data, presets, envMap: light.envMap, sun: light.sun, backdrops: new Map() };
 }
 
-// Грузит сцену целиком: фон, свет и описание. Повторный вызов отдаёт готовое.
+// Грузит сцену: описание и свет. Снимки ракурсов — по требованию (backdropOf).
 export function loadPhotoScene(id, renderer, onProgress) {
   if (!loaded.has(id)) {
     loaded.set(
       id,
       fetchScene(id, renderer, onProgress).catch((error) => {
-        // Неудачную загрузку не запоминаем: следующая попытка должна пойти
-        // по сети заново.
         loaded.delete(id);
         throw error;
       }),
@@ -105,86 +133,58 @@ export function loadPhotoScene(id, renderer, onProgress) {
   return loaded.get(id);
 }
 
-// Слой запечённой тени для конкретного объёма. Грузится отдельно от сцены:
-// он нужен не всегда (у бумажных стаканов его нет) и меняется вместе с моделью.
-const shadows = new Map();
-
-// Ключ слоя тени — id модели из каталога: экспортёр называет файлы её же
-// именем (shadow-<id>.webp).
-export function shadowKeyFor(cup) {
-  return cup?.id ?? null;
-}
-
-// frame — 'wide' или 'tall': тень снимается под оба кадра, как и фон.
-export function loadShadowLayer(sceneId, data, key, frame = 'wide') {
-  const entry = key && data.shadows ? data.shadows[key] : null;
-  // Раньше на модель приходился один файл, и он был горизонтальным: отдать
-  // его вертикальному кадру нельзя — пропорции другие.
-  const file = typeof entry === 'string' ? (frame === 'wide' ? entry : null) : entry?.[frame];
-  if (!file) return Promise.resolve(null);
-
-  const url = `${sceneFolder(sceneId)}/${file}`;
-  if (!shadows.has(url)) {
-    shadows.set(
+// Снимок фона ракурса (один на ракурс, кэшируется в сцене).
+export function backdropOf(photo, preset) {
+  const url = `${sceneFolder(photo.id)}/${preset.backdrop}`;
+  if (!photo.backdrops.has(url)) {
+    photo.backdrops.set(
       url,
-      backdropTexture(url).catch((error) => {
-        console.warn(`Слой тени не загрузился: ${error.message}`);
-        shadows.delete(url);
-        return null;
+      loadTexture(url).catch((error) => {
+        photo.backdrops.delete(url);
+        throw error;
       }),
     );
   }
-  return shadows.get(url);
+  return photo.backdrops.get(url);
 }
 
-// Какой из двух кадров подходит текущей форме сцены на странице.
-export function pickFrame(aspect) {
-  return aspect < TALL_FRAME_BELOW ? 'tall' : 'wide';
+// Ракурс сцены по id; неизвестный — первый (кадр как в сцене).
+export function presetOf(photo, id) {
+  return photo.presets.get(id) ?? photo.presets.values().next().value;
 }
 
-// Форма кадра, как он был снят.
-export function frameAspectOf(data, frame) {
-  const [width, height] = data.frames[frame];
-  return width / height;
-}
-
-// Вертикальный угол камеры для текущей формы сцены.
-//
-// Кадр вписывается ЦЕЛИКОМ, а не по заполнению. Фото-сцена — это фотография, и
-// показывать её нужно всю: сцены сняты квадратными, а колонка на странице
-// заметно шире, и «по заполнению» от кадра оставалась бы узкая полоса поперёк
-// середины, из которой стакан вылезал за верхний край. Поля по краям забирает
-// фон страницы — снимок лежит на ней, как фотография на столе.
-//
-// Угол при этом остаётся съёмочным: кадр занимает на экране ровно тот
-// угловой размер, с которым его снимали, поэтому перспектива стакана совпадает
-// с перспективой фона.
-export function fovFor(data, frame, aspect) {
-  const fov = data.camera.fov[frame];
-  if (aspect >= frameAspectOf(data, frame)) return fov.y;
-
-  // Экран уже кадра: кадр упирается в боковые края, сверху и снизу поля.
-  const halfX = THREE.MathUtils.degToRad(fov.x) / 2;
-  return THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfX) / aspect));
-}
-
-// Какую долю холста занимает кадр: [по ширине, по высоте]. Кадр вписан
-// целиком и по центру — с тем же углом, что даёт fovFor, поэтому фон и стакан
-// совпадают пиксель в пиксель.
-//
-// Сам кадр под стакан кладёт конвейер (RenderPipeline#setBackdrop), уже ПОСЛЕ
-// тонмаппинга: снимок пришёл из Blender готовым, и второй тонмаппинг в браузере
-// проваливал в нём тени и чернил насыщенные места.
-export function frameSizeOf(aspect, frameAspect) {
-  if (aspect >= frameAspect) return [frameAspect / aspect, 1];
-  return [1, aspect / frameAspect];
-}
-
-// Высота модели в единицах сцены. Каталог хранит габариты изделия в
-// миллиметрах, сцена — сколько миллиметров в её единице.
-export function heightInScene(data, cup) {
+// Высота стакана в метрах по каталогу (size.heightMm).
+export function cupHeight(cup) {
   const mm = cup?.size?.heightMm;
-  const perUnit = data.floor?.mmPerUnit;
-  if (!(mm > 0) || !(perUnit > 0)) return null;
-  return mm / perUnit;
+  return mm > 0 ? mm / 1000 : null;
 }
+
+// Кадр под главный стакан, стоящий на месте героя сцены: окно, влез ли он в
+// снимок фона, во сколько раз крупнее кадра фона. Рендер считает так же
+// (compose.run): стакан занимает ту долю кадра, что эталон, центр — там же.
+export function frameFor(photo, preset, cup, aspect) {
+  const { data } = photo;
+  // aspect — ширина к высоте кадра (ASPECTS[формат] или форма холста экспорта).
+  const view = preset.view;
+  const matrix = new THREE.Matrix4().compose(view.position, view.quaternion, new THREE.Vector3(1, 1, 1));
+  const tan = projector(matrix);
+  const height = cupHeight(cup) ?? data.reference.heightMm / 1000;
+  const centre = tan(new THREE.Vector3(0, height / 2, 0));
+  const zoom = (height * 1000) / data.reference.heightMm;
+  const win = single(preset.baseWindow, centre, zoom, aspect, data.fit.zoomLimits);
+  const fitted = fitInto(win, preset.backdropWindow);
+  const final = fitted ?? win;
+  return { window: final, insideBackdrop: Boolean(fitted), zoom: zoomOf(final, preset.baseWindow) };
+}
+
+// Рамка стакана на кадре (тангенсы) — пригодится раскладке пары.
+export function cupBox(preset, base, cup) {
+  const view = preset.view;
+  const matrix = new THREE.Matrix4().compose(view.position, view.quaternion, new THREE.Vector3(1, 1, 1));
+  const tan = projector(matrix);
+  const top = (cup.size.topMm ?? 0) / 2000;
+  const bottom = (cup.size.bottomMm ?? 0) / 2000;
+  return box(cupPoints(base, bottom, top, cupHeight(cup)).map(tan));
+}
+
+export { ASPECTS };
