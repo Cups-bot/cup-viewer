@@ -1,0 +1,743 @@
+{
+ "schema": 1,
+ "_about": "Тяжёлые файлы render/ вне git: путь от render/, размер, SHA-256. Переписывает engine/tools/assets.py index, проверяет — check.",
+ "indexed": "2026-09-26",
+ "totalBytes": 542148234,
+ "files": [
+  {
+   "path": "art/410_cosmic_200x85.png",
+   "bytes": 1011625,
+   "sha256": "4443a2ac9258460c2d18ddafa2815f414055403e5d06108402f64dd61609ee09"
+  },
+  {
+   "path": "art/500_Form_200x110.png",
+   "bytes": 2450511,
+   "sha256": "ad5d286ef7268d7527eeea291a12b30bbb75ffb5aeb0f0abc8461fa6768a3ed0"
+  },
+  {
+   "path": "art/500_Form_2_200x110.png",
+   "bytes": 1511712,
+   "sha256": "37298e8036256f4b9727434077775fbca5a935c74390014f5bce8df3786038ca"
+  },
+  {
+   "path": "art/500_Hllow_200x110.png",
+   "bytes": 2718286,
+   "sha256": "f762a699bf71a949bcf1239d946eb4e1b886ba17471c4bdb7e7627fc2cc2fb2a"
+  },
+  {
+   "path": "art/500_bear_200x110.png",
+   "bytes": 3187380,
+   "sha256": "05c1eacb4ba1909d74afef4ecc8f94f923124a83aee4304966acea26dc03a4c0"
+  },
+  {
+   "path": "art/500_botanic_200x110.png",
+   "bytes": 1445493,
+   "sha256": "813a719044c60eb02d91f3057db988925ce194ab674016d75541e5c11a38f86c"
+  },
+  {
+   "path": "art/500_diam_200x110.png",
+   "bytes": 2528002,
+   "sha256": "7ffb7f89fe82cfe4531c8668bf0e39c869564f3d60e19f4daa59064a4a8c9464"
+  },
+  {
+   "path": "art/500_flow_200x110.png",
+   "bytes": 2388013,
+   "sha256": "c05bdc05f37eca3a54107fdf44272d2402e7e2e296a35fbe08a13b21810b728c"
+  },
+  {
+   "path": "art/500_ice_200x110.png",
+   "bytes": 1911407,
+   "sha256": "970a8d84844c2e18580bd7f9664babb597c061365a3c01676f54e4f66e344b7e"
+  },
+  {
+   "path": "art/500_кк_200x110.png",
+   "bytes": 918040,
+   "sha256": "2ae43fc7eaaab06471ec6c7b760e1839d99a3d20341681c4e65ec447d9587f0d"
+  },
+  {
+   "path": "art/boards/test_coated_navy.png",
+   "bytes": 30505,
+   "sha256": "b960ab2ae1bd1c5d162963fc3b872e929a816c7c60c2865086cf33efbda7837b"
+  },
+  {
+   "path": "art/boards/test_kraft_print.png",
+   "bytes": 29356,
+   "sha256": "afb6161f65ae1e962e6c06ec0b91594f53ffced53a10aab64561ecf586f44317"
+  },
+  {
+   "path": "art/boards/test_softtouch_graphite.png",
+   "bytes": 16877,
+   "sha256": "694b9b2e29273f9dc4564449cb06343e10ead9d2b1a5e2ca480e885393e4fbf9"
+  },
+  {
+   "path": "art/boards/test_uncoated_white.png",
+   "bytes": 33173,
+   "sha256": "8d48a804e9f7442cdba9524b5b50327c5421eed860e6f60e3b751ef86f6defcd"
+  },
+  {
+   "path": "art/calibration/grey18_A4.png",
+   "bytes": 9232,
+   "sha256": "5bcf7c073cabc309263ef2172741d56916a7882a0adb6b66b4601cd0a529324e"
+  },
+  {
+   "path": "art/cone_template.png",
+   "bytes": 210411,
+   "sha256": "54f89384cdb531a600d1c607d8f87526f719872de945187ace9f185a61083c66"
+  },
+  {
+   "path": "art/cone_template_410.png",
+   "bytes": 175164,
+   "sha256": "4a7d71aca3360c1691c132b7f3368ac203b31ba84d0ac616fe5d5d3fccefff06"
+  },
+  {
+   "path": "art/cone_template_650.png",
+   "bytes": 264449,
+   "sha256": "d609fc9f0f9427fe5d8dc12ac03510c1f42c27babf608578571c62767517d338"
+  },
+  {
+   "path": "art/design.ai",
+   "bytes": 66828,
+   "sha256": "f1cbff9a5becb96218a24479268435a51333e6704abc6d073248287a789b7b66"
+  },
+  {
+   "path": "art/design.png",
+   "bytes": 594630,
+   "sha256": "fdce72e8b302fa9fd55d3cf236a754ce18b805c969a160ab8ad39e3e8fe90d8d"
+  },
+  {
+   "path": "art/field_grid_200x110.png",
+   "bytes": 133289,
+   "sha256": "f7ed09d6ec1607fcfbc8da9d24d92290d95433119a7e9f95fb16504adb2f92da"
+  },
+  {
+   "path": "art/field_grid_200x150.png",
+   "bytes": 180684,
+   "sha256": "c6af132eb86ab2ef41e1a8e97c1b5e27874e1ba827102170d6cbba594811640b"
+  },
+  {
+   "path": "art/field_grid_200x85.png",
+   "bytes": 103990,
+   "sha256": "fcde12b417b2c16534693a8dc58138ba277f27ee000e0db8aaa6e08d0ac7ed7c"
+  },
+  {
+   "path": "art/Монтажная область 1_1.png",
+   "bytes": 907868,
+   "sha256": "4ab999400caaa10b601a937c742d8cddee74e7a842b3173d584de0902e6e90c5"
+  },
+  {
+   "path": "cups/paper/DW80-280/DW80-280.blend",
+   "bytes": 3360847,
+   "sha256": "c27aca7887d81fd991186806607c26d89366aac1d18ca4ba141843fd9ddc2b77"
+  },
+  {
+   "path": "cups/paper/DW80-280/DW80-280.glb",
+   "bytes": 5310028,
+   "sha256": "ed12627b674cc2a967f2afb37e9debe1e1e8fbfa8392efc1cf0b2144390d145d"
+  },
+  {
+   "path": "cups/paper/DW80-280/DW80-280_light.glb",
+   "bytes": 395124,
+   "sha256": "51bb78c28b2483b6c6bc08c6f86844e474816d7597c72436d30c8aa216cc2227"
+  },
+  {
+   "path": "cups/paper/DW80-280/textures/img_mokupDW80-280K-0037_TasteQuality-_p.jpg",
+   "bytes": 472239,
+   "sha256": "837bacb7625634669674e2268ccdce7d3cbb15a198880ddffd0af1f5f3eba9f7"
+  },
+  {
+   "path": "cups/paper/DW90-430/DW90-430.blend",
+   "bytes": 4662987,
+   "sha256": "6a3075cb3e1cd59729579b3a28ffd8421c741257138ef7dda14e10a412c66dc4"
+  },
+  {
+   "path": "cups/paper/DW90-430/DW90-430.glb",
+   "bytes": 6992948,
+   "sha256": "65f9ceb9e8603917580f9c56e28af4f3b0fd09a1a233f93147665af60249e3da"
+  },
+  {
+   "path": "cups/paper/DW90-430/DW90-430_light.glb",
+   "bytes": 457304,
+   "sha256": "233d04d1aa16a802946008f8c676b56ac1e4a814a7584b3faf99a0b79a62d850"
+  },
+  {
+   "path": "cups/paper/DW90-430/textures/130306-Арка-CT-DW90-430.jpg",
+   "bytes": 1616094,
+   "sha256": "fd14b3545fd9a338f133f085c133b2970733e4bbf18c5f7a8750390081a50d55"
+  },
+  {
+   "path": "cups/paper/DW90-530/DW90-530.blend",
+   "bytes": 3730616,
+   "sha256": "f19147402118832c39c88dfb01f669561741c554217f77212735831261ad6dcc"
+  },
+  {
+   "path": "cups/paper/DW90-530/DW90-530.glb",
+   "bytes": 5968972,
+   "sha256": "2eb78ca129ae87c98dca469d9d9ba8ce65a07950674eadd5fa951a18a71d82bb"
+  },
+  {
+   "path": "cups/paper/DW90-530/DW90-530_light.glb",
+   "bytes": 416688,
+   "sha256": "bcad0f2a3aac7868f9869dd4f18df95f5e82e3257d6e8087c6a2a1bc14c774d8"
+  },
+  {
+   "path": "cups/paper/DW90-530/textures/_DW90-530-0000.pdf",
+   "bytes": 469729,
+   "sha256": "33a25e3b66ada519154d0c4ac90ac8dcd0fb5f5b8a85d2bd7a2ce18a2ac15513"
+  },
+  {
+   "path": "cups/paper/EM80-280-NM/EM80-280-NM.blend",
+   "bytes": 3196974,
+   "sha256": "d55a00a6c8cede15503940f3ce4540859be483677ad7a47acba93d87d1612db6"
+  },
+  {
+   "path": "cups/paper/EM80-280-NM/EM80-280-NM.glb",
+   "bytes": 4792564,
+   "sha256": "e30ffb5592583a7e4c35bc77d10d4370971d2e8e6e458baa1107bb3d7557f58e"
+  },
+  {
+   "path": "cups/paper/EM80-280/EM80-280.blend",
+   "bytes": 12713249,
+   "sha256": "0124ab56f7834eaf75b38ab5718ecd8aa0e9e9dfd337ef74898d1268385dbea8"
+  },
+  {
+   "path": "cups/paper/EM80-280/EM80-280.glb",
+   "bytes": 18893512,
+   "sha256": "742afd70d88361b7fe1c88feefefac5cea3b112331085a2ebe97015dd1d84071"
+  },
+  {
+   "path": "cups/paper/EM80-280/EM80-280_light.glb",
+   "bytes": 486996,
+   "sha256": "1e0e00ea405e97ffc917cdc7f93ffeb1f7ed68faef0950f8544abdb686d670c2"
+  },
+  {
+   "path": "cups/paper/EM90-430-NM/EM90-430-NM.blend",
+   "bytes": 3796923,
+   "sha256": "33f6ed0ec7db48f65284d03947c84773249b0bdbb5a53add9e115c8e300e5034"
+  },
+  {
+   "path": "cups/paper/EM90-430-NM/EM90-430-NM.glb",
+   "bytes": 5570352,
+   "sha256": "bae8ad06df285afebd647d6db331080d66197666af428dae2a6f869d9a07ffea"
+  },
+  {
+   "path": "cups/paper/EM90-430/EM90-430.blend",
+   "bytes": 16449099,
+   "sha256": "1b9c96cddf0ff1af3381ec66bcf038f73565001cefd34458c0b94b3669927e08"
+  },
+  {
+   "path": "cups/paper/EM90-430/EM90-430.glb",
+   "bytes": 24153828,
+   "sha256": "e218af805a15daf91e72839f2b0db6f9a9e3a00b8a85b86a9a3b950021078125"
+  },
+  {
+   "path": "cups/paper/EM90-430/EM90-430_light.glb",
+   "bytes": 577536,
+   "sha256": "be8283f380f00825c4aa2902cb46ed0f5a816411b8c98746a5eb9a8152879a6c"
+  },
+  {
+   "path": "cups/paper/EM90-530-NM/EM90-530-NM.blend",
+   "bytes": 4090709,
+   "sha256": "f859b55b0d4ca8f98ecda258c82a88738fcaa43170ab694a707ee9c2ec5e0b86"
+  },
+  {
+   "path": "cups/paper/EM90-530-NM/EM90-530-NM.glb",
+   "bytes": 6058716,
+   "sha256": "2610cc4fe897ad307e70e36eda0560a48fc34874343e28f584d2a68a75d32cf8"
+  },
+  {
+   "path": "cups/paper/EM90-530/EM90-530.blend",
+   "bytes": 14292507,
+   "sha256": "07a5ea0aff142608d1e991d0b958528747bc6a0a9e267455269d056ba22d5fa7"
+  },
+  {
+   "path": "cups/paper/EM90-530/EM90-530.glb",
+   "bytes": 21105420,
+   "sha256": "3b1e2be6404549723c26189852b60f62e2860c8415d127c728db786a9df198b6"
+  },
+  {
+   "path": "cups/paper/HB62-120/HB62-120.blend",
+   "bytes": 1797075,
+   "sha256": "c1d0d93444e687d86d52233ee86125f612fc285cb685d3617c5809f237ded796"
+  },
+  {
+   "path": "cups/paper/HB62-120/HB62-120.glb",
+   "bytes": 2926652,
+   "sha256": "d5471ac70bb1902094590ae9ba8cc12f34f399f04a52b4ea697bc7295b4bc395"
+  },
+  {
+   "path": "cups/paper/HB62-120/HB62-120_light.glb",
+   "bytes": 309948,
+   "sha256": "f2ebeb725cf77c774deec5c7018f25a2852b437b27e7d47a33ee51b94136438d"
+  },
+  {
+   "path": "cups/paper/HB62-120/textures/_HB62-120_0000.pdf",
+   "bytes": 338003,
+   "sha256": "48d8e966c4f0b230728e05a8a761a5793547487a955a7c5a45c9e49dfa9cf64c"
+  },
+  {
+   "path": "cups/paper/HB70-180/HB70-180.blend",
+   "bytes": 1930268,
+   "sha256": "50af1b10bcac13d6a83f99cbddfc7368106e244c24c82b84c744410ed063b4ff"
+  },
+  {
+   "path": "cups/paper/HB70-180/HB70-180.glb",
+   "bytes": 3117988,
+   "sha256": "80e86f918899270cc51e04b47f125c3d066aa469303aba1bf9d46cebfebd0712"
+  },
+  {
+   "path": "cups/paper/HB70-180/HB70-180_light.glb",
+   "bytes": 336160,
+   "sha256": "3ed388536e5ceee17b247a9273981615ff9a444fcc8b61a02c9a85dfc98f8df3"
+  },
+  {
+   "path": "cups/paper/HB70-180/textures/_HB70-180-0000.pdf",
+   "bytes": 498722,
+   "sha256": "450258c9723429f6433a81c7ede965d7ea32d78eb452b443f034da7d5c799fce"
+  },
+  {
+   "path": "cups/paper/HB70-195/HB70-195.blend",
+   "bytes": 1903721,
+   "sha256": "b0c7349e634b80144400e369467e77baa4cccc9d033d2c15ae5504386db7ff0b"
+  },
+  {
+   "path": "cups/paper/HB70-195/HB70-195.glb",
+   "bytes": 3084248,
+   "sha256": "021f25e19f0730fc16451c471f95ea57b48f81d858c3acda11e8346dee812fad"
+  },
+  {
+   "path": "cups/paper/HB70-195/HB70-195_light.glb",
+   "bytes": 318948,
+   "sha256": "16b9a9f689217c8c4cde7de5e9b7e47c45788615d85113d1a74fb1fe554848e8"
+  },
+  {
+   "path": "cups/paper/HB70-195/textures/_HB70-195-0000.pdf",
+   "bytes": 503994,
+   "sha256": "73fc8e6397baba1232454d5bca00e871cfa0be38ac9b8e1a241e61160bfb3391"
+  },
+  {
+   "path": "cups/paper/HB70-210/HB70-210.blend",
+   "bytes": 2012634,
+   "sha256": "e00a1d256403cea475bb4750b70b2f79a100b1af4a89a901ef8af523e4e90b98"
+  },
+  {
+   "path": "cups/paper/HB70-210/HB70-210.glb",
+   "bytes": 3251384,
+   "sha256": "080e5d40d09b1b281f95e67aa3ad07d124a52564256e67002255df818b1e1a33"
+  },
+  {
+   "path": "cups/paper/HB70-210/HB70-210_light.glb",
+   "bytes": 325284,
+   "sha256": "9cc84c35cee495beec3ea8bd0853308d5095210df82841f2606ade633839df0e"
+  },
+  {
+   "path": "cups/paper/HB70-210/textures/_HB70-210-0000.pdf",
+   "bytes": 527976,
+   "sha256": "1a3113216afc27678c82653b539a2402f1990971c1b42d4f25db4a55b14ba2da"
+  },
+  {
+   "path": "cups/paper/HB72-205/HB72-205.blend",
+   "bytes": 1935468,
+   "sha256": "747e313fc7df7bc221ae43980d626fe0b5e9f589f0665015d6cc9664e5e64c94"
+  },
+  {
+   "path": "cups/paper/HB72-205/HB72-205.glb",
+   "bytes": 3121944,
+   "sha256": "24f9aae2d16d3e64c2378a1a0c5cf00e26a3ce346ac6b84ca002416f7421ad27"
+  },
+  {
+   "path": "cups/paper/HB72-205/HB72-205_light.glb",
+   "bytes": 320280,
+   "sha256": "a7fe9ae0b02c1cdf119433c2e50f43b0734a250352db689a8ed1060f5c47ed84"
+  },
+  {
+   "path": "cups/paper/HB72-205/textures/_HB72-205-0000.pdf",
+   "bytes": 507749,
+   "sha256": "d9c2be6e6ce53a7adc166134c0177c404ea002ea46da3800c6d3a6ba39089cf0"
+  },
+  {
+   "path": "cups/paper/HB73-260/HB73-260.blend",
+   "bytes": 2079421,
+   "sha256": "4458e92039ca72f50c7fc00dd23f003bfd3ce1b84a7333976c0b9bed5a5893e3"
+  },
+  {
+   "path": "cups/paper/HB73-260/HB73-260.glb",
+   "bytes": 3350872,
+   "sha256": "c89249f39773b7e8928707ea83260193faabe08cfdf9faeca145733a877832b4"
+  },
+  {
+   "path": "cups/paper/HB73-260/HB73-260_light.glb",
+   "bytes": 326652,
+   "sha256": "3616c7cac1bb7ad6c9b1301cb1d8d30784b9fffff7e12ee9b78737807605d815"
+  },
+  {
+   "path": "cups/paper/HB73-260/textures/_HB73-260_0000.pdf",
+   "bytes": 372467,
+   "sha256": "97d25d8c721fb2c6746784dfb4fe7e42ee4bd81f9e36c4640d2a007f72002c52"
+  },
+  {
+   "path": "cups/paper/HB80-280/HB80-280.blend",
+   "bytes": 2567911,
+   "sha256": "434e1b894f28706e43fcca97ffd89fc1ab5bd690a0ad355ce088dd0a6bc117f6"
+  },
+  {
+   "path": "cups/paper/HB80-280/HB80-280.glb",
+   "bytes": 3891684,
+   "sha256": "4ffd6aca2387bfe784d8d4a42df3318c820af1e40bd9c0531de810bacd3b915f"
+  },
+  {
+   "path": "cups/paper/HB80-280/HB80-280_light.glb",
+   "bytes": 352432,
+   "sha256": "0dfeeaa0d0c96184abfa95e65140cb2fd206b056b82d4345641d620da4e3c7da"
+  },
+  {
+   "path": "cups/paper/HB80-280/textures/CUPS_Emboss.001.png",
+   "bytes": 90959,
+   "sha256": "ce45b4e87f6866c83627f807d365afed7b0253a325cfda6f8d168b89a425fa5d"
+  },
+  {
+   "path": "cups/paper/HB80-280/textures/design_TasteQuality_A4.jpg",
+   "bytes": 726504,
+   "sha256": "8b55c6f90fc8a0ea6586f9e3135004fb2c8ce307fc524a00f260446e8abcdc08"
+  },
+  {
+   "path": "cups/paper/HB80-340/HB80-340.blend",
+   "bytes": 2173605,
+   "sha256": "7bea55f478c2b66e9a5ce481a785447e6299b9eed6415e7a53f7a70181ab440b"
+  },
+  {
+   "path": "cups/paper/HB80-340/HB80-340.glb",
+   "bytes": 3486236,
+   "sha256": "73ad4875192c2f51624f5f5ff03d1ea53b6a64e27695338d43f6165e06cdc247"
+  },
+  {
+   "path": "cups/paper/HB80-340/HB80-340_light.glb",
+   "bytes": 362020,
+   "sha256": "c828e12cdfd11066d24534459735a4ae75b2d8ec3347e3b48fd7a345c8502245"
+  },
+  {
+   "path": "cups/paper/HB80-340/textures/_HB80-340-0000.pdf",
+   "bytes": 517416,
+   "sha256": "9d937d573ece9f03617048fce9e00d67a37db00eb3f8cc0822fed8efa56879b1"
+  },
+  {
+   "path": "cups/paper/HB80-360/HB80-360.blend",
+   "bytes": 2660971,
+   "sha256": "68dd4017f06f61f771cc99fca7123fde98c5df3d087819201ef6e2cf13ecfcec"
+  },
+  {
+   "path": "cups/paper/HB80-360/HB80-360.glb",
+   "bytes": 3989376,
+   "sha256": "60a29598e8fa05bccb8d9c48bab278f3668f42cee9743e2c4794585664ce78ba"
+  },
+  {
+   "path": "cups/paper/HB80-360/HB80-360_light.glb",
+   "bytes": 362796,
+   "sha256": "8e0b3fc5323be98c11febceeffbd695389b953f95114d431dc820fb01268fd91"
+  },
+  {
+   "path": "cups/paper/HB80-360/textures/_HB80-360-0000.pdf",
+   "bytes": 533653,
+   "sha256": "3e77c1473fb394d81cd8503be76baa134029c91adad681a360b913fbab9c720e"
+  },
+  {
+   "path": "cups/paper/HB90-430/HB90-430.blend",
+   "bytes": 2163341,
+   "sha256": "0d32014596c6ef143ae9026f902390ffc578f9e456e2e9df6e2cd1a658b04397"
+  },
+  {
+   "path": "cups/paper/HB90-430/HB90-430.glb",
+   "bytes": 3491684,
+   "sha256": "c1a533e77d0e242df2f1bd438e2098aa1a84554046eb1569d21def8b385b5931"
+  },
+  {
+   "path": "cups/paper/HB90-430/HB90-430_light.glb",
+   "bytes": 355428,
+   "sha256": "8e82ab0b5ab5a3e574cd513c882b2b774312b3b6962f93d1bb0b13456d147380"
+  },
+  {
+   "path": "cups/paper/HB90-430/textures/_HB90-430-0000.pdf",
+   "bytes": 510922,
+   "sha256": "facf1ebda1be01000959947976cb8acdf2c2b0c9b218e2fbcf54cd799cbbe6b6"
+  },
+  {
+   "path": "cups/paper/HB90-530/HB90-530.blend",
+   "bytes": 2347097,
+   "sha256": "ab14ec7f1a9159e06f8aec56e7ad519e885e90012b37101e44342f9c76a6a54d"
+  },
+  {
+   "path": "cups/paper/HB90-530/HB90-530.glb",
+   "bytes": 3745056,
+   "sha256": "f70c6b274bb86e45148037551203b534e926336c8ed41d0ed1fee15fed409e4d"
+  },
+  {
+   "path": "cups/paper/HB90-530/HB90-530_light.glb",
+   "bytes": 376776,
+   "sha256": "5a9574112dbdaaba47997377afefb7a3799c2bb54dcdfc3d3b323ac2b41e38fa"
+  },
+  {
+   "path": "cups/paper/HB90-530/textures/_HB90-530-0000.pdf",
+   "bytes": 511909,
+   "sha256": "5a4a2f9f6df2768192fa6c2aaf23f7875170b64e51c26feb4ca21357a2e52a1d"
+  },
+  {
+   "path": "cups/pet/PG95-400/PG95-400.blend",
+   "bytes": 2616743,
+   "sha256": "9eeabc10579fdad5cdd24beb3944c2405f4e27d3e978d491839a578d3cf768d8"
+  },
+  {
+   "path": "cups/pet/PG95-400/PG95-400.glb",
+   "bytes": 3330028,
+   "sha256": "a6bc17f881738c35a233780e4d04bac49fc21636321e9de32fa0ed2f6b6ba860"
+  },
+  {
+   "path": "cups/pet/PG95-400/PG95-400_print.png",
+   "bytes": 200720,
+   "sha256": "8c998d12ed1992ae9fa0b067a3cae15f7fb455d1d14473689dd43b10d198242e"
+  },
+  {
+   "path": "cups/pet/PG95-520/PG95-520.blend",
+   "bytes": 2649998,
+   "sha256": "8228eeeb1c3ec7ca9560a9a076f720a6bccd31b930261c238be3bd7a74788e4a"
+  },
+  {
+   "path": "cups/pet/PG95-520/PG95-520.glb",
+   "bytes": 3372712,
+   "sha256": "8fd3dab640481968cad10b04f49ec03251fe19f353da49b27fb536d8de464e2a"
+  },
+  {
+   "path": "cups/pet/PG95-520/PG95-520_print.png",
+   "bytes": 246375,
+   "sha256": "06fae848b4a2fa4aed9b64025225df353397f42d555b65e3c5fd21e41af4ed24"
+  },
+  {
+   "path": "cups/pet/PG95-600/PG95-600.blend",
+   "bytes": 2689769,
+   "sha256": "a977e76203126e8749b7932a47d60721de301f1e47353a1e88c3491faa572832"
+  },
+  {
+   "path": "cups/pet/PG95-600/PG95-600.glb",
+   "bytes": 3435384,
+   "sha256": "d59cc59246f3c5752e21d76df0ecadd513820f19e7fd30b5f38a09fb2a526e03"
+  },
+  {
+   "path": "cups/pet/PG95-600/PG95-600_print.png",
+   "bytes": 309306,
+   "sha256": "f60357c86c0858e66c072a842da0844cb2caeb733929f139ee95282c17e039ed"
+  },
+  {
+   "path": "cups/pet/art/PG95-400_bottom.png",
+   "bytes": 30629,
+   "sha256": "8ee7c99f16eb27aaa5fe16e9d49ea854b3493ff1325639e036f26181607dba0b"
+  },
+  {
+   "path": "cups/pet/art/PG95-400_test_A.png",
+   "bytes": 11974,
+   "sha256": "3a0ff0542a176fd164b9eea65c715ee1768759fdf2294a17395b9af567170603"
+  },
+  {
+   "path": "cups/pet/art/PG95-400_test_B.png",
+   "bytes": 10758,
+   "sha256": "cc04ecc7abb5a11faa7d62061da42fec8bcf26e90fe61da0bdfcc09e4abb8b9d"
+  },
+  {
+   "path": "cups/pet/art/PG95-520_bottom.png",
+   "bytes": 27658,
+   "sha256": "9a6874109cfd102dc2bfe9297fa16ee206b4e4c0ea8b781c04d5cdce6ea9ff3f"
+  },
+  {
+   "path": "cups/pet/art/PG95-520_test_A.png",
+   "bytes": 16433,
+   "sha256": "a634984bd2f1506513664590ac43d02b158540b23b51179b03225c6e46041bea"
+  },
+  {
+   "path": "cups/pet/art/PG95-520_test_B.png",
+   "bytes": 14837,
+   "sha256": "2bce1d9a008b5fcadca0cb26450a3e729ec41d73769d16337db787ac479f1600"
+  },
+  {
+   "path": "cups/pet/art/PG95-600_bottom.png",
+   "bytes": 27395,
+   "sha256": "7bd21440ef0bcc2f0c0a171d0a458dbe79a3c14eda01c1c97a5126933070e898"
+  },
+  {
+   "path": "cups/pet/art/PG95-600_test_A.png",
+   "bytes": 20708,
+   "sha256": "e3772cf3254275569ecd8b9ff3d5e4b296a19f298e2abc23e1b009cb6bbc64b6"
+  },
+  {
+   "path": "cups/pet/art/PG95-600_test_B.png",
+   "bytes": 19076,
+   "sha256": "46fc39200f200c821a87d7554e66a4d7b675de6b68100eb3e825d6d19f305a62"
+  },
+  {
+   "path": "cups/plastic/cup410/out/Cup_410ml.blend",
+   "bytes": 1056186,
+   "sha256": "70a25c0ddd766ef3cb968338be8b69284afdd6d5d95063830c75058c5aefdc17"
+  },
+  {
+   "path": "cups/plastic/cup410/out/Cup_410ml.glb",
+   "bytes": 1644148,
+   "sha256": "aadcdef5287755aa43c3fae1a073129b5437e45d47888f789957cfbcb899e5f7"
+  },
+  {
+   "path": "cups/plastic/cup410/out/Cup_410ml.mtl",
+   "bytes": 235,
+   "sha256": "01d1e28b583f41f1ccd90bacf84ef55ddcdb2080e7de744e4bec0fa9162c19f6"
+  },
+  {
+   "path": "cups/plastic/cup410/out/Cup_410ml.obj",
+   "bytes": 3878446,
+   "sha256": "429c1d53d034a4dedbbc493050c342375967584a22fff5891ed7e57d5d945743"
+  },
+  {
+   "path": "cups/plastic/cup410/out/preview.png",
+   "bytes": 1848357,
+   "sha256": "225aa3826ce87cb835a2d2a205a059d0f60aeb82a49cefc7df024475fc4658eb"
+  },
+  {
+   "path": "cups/plastic/cup410/out/uv_layout.png",
+   "bytes": 2678274,
+   "sha256": "c988992fc1a03381f64e0927efee09328140687d67ca247a7a1114a6cef8329f"
+  },
+  {
+   "path": "cups/plastic/cup500/out/assets/models/paper-coffee-cup_139f36eb-1e7a-4ab2-9f4c-95a8c0cc1529/paper-coffee-cup_2K_5acd47e6-3d89-41f5-9f2c-b5339752ba98.blend",
+   "bytes": 1921633,
+   "sha256": "65550d59cea4bca596e4d1cf3cb9665685ee9d07d8ced74381d850d4895fa799"
+  },
+  {
+   "path": "cups/plastic/cup500/out/assets/scenes/perfume-product-_2a729f50-ce8a-4d4a-bf2e-0fa238cd75db/perfume-product-display_7b2aa0ce-2c76-4138-8545-e650ca8c75d0.blend",
+   "bytes": 650970,
+   "sha256": "a71b01fbd51c8ab91909d21d9659f0d8d5e8a24b920959ae032c04dc9389d601"
+  },
+  {
+   "path": "cups/plastic/cup500/out/cup_500ml.blend",
+   "bytes": 1065197,
+   "sha256": "ec6281054a2b5e5eb7872009aa8a4dd2c79034b37fa265429e8a43eaf4b937e4"
+  },
+  {
+   "path": "cups/plastic/cup500/out/cup_500ml.glb",
+   "bytes": 1644148,
+   "sha256": "061ff25fc3b961ff12bf250cbfd76c0f9d35421c561d9bb7171e52000df47c79"
+  },
+  {
+   "path": "cups/plastic/cup500/out/cup_500ml.mtl",
+   "bytes": 246,
+   "sha256": "42eacecddd10e7241e93d6c5fb99399a2806c30d1b2350d604a8d6244ed64f7c"
+  },
+  {
+   "path": "cups/plastic/cup500/out/cup_500ml.obj",
+   "bytes": 3887525,
+   "sha256": "08ce0573c7b88460157a64a31c573a1dba19e338459842b3b779faf6434aee72"
+  },
+  {
+   "path": "cups/plastic/cup500/out/preview.png",
+   "bytes": 1866644,
+   "sha256": "cd6d236c340c4cf4bb2d72ae0fb1211d43cb2977f2b388a979cd23238e481652"
+  },
+  {
+   "path": "cups/plastic/cup500/out/test_grid_print.png",
+   "bytes": 115475,
+   "sha256": "5ac0c0506c6ca7a020db8aff2827ebd16cffdc031b4dcef5146f5c0bc85fa7bb"
+  },
+  {
+   "path": "cups/plastic/cup500/out/test_grid_sector.png",
+   "bytes": 258659,
+   "sha256": "9fae364c2c98ea923465a4c95c96ad3566f7e8996a61e915292baffc9ba18db1"
+  },
+  {
+   "path": "cups/plastic/cup500/out/uv_layout.png",
+   "bytes": 2896991,
+   "sha256": "57761cf0d2a91f5b203384024d62c66f1d84b044488bafff6521f8d9482c25ca"
+  },
+  {
+   "path": "cups/plastic/cup650/out/Cup_650ml.blend",
+   "bytes": 1047003,
+   "sha256": "4a575368161a89ac0e0c26d99c80df013151470bc30bf7ca6aff36e8439471ae"
+  },
+  {
+   "path": "cups/plastic/cup650/out/Cup_650ml.glb",
+   "bytes": 1649304,
+   "sha256": "2d95f1213afdaf34f847a18ea25ee923fdd2450bd0e42e1ebe59eed629c8158f"
+  },
+  {
+   "path": "cups/plastic/cup650/out/Cup_650ml.mtl",
+   "bytes": 235,
+   "sha256": "01d1e28b583f41f1ccd90bacf84ef55ddcdb2080e7de744e4bec0fa9162c19f6"
+  },
+  {
+   "path": "cups/plastic/cup650/out/Cup_650ml.obj",
+   "bytes": 3890012,
+   "sha256": "976b0272dfb9e00ae1a967e9f2149f4ebe0dcabb1340440a9449c71d14bc213a"
+  },
+  {
+   "path": "cups/plastic/cup650/out/preview.png",
+   "bytes": 1892852,
+   "sha256": "3d80cc028df9820d8b8c7ad4d8ae3ee10ae6c7fa57d9aa5270c5cfef6b638852"
+  },
+  {
+   "path": "cups/plastic/cup650/out/uv_layout.png",
+   "bytes": 3164184,
+   "sha256": "013f9766820eddef423bc5367ff914fea69bf4b2a6b8628a756f7543181d7242"
+  },
+  {
+   "path": "cups/plastic/library/CUP_410.blend",
+   "bytes": 1046651,
+   "sha256": "a3d1108ffa2390e403d5a988169264ea471d1a7dc600ca45a3c2edc3f0c00e28"
+  },
+  {
+   "path": "cups/plastic/library/CUP_500.blend",
+   "bytes": 1047035,
+   "sha256": "5d1db25796ea6d449b82dcbbcb8ba27f44d98549e911a2fef15a51674fb0e765"
+  },
+  {
+   "path": "cups/plastic/library/CUP_650.blend",
+   "bytes": 1036106,
+   "sha256": "d8cfd26790367ff6ad04b6daa1b651e73792dc68f9ea8dc43d36fc681cc43f54"
+  },
+  {
+   "path": "scenes/4.blend",
+   "bytes": 205502142,
+   "sha256": "05e76c2471ec8fb6986fd1c25626557522f9dbb74473f7457a33476840347a9a"
+  },
+  {
+   "path": "scenes/assets/city/README.md",
+   "bytes": 2074,
+   "sha256": "41b66501819a058a2af57f0bffd1091512f5c25e5a677bdbdc6b33c38266add2"
+  },
+  {
+   "path": "scenes/assets/city/skyline.png",
+   "bytes": 2161070,
+   "sha256": "bfa454ddda81bb8aae1b1412f2305e4458228974b6f7dd2b2896b887ae982dc0"
+  },
+  {
+   "path": "scenes/assets/city/terrazzo_basecolor.png",
+   "bytes": 3316832,
+   "sha256": "58dc37f103d493065dcdf59aeb2eedf8a3df6f8c4fa297e7498f9ed2910cdc21"
+  },
+  {
+   "path": "scenes/assets/concrete_floor_02/LICENSE.json",
+   "bytes": 1165,
+   "sha256": "90cafacdf961f24048ef260a19784aafdfbe5ef44bc75078adb56636246dcc61"
+  },
+  {
+   "path": "scenes/assets/concrete_floor_02/concrete_floor_02_bump_2k.jpg",
+   "bytes": 3009137,
+   "sha256": "d99c2d9fded9362e12ccae747eb7040d7b599346e75b524e84ae34c4ef2ae844"
+  },
+  {
+   "path": "scenes/assets/concrete_floor_02/concrete_floor_02_diff_2k.jpg",
+   "bytes": 3310792,
+   "sha256": "b08a20dcb306d08ee7f4a05ec216b19b7fd37e95745998ec5f81ecedaac1f0e9"
+  },
+  {
+   "path": "scenes/assets/concrete_floor_02/concrete_floor_02_nor_gl_2k.jpg",
+   "bytes": 935810,
+   "sha256": "ce12d18f283f884f4be6f6c110f81582376049caada1e226958659d3d5fbaae1"
+  },
+  {
+   "path": "scenes/assets/concrete_floor_02/concrete_floor_02_rough_2k.jpg",
+   "bytes": 1417673,
+   "sha256": "cb539b0f8fdc8c63241683e01c923eb040fa701ec4c60cff27b674294746ae67"
+  }
+ ]
+}

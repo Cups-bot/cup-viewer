@@ -1,0 +1,18 @@
+{
+  "unchanged_protected_files": 67,
+  "changed_metadata_and_reports": [
+    "cup410/out/verify.json",
+    "cup410/params/cup_410ml.json",
+    "cup500/out/verify.json",
+    "cup500/params/cup_500ml.json",
+    "cup650/out/verify.json",
+    "cup650/params/cup_650ml.json"
+  ],
+  "missing": [],
+  "unexpected_changes": [],
+  "all_parameters_except_drawing_unchanged": {
+    "410": true,
+    "500": true,
+    "650": true
+  }
+}

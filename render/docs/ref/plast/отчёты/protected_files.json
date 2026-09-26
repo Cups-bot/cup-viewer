@@ -1,0 +1,76 @@
+{
+  "_about": [
+    "Файлы, которые нельзя менять: заводские исходники изделия и файл со сценами.",
+    "По ним сверяется наша геометрия и из них берутся фотофоны.",
+    "Проверка: py -3.11 product/check/protected.py",
+    "Сюда не добавляют то, что пересобирается: параметры, отчёты, кадры, сцены из out."
+  ],
+  "verified": "2026-09-07",
+  "files": [
+    {
+      "path": "factory/Cup 410ml-003-252215-new part 2D-Rev06-20260121.pdf",
+      "bytes": 168146,
+      "sha256": "b01f25169a2925c539815e2f5d1c5d7b0ee9e25668cff08fd50a1a3153624e46"
+    },
+    {
+      "path": "factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.mtl",
+      "bytes": 477,
+      "sha256": "57196f4e16979bcd5021bf647db14d8e27db326d8e33fb882b21a9b132f5968f"
+    },
+    {
+      "path": "factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.obj",
+      "bytes": 4667967,
+      "sha256": "fb8b132ee531eb631409e7e147a7d2d0f4d7194a0450c07c109e3b5f78dca7aa"
+    },
+    {
+      "path": "factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.stp",
+      "bytes": 1538049,
+      "sha256": "d6f51842c26d196112e175e11353ae009dca43a0b8392d8cdb2b8a2953add12f"
+    },
+    {
+      "path": "factory/Cup 500ml-004-252214-new part 2D-Rev06-20260121.pdf",
+      "bytes": 174290,
+      "sha256": "ccf715bd6dac3b5fa0c96a253ae8cc099b744efed594e990799b0b6fadabeeef"
+    },
+    {
+      "path": "factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.mtl",
+      "bytes": 170,
+      "sha256": "376f36adb9d0359cd4fe9f1cee8ee2a46130cf5aa7465412ad41b4641f6509f8"
+    },
+    {
+      "path": "factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.obj",
+      "bytes": 2509930,
+      "sha256": "64b571b38260f71e6399854fddf7e4fbb386cf9edc4923ad4c9177b85ccb1290"
+    },
+    {
+      "path": "factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.stp",
+      "bytes": 1545757,
+      "sha256": "2d6fbb503839e35a6d400e4e09a43391c8f1e8d4b8b8564384211482f5bcd7da"
+    },
+    {
+      "path": "factory/Cup 650ml-005-252213-new part 2D-Rev06-20260121.pdf",
+      "bytes": 233400,
+      "sha256": "4196f58ecb7d2b9fe3211ff3c64cc5e60b7dd1d471bd189aeca78697b362efaa"
+    },
+    {
+      "path": "factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.mtl",
+      "bytes": 364,
+      "sha256": "df25162c7f955e1391d6a56b46af7c32a6f90378e1e3283ff75725f41b7fc45c"
+    },
+    {
+      "path": "factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.obj",
+      "bytes": 4805800,
+      "sha256": "4ecc80d4ca96fc1b5d59494fd7557b61310fbf303834b31e1813de724d20b5d8"
+    },
+    {
+      "path": "factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.stp",
+      "bytes": 1322972,
+      "sha256": "a87d6d824571fb263f90a408de323adf882e46713a3535a21bf589e022c56f31"
+    },
+    {
+      "path": "mockup/scenes/4.blend",
+      "bytes": 205502142,
+      "sha256": "05e76c2471ec8fb6986fd1c25626557522f9dbb74473f7457a33476840347a9a"
+    }
+  ]
+}

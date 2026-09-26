@@ -1,0 +1,15 @@
+{
+ "set": "window",
+ "camera": {
+  "preset": "low",
+  "frame": "3:4"
+ },
+ "cups": [
+  {
+   "id": "PG95-520"
+  },
+  {
+   "id": "PG95-600"
+  }
+ ]
+}

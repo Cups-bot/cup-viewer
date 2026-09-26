@@ -1,0 +1,21 @@
+{
+  "id": "PG95-600",
+  "nominal_ml": 500,
+  "brim_ml_by_code": 600,
+  "brim_ml_by_model": 600.1,
+  "height_mm": 152.0,
+  "top_d_mm": 95.0,
+  "bottom_d_mm": 60.17,
+  "wall_mm": 0.3,
+  "print_z_mm": [
+    29.0,
+    116.5
+  ],
+  "print_width_mm": 50.0,
+  "art": {
+    "A": "PG95-600_test_A.png",
+    "B": "PG95-600_test_B.png"
+  },
+  "verts": 58370,
+  "source": "Polyer 500 мл Ø95/60×152 (каталог Polyer, ПолиЭр у поставщика); шаблона нет — верх и кольцо дна от PG95-520, поле печати оценено"
+}

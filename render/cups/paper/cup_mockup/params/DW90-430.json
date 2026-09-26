@@ -1,0 +1,127 @@
+{
+  "_about": [
+    "Единственный источник размеров DW90-430. Внутренний стакан — конструкция HB90-430 без печати,",
+    "поэтому его блоки cup / construction / template берутся из HB90-430.json (ключ inner_from).",
+    "Сверено с чертежом и развёрткой 20.09.2026. Фотографий изделия нет."
+  ],
+  "model": "DW90-430",
+  "label": "DW90-430 · двухслойный",
+  "hero_rotation_deg": 79.0,
+  "_hero_rotation_src": "логотип «ARCA Coffee» развёртки (a≈0.28) по центру кадра",
+  "inner_from": "HB90-430",
+  "sources": {
+    "drawing": "draw/DW90-430 Paper cup Formacia.pdf",
+    "template": "Mockups/_DW90-430-0000.pdf",
+    "artwork": "Mockups/DW90-430/130306-Арка-CT-DW90-430.jpg",
+    "photos": null,
+    "note": "фотографий нет: сверка по чертежу, развёртке и контрольному объёму 0.3 л. Второй макет заказчика: Mockups/DW90-430/125607 Sude Sultan Kucukkinali-Frozen Mix DW90-430.jpg"
+  },
+  "inner_seam_azimuth_deg": 55.0,
+  "inner_overrides": {
+    "construction": {
+      "curl_turn_deg": 280.0,
+      "curl_end_radius_mm": 1.45
+    },
+    "_src": {
+      "construction": "как DW80-280: скрутка заканчивается снаружи обечайки"
+    }
+  },
+  "sleeve": {
+    "taper_deg": 5.359,
+    "sheet_mm": 0.3,
+    "bottom_z_mm": 10.0,
+    "top_z_mm": 110.1,
+    "fit_z_mm": 108.3,
+    "visible_top_z_mm": 108.3,
+    "top_gap_mm": 0.1,
+    "drape_gap_mm": 0.04,
+    "drape_bridge_mm": 25.0,
+    "roll_radius_mm": 0.65,
+    "roll_end_radius_mm": 0.423,
+    "roll_turn_deg": 300.0,
+    "_src": {
+      "taper_deg": "шаблон: видимая дуга 33.625° = 360°·sinβ; по чертежу 5.31° (33.31°) — приоритет у развёртки",
+      "bottom_z_mm": "чертёж: обечайка на 10 мм выше опоры",
+      "fit_z_mm": "низ скрутки внутреннего стакана (H − Ø скрутки), как DW80-280",
+      "top_z_mm": "обечайка заходит в скрутку на 1.8 мм, как DW80-280",
+      "other": "как DW80-280",
+      "top_gap_mm": "чертёж: Ø верха обечайки 84.43 при листе 0.30 даёт внутренний Ø 83.83, а наружный Ø стакана на линии посадки 83.62 — значит зазор 0.10",
+      "roll_radius_mm": "подобрано генератором под зазор до внутреннего стакана",
+      "top_od_drawing_mm": "чертёж: Ø84.43 — контрольный размер на видимом верху"
+    },
+    "top_od_drawing_mm": 84.43
+  },
+  "template": {
+    "apex_mm": [
+      146.815,
+      494.427
+    ],
+    "visible": {
+      "R_top_mm": 452.84,
+      "R_bottom_mm": 355.46,
+      "left_deg": [
+        -17.3726,
+        0.0015906,
+        355.46
+      ],
+      "right_deg": [
+        16.2524,
+        -0.0024912,
+        355.46
+      ]
+    },
+    "die": {
+      "R_top_mm": 454.61,
+      "R_bottom_mm": 351.18,
+      "left_deg": [
+        -17.3803,
+        0.001601,
+        351.18
+      ],
+      "right_deg": [
+        17.3796,
+        -0.0015912,
+        351.18
+      ]
+    },
+    "_src": {
+      "all": "шаблон PDF Mockups/_DW90-430-0000.pdf: извлечено work/v4/survey_templates.py"
+    }
+  },
+  "registration": {
+    "reference": "roll_bottom",
+    "R_at_reference_mm": 355.46,
+    "design_shift_mm": 2.0,
+    "R_at_visible_top_mm": 452.84,
+    "_src": {
+      "design_shift_mm": "правило заказчика 20.09.2026 для всех DW: нижняя граница видимой области на 2 мм выше синей (скрутка выше)",
+      "R_at_visible_top_mm": "видимый верх обечайки — по синей верхней (как DW80-280)"
+    }
+  },
+  "seam": {
+    "azimuth_deg": 90.0,
+    "ramp_mm": 6.0,
+    "layer_gap_mm": 0.015,
+    "_src": {
+      "azimuth_deg": "шов обечайки сзади (+Y)",
+      "ramp_mm": "как у HB",
+      "layer_gap_mm": "технический зазор",
+      "compress": "подобрано: в обжатой зоне каждый слой нахлёста тоньше на 40 %, шов почти не выступает из силуэта (фото IMG_8014, IMG_8013)",
+      "compress_zones": "шов проклеен и прижат по всей длине, поэтому нахлёст обжат везде, а не только в пятке и скрутке: на фото IMG_8014 у реального стакана виден только волосок кромки клапана, без приподнятой полосы"
+    },
+    "compress": 0.4,
+    "compress_zones": {
+      "ROLL": 1.0,
+      "SLEEVE": 1.0
+    },
+    "compress_fade_mm": 2.0
+  },
+  "mesh": {
+    "segments": 256,
+    "strip_columns": 6,
+    "wall_row_mm": 3.0,
+    "roll_rows": 22,
+    "smooth_angle_deg": 30.0
+  },
+  "status": "drawing"
+}

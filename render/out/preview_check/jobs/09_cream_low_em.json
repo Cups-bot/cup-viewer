@@ -1,0 +1,12 @@
+{
+ "set": "cream",
+ "camera": {
+  "preset": "low",
+  "frame": "1:1"
+ },
+ "cups": [
+  {
+   "id": "EM90-430"
+  }
+ ]
+}

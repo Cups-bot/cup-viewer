@@ -1,0 +1,142 @@
+{
+  "_about": [
+    "Единственный источник размеров HB70-180.",
+    "Все длины в миллиметрах, углы в градусах. Рядом с каждым блоком — _src: откуда число.",
+    "Сверено с чертежом и развёрткой 21.09.2026. Фотографий изделия нет."
+  ],
+  "model": "HB70-180",
+  "label": "HB70-180 · однослойный",
+  "hero_rotation_deg": 0.0,
+  "_hero_rotation_src": "не задано: логотипа на черновике нет",
+  "sources": {
+    "drawing": "draw/HB70-180 Paper cup.pdf",
+    "template": "Mockups/_HB70-180-0000.pdf",
+    "artwork": null,
+    "photos": null,
+    "note": "чертёж draw/HB70-180 Paper cup.pdf"
+  },
+  "cup": {
+    "height_mm": 80.0,
+    "rim_od_mm": 70.0,
+    "curl_d_mm": 2.5,
+    "base_od_mm": 45.42,
+    "taper_deg": 7.17,
+    "wall_mm": 0.26,
+    "curl_sheet_mm": 0.21,
+    "floor_mm": 0.24,
+    "floor_top_mm": 5.0,
+    "floor_id_drawing_mm": 46.14,
+    "brim_volume_ml": 180.0,
+    "_src": {
+      "curl_d": "чертёж draw/HB70-180 Paper cup.pdf",
+      "rim_od": "чертёж draw/HB70-180 Paper cup.pdf",
+      "height": "чертёж draw/HB70-180 Paper cup.pdf",
+      "base_od": "чертёж draw/HB70-180 Paper cup.pdf",
+      "wall": "чертёж draw/HB70-180 Paper cup.pdf",
+      "floor": "чертёж draw/HB70-180 Paper cup.pdf",
+      "floor_top": "чертёж draw/HB70-180 Paper cup.pdf",
+      "taper_deg": "шаблон: видимая дуга 44.932° = 360°·sinβ; по чертежу 7.1°",
+      "curl_sheet_mm": "0.8 стенки, не больше 0.30 (как HB80-280)",
+      "floor_id_drawing_mm": "чертёж: Ø46.14 — внутренний диаметр на уровне дна",
+      "brim_volume_ml": "артикул HB70-180: полный объём 180 мл (до самого венчика), число округлённое"
+    }
+  },
+  "construction": {
+    "heel_gap_mm": 0.02,
+    "return_top_mm": 4.28,
+    "skirt_end_above_heel_mm": 0.1,
+    "floor_bend_outer_mm": 0.45,
+    "curl_turn_deg": 325.0,
+    "curl_end_radius_mm": 0.801,
+    "neck_start_mm": 76.4,
+    "_src": {
+      "return_top_mm": "подворот кончается там, где кончается заготовка: лист ниже линии сгиба ровно 4.73 мм (шаблон: синяя нижняя − высечка); если столько под дно не входит — обрезан по дну",
+      "curl_end_radius_mm": "0.7 радиуса скрутки (как HB80-280)",
+      "neck_start_mm": "H − Ø скрутки − 1.1 (как HB80-280)",
+      "other": "как HB80-280"
+    }
+  },
+  "template": {
+    "apex_mm": [
+      145.454,
+      316.661
+    ],
+    "visible": {
+      "R_top_mm": 259.91,
+      "R_bottom_mm": 181.11,
+      "left_deg": [
+        -23.5855,
+        0.0050778,
+        181.11
+      ],
+      "right_deg": [
+        21.3462,
+        0.0034444,
+        181.11
+      ]
+    },
+    "die": {
+      "R_top_mm": 269.88,
+      "R_bottom_mm": 176.38,
+      "left_deg": [
+        -23.6102,
+        0.004999,
+        176.38
+      ],
+      "right_deg": [
+        23.6038,
+        -0.0049866,
+        176.38
+      ]
+    },
+    "_src": {
+      "all": "шаблон PDF Mockups/_HB70-180-0000.pdf: извлечено work/v4/survey_templates.py"
+    }
+  },
+  "registration": {
+    "reference": "heel",
+    "R_at_reference_mm": 181.11,
+    "design_shift_mm": 0.0,
+    "_src": {
+      "R_at_reference_mm": "синяя нижняя дуга = линия сгиба у пятки (правило HB, проверено на 7 чертежах)"
+    }
+  },
+  "seam": {
+    "azimuth_deg": 90.0,
+    "ramp_mm": 6.0,
+    "layer_gap_mm": 0.015,
+    "_src": {
+      "azimuth_deg": "шов сзади (+Y), середина развёртки смотрит вперёд (−Y)",
+      "ramp_mm": "подобрано по IMG_8014: за скрытым краем клапан плавно ложится на стенку; при 2.2 мм читалась вторая линия, на фото её нет",
+      "layer_gap_mm": "технический зазор между слоями нахлёста",
+      "compress": "подобрано: в обжатой зоне каждый слой нахлёста тоньше на 40 %, шов почти не выступает из силуэта (фото IMG_8014, IMG_8013)",
+      "compress_zones": "шов проклеен и прижат по всей длине, поэтому нахлёст обжат везде, а не только в пятке и скрутке: на фото IMG_8014 у реального стакана виден только волосок кромки клапана, без приподнятой полосы"
+    },
+    "compress": 0.4,
+    "compress_zones": {
+      "RETURN": 1.0,
+      "HEEL": 1.0,
+      "WALL": 1.0,
+      "NECK": 1.0,
+      "CURL": 1.0
+    },
+    "compress_fade_mm": 2.0
+  },
+  "mesh": {
+    "segments": 256,
+    "strip_columns": 6,
+    "wall_row_mm": 3.0,
+    "heel_rows": 10,
+    "return_rows": 4,
+    "neck_rows": 6,
+    "curl_rows": 30,
+    "floor_ring_mm": 4.0,
+    "smooth_angle_deg": 30.0,
+    "_src": {
+      "segments": "как требует cup-viewer: не меньше 256 по окружности",
+      "wall_row_mm": "ровная сетка стенки, как у пластиковых стаканов",
+      "smooth_angle_deg": "как у пластика: грани круче 30° острые"
+    }
+  },
+  "status": "drawing"
+}

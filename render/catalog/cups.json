@@ -1,0 +1,772 @@
+{
+  "schemaVersion": 1,
+  "_about": [
+    "Единый каталог стаканов 3DCupRender. Собирается engine/tools/make_catalog.py — руками не править.",
+    "adapter — кто одевает стакан в сцене: plastic (общий PP из shots.json и печать по полю),",
+    "paper (материалы и лист развёртки из файла модели), own (свой материал и печать из файла, PET).",
+    "reference — стакан, по которому считается масштаб сцены: все остальные ставятся 1:1 к нему."
+  ],
+  "reference": "BM90-500",
+  "cups": [
+    {
+      "id": "BM90-410",
+      "aliases": [
+        "410"
+      ],
+      "label": "BM90-410 · пластик PP",
+      "type": "pp",
+      "group": "plastic",
+      "adapter": "plastic",
+      "volume_ml": 300,
+      "brim_ml": 410,
+      "size_mm": {
+        "height": 112,
+        "top": 89,
+        "bottom": 57
+      },
+      "blend": "cups/plastic/cup410/out/Cup_410ml.blend",
+      "object": "Cup_410ml",
+      "verify": "cups/plastic/cup410/out/verify.json",
+      "params": "cups/plastic/cup410/params/cup_410ml.json",
+      "print": {
+        "mode": "pp",
+        "field_mm": [
+          200.0,
+          85.0
+        ],
+        "band": {
+          "height_mm": 85.0
+        }
+      }
+    },
+    {
+      "id": "BM90-500",
+      "aliases": [
+        "500"
+      ],
+      "label": "BM90-500 · пластик PP",
+      "type": "pp",
+      "group": "plastic",
+      "adapter": "plastic",
+      "volume_ml": 400,
+      "brim_ml": 500,
+      "size_mm": {
+        "height": 135,
+        "top": 89,
+        "bottom": 57
+      },
+      "blend": "cups/plastic/cup500/out/cup_500ml.blend",
+      "object": "Cup_500ml",
+      "verify": "cups/plastic/cup500/out/verify.json",
+      "params": "cups/plastic/cup500/params/cup_500ml.json",
+      "print": {
+        "mode": "pp",
+        "field_mm": [
+          200.0,
+          110.0
+        ],
+        "band": {
+          "height_mm": 110.0
+        }
+      }
+    },
+    {
+      "id": "BM90-655",
+      "aliases": [
+        "650"
+      ],
+      "label": "BM90-655 · пластик PP",
+      "type": "pp",
+      "group": "plastic",
+      "adapter": "plastic",
+      "volume_ml": 500,
+      "brim_ml": 650,
+      "size_mm": {
+        "height": 179,
+        "top": 89,
+        "bottom": 57
+      },
+      "blend": "cups/plastic/cup650/out/Cup_650ml.blend",
+      "object": "Cup_650ml",
+      "verify": "cups/plastic/cup650/out/verify.json",
+      "params": "cups/plastic/cup650/params/cup_650ml.json",
+      "print": {
+        "mode": "pp",
+        "field_mm": [
+          200.0,
+          150.0
+        ],
+        "band": {
+          "height_mm": 150.0
+        }
+      }
+    },
+    {
+      "id": "DW80-280",
+      "aliases": [],
+      "label": "DW80-280 · двухслойный",
+      "type": "paper",
+      "group": "double",
+      "adapter": "paper",
+      "volume_ml": 250,
+      "brim_ml": 280,
+      "size_mm": {
+        "height": 88,
+        "top": 80.1,
+        "bottom": 57.1
+      },
+      "blend": "cups/paper/DW80-280/DW80-280.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 80.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "DW90-430",
+      "aliases": [],
+      "label": "DW90-430 · двухслойный",
+      "type": "paper",
+      "group": "double",
+      "adapter": "paper",
+      "volume_ml": 300,
+      "brim_ml": 430,
+      "size_mm": {
+        "height": 111.6,
+        "top": 89.4,
+        "bottom": 60.1
+      },
+      "blend": "cups/paper/DW90-430/DW90-430.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 79.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "DW90-530",
+      "aliases": [],
+      "label": "DW90-530 · двухслойный",
+      "type": "paper",
+      "group": "double",
+      "adapter": "paper",
+      "volume_ml": 400,
+      "brim_ml": 530,
+      "size_mm": {
+        "height": 135.7,
+        "top": 89.7,
+        "bottom": 60.2
+      },
+      "blend": "cups/paper/DW90-530/DW90-530.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "EM80-280",
+      "aliases": [],
+      "label": "EM80-280 · двухслойный, вафля",
+      "type": "paper",
+      "group": "embossed",
+      "adapter": "paper",
+      "volume_ml": 250,
+      "brim_ml": 280,
+      "size_mm": {
+        "height": 88,
+        "top": 80.1,
+        "bottom": 57.1
+      },
+      "blend": "cups/paper/EM80-280/EM80-280.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 80.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated",
+      "variants": {
+        "mesh": {
+          "label": "вафля в сетке",
+          "blend": "cups/paper/EM80-280/EM80-280.blend"
+        },
+        "nm": {
+          "label": "вафля картой нормалей",
+          "blend": "cups/paper/EM80-280-NM/EM80-280-NM.blend"
+        }
+      },
+      "variant_default": "mesh"
+    },
+    {
+      "id": "EM90-430",
+      "aliases": [],
+      "label": "EM90-430 · двухслойный, вафля",
+      "type": "paper",
+      "group": "embossed",
+      "adapter": "paper",
+      "volume_ml": 300,
+      "brim_ml": 430,
+      "size_mm": {
+        "height": 111.6,
+        "top": 89.4,
+        "bottom": 60.1
+      },
+      "blend": "cups/paper/EM90-430/EM90-430.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 79.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated",
+      "variants": {
+        "mesh": {
+          "label": "вафля в сетке",
+          "blend": "cups/paper/EM90-430/EM90-430.blend"
+        },
+        "nm": {
+          "label": "вафля картой нормалей",
+          "blend": "cups/paper/EM90-430-NM/EM90-430-NM.blend"
+        }
+      },
+      "variant_default": "mesh"
+    },
+    {
+      "id": "EM90-530",
+      "aliases": [],
+      "label": "EM90-530 · двухслойный, вафля",
+      "type": "paper",
+      "group": "embossed",
+      "adapter": "paper",
+      "volume_ml": 400,
+      "brim_ml": 530,
+      "size_mm": {
+        "height": 135.7,
+        "top": 89.7,
+        "bottom": 60.2
+      },
+      "blend": "cups/paper/EM90-530/EM90-530.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 79.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          235.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated",
+      "variants": {
+        "mesh": {
+          "label": "вафля в сетке",
+          "blend": "cups/paper/EM90-530/EM90-530.blend"
+        },
+        "nm": {
+          "label": "вафля картой нормалей",
+          "blend": "cups/paper/EM90-530-NM/EM90-530-NM.blend"
+        }
+      },
+      "variant_default": "mesh"
+    },
+    {
+      "id": "HB62-120",
+      "aliases": [],
+      "label": "HB62-120 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 100,
+      "brim_ml": 120,
+      "size_mm": {
+        "height": 63,
+        "top": 62,
+        "bottom": 45.2
+      },
+      "blend": "cups/paper/HB62-120/HB62-120.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB70-180",
+      "aliases": [],
+      "label": "HB70-180 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 150,
+      "brim_ml": 180,
+      "size_mm": {
+        "height": 80,
+        "top": 70,
+        "bottom": 45.6
+      },
+      "blend": "cups/paper/HB70-180/HB70-180.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB70-195",
+      "aliases": [],
+      "label": "HB70-195 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 165,
+      "brim_ml": 195,
+      "size_mm": {
+        "height": 79.5,
+        "top": 70.4,
+        "bottom": 49.4
+      },
+      "blend": "cups/paper/HB70-195/HB70-195.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB70-210",
+      "aliases": [],
+      "label": "HB70-210 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 200,
+      "brim_ml": 210,
+      "size_mm": {
+        "height": 93,
+        "top": 70,
+        "bottom": 45.7
+      },
+      "blend": "cups/paper/HB70-210/HB70-210.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB72-205",
+      "aliases": [],
+      "label": "HB72-205 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 180,
+      "brim_ml": 205,
+      "size_mm": {
+        "height": 81,
+        "top": 71.9,
+        "bottom": 50.9
+      },
+      "blend": "cups/paper/HB72-205/HB72-205.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB73-260",
+      "aliases": [],
+      "label": "HB73-260 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 230,
+      "brim_ml": 260,
+      "size_mm": {
+        "height": 103.5,
+        "top": 72.7,
+        "bottom": 48.1
+      },
+      "blend": "cups/paper/HB73-260/HB73-260.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB80-280",
+      "aliases": [],
+      "label": "HB80-280 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 250,
+      "brim_ml": 280,
+      "size_mm": {
+        "height": 88,
+        "top": 80.1,
+        "bottom": 57.1
+      },
+      "blend": "cups/paper/HB80-280/HB80-280.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 90.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB80-340",
+      "aliases": [],
+      "label": "HB80-340 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 300,
+      "brim_ml": 340,
+      "size_mm": {
+        "height": 116,
+        "top": 80,
+        "bottom": 50.3
+      },
+      "blend": "cups/paper/HB80-340/HB80-340.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB80-360",
+      "aliases": [],
+      "label": "HB80-360 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 300,
+      "brim_ml": 360,
+      "size_mm": {
+        "height": 116.9,
+        "top": 80.8,
+        "bottom": 53.7
+      },
+      "blend": "cups/paper/HB80-360/HB80-360.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB90-430",
+      "aliases": [],
+      "label": "HB90-430 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 300,
+      "brim_ml": 430,
+      "size_mm": {
+        "height": 111.6,
+        "top": 89.4,
+        "bottom": 60.1
+      },
+      "blend": "cups/paper/HB90-430/HB90-430.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "HB90-530",
+      "aliases": [],
+      "label": "HB90-530 · однослойный",
+      "type": "paper",
+      "group": "single",
+      "adapter": "paper",
+      "volume_ml": 400,
+      "brim_ml": 530,
+      "size_mm": {
+        "height": 135.7,
+        "top": 89.7,
+        "bottom": 60.2
+      },
+      "blend": "cups/paper/HB90-530/HB90-530.blend",
+      "root": "CUPS_Product",
+      "hero_rotation_deg": 0.0,
+      "print": {
+        "mode": "sheet",
+        "page_mm": [
+          297.0,
+          210.0
+        ]
+      },
+      "boards": [
+        "coated",
+        "uncoated",
+        "soft-touch",
+        "kraft"
+      ],
+      "board_default": "uncoated"
+    },
+    {
+      "id": "PG95-400",
+      "aliases": [],
+      "label": "PG95-400 · PET прозрачный",
+      "type": "pet",
+      "group": "pet",
+      "adapter": "own",
+      "volume_ml": 300,
+      "brim_ml": 400,
+      "size_mm": {
+        "height": 107.16,
+        "top": 95.0,
+        "bottom": 56.7
+      },
+      "blend": "cups/pet/PG95-400/PG95-400.blend",
+      "object": "PG95-400",
+      "verify": "cups/pet/PG95-400/verify.json",
+      "print": {
+        "mode": "sides",
+        "sides": [
+          "A",
+          "B"
+        ],
+        "width_mm": 50.0,
+        "z_mm": [
+          27.5,
+          71.5
+        ]
+      }
+    },
+    {
+      "id": "PG95-520",
+      "aliases": [],
+      "label": "PG95-520 · PET прозрачный",
+      "type": "pet",
+      "group": "pet",
+      "adapter": "own",
+      "volume_ml": 400,
+      "brim_ml": 520,
+      "size_mm": {
+        "height": 128.0,
+        "top": 95.0,
+        "bottom": 60.0
+      },
+      "blend": "cups/pet/PG95-520/PG95-520.blend",
+      "object": "PG95-520",
+      "verify": "cups/pet/PG95-520/verify.json",
+      "print": {
+        "mode": "sides",
+        "sides": [
+          "A",
+          "B"
+        ],
+        "width_mm": 50.0,
+        "z_mm": [
+          29.0,
+          92.5
+        ]
+      }
+    },
+    {
+      "id": "PG95-600",
+      "aliases": [],
+      "label": "PG95-600 · PET прозрачный",
+      "type": "pet",
+      "group": "pet",
+      "adapter": "own",
+      "volume_ml": 500,
+      "brim_ml": 600,
+      "size_mm": {
+        "height": 152.0,
+        "top": 95.0,
+        "bottom": 60.0
+      },
+      "blend": "cups/pet/PG95-600/PG95-600.blend",
+      "object": "PG95-600",
+      "verify": "cups/pet/PG95-600/verify.json",
+      "print": {
+        "mode": "sides",
+        "sides": [
+          "A",
+          "B"
+        ],
+        "width_mm": 50.0,
+        "z_mm": [
+          29.0,
+          116.5
+        ]
+      }
+    }
+  ]
+}

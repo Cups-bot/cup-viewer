@@ -1,0 +1,15 @@
+{
+ "set": "spotlight",
+ "camera": {
+  "preset": "left",
+  "frame": "4:5"
+ },
+ "cups": [
+  {
+   "id": "HB70-180"
+  },
+  {
+   "id": "DW90-430"
+  }
+ ]
+}

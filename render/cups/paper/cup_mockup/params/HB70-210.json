@@ -1,0 +1,140 @@
+{
+  "_about": [
+    "Единственный источник размеров HB70-210.",
+    "Все длины в миллиметрах, углы в градусах. Рядом с каждым блоком — _src: откуда число.",
+    "Сверено с чертежом и развёрткой 21.09.2026. Фотографий изделия нет."
+  ],
+  "model": "HB70-210",
+  "label": "HB70-210 · однослойный",
+  "hero_rotation_deg": 0.0,
+  "_hero_rotation_src": "не задано: логотипа на черновике нет",
+  "sources": {
+    "drawing": "draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+    "template": "Mockups/_HB70-210-0000.pdf",
+    "artwork": null,
+    "photos": null,
+    "note": "чертёж «Drawing of 7oz (HB70-230)» — имя чужое, но заготовка R305.11/198.77 и образующая 106.34 совпадают с развёрткой HB70-210 до 0.04 мм. Машина CUPO TECH KOVRA-1000, 2019"
+  },
+  "cup": {
+    "height_mm": 93.0,
+    "rim_od_mm": 70.0,
+    "curl_d_mm": 2.4,
+    "base_od_mm": 45.5,
+    "taper_deg": 6.349,
+    "wall_mm": 0.28,
+    "curl_sheet_mm": 0.22,
+    "floor_mm": 0.24,
+    "floor_top_mm": 5.8,
+    "brim_volume_ml": 210.0,
+    "_src": {
+      "curl_d": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "rim_od": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "height": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "base_od": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "wall": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "floor": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "floor_top": "чертёж draw/Drawing of 7oz (HB70-230) for Formacia,Russia_20190604 (размер поставленный со станком).pdf",
+      "taper_deg": "шаблон: видимая дуга 39.813° = 360°·sinβ; по чертежу 6.33°",
+      "curl_sheet_mm": "0.8 стенки, не больше 0.30 (как HB80-280)",
+      "brim_volume_ml": "артикул HB70-210: полный объём 210 мл (до самого венчика), число округлённое"
+    }
+  },
+  "construction": {
+    "heel_gap_mm": 0.02,
+    "return_top_mm": 5.13,
+    "skirt_end_above_heel_mm": 0.1,
+    "floor_bend_outer_mm": 0.45,
+    "curl_turn_deg": 325.0,
+    "curl_end_radius_mm": 0.763,
+    "neck_start_mm": 89.5,
+    "_src": {
+      "return_top_mm": "подворот кончается там, где кончается заготовка: лист ниже линии сгиба ровно 5.59 мм (шаблон: синяя нижняя − высечка); если столько под дно не входит — обрезан по дну",
+      "curl_end_radius_mm": "0.7 радиуса скрутки (как HB80-280)",
+      "neck_start_mm": "H − Ø скрутки − 1.1 (как HB80-280)",
+      "other": "как HB80-280"
+    }
+  },
+  "template": {
+    "apex_mm": [
+      149.315,
+      347.14
+    ],
+    "visible": {
+      "R_top_mm": 295.1,
+      "R_bottom_mm": 204.36,
+      "left_deg": [
+        -20.9352,
+        0.0037177,
+        204.36
+      ],
+      "right_deg": [
+        18.8782,
+        0.00238,
+        204.36
+      ]
+    },
+    "die": {
+      "R_top_mm": 305.07,
+      "R_bottom_mm": 198.77,
+      "left_deg": [
+        -20.9583,
+        0.003705,
+        198.77
+      ],
+      "right_deg": [
+        20.939,
+        -0.0032948,
+        198.77
+      ]
+    },
+    "_src": {
+      "all": "шаблон PDF Mockups/_HB70-210-0000.pdf: извлечено work/v4/survey_templates.py"
+    }
+  },
+  "registration": {
+    "reference": "heel",
+    "R_at_reference_mm": 204.36,
+    "design_shift_mm": 0.0,
+    "_src": {
+      "R_at_reference_mm": "синяя нижняя дуга = линия сгиба у пятки (правило HB, проверено на 7 чертежах)"
+    }
+  },
+  "seam": {
+    "azimuth_deg": 90.0,
+    "ramp_mm": 6.0,
+    "layer_gap_mm": 0.015,
+    "_src": {
+      "azimuth_deg": "шов сзади (+Y), середина развёртки смотрит вперёд (−Y)",
+      "ramp_mm": "подобрано по IMG_8014: за скрытым краем клапан плавно ложится на стенку; при 2.2 мм читалась вторая линия, на фото её нет",
+      "layer_gap_mm": "технический зазор между слоями нахлёста",
+      "compress": "подобрано: в обжатой зоне каждый слой нахлёста тоньше на 40 %, шов почти не выступает из силуэта (фото IMG_8014, IMG_8013)",
+      "compress_zones": "шов проклеен и прижат по всей длине, поэтому нахлёст обжат везде, а не только в пятке и скрутке: на фото IMG_8014 у реального стакана виден только волосок кромки клапана, без приподнятой полосы"
+    },
+    "compress": 0.4,
+    "compress_zones": {
+      "RETURN": 1.0,
+      "HEEL": 1.0,
+      "WALL": 1.0,
+      "NECK": 1.0,
+      "CURL": 1.0
+    },
+    "compress_fade_mm": 2.0
+  },
+  "mesh": {
+    "segments": 256,
+    "strip_columns": 6,
+    "wall_row_mm": 3.0,
+    "heel_rows": 10,
+    "return_rows": 4,
+    "neck_rows": 6,
+    "curl_rows": 30,
+    "floor_ring_mm": 4.0,
+    "smooth_angle_deg": 30.0,
+    "_src": {
+      "segments": "как требует cup-viewer: не меньше 256 по окружности",
+      "wall_row_mm": "ровная сетка стенки, как у пластиковых стаканов",
+      "smooth_angle_deg": "как у пластика: грани круче 30° острые"
+    }
+  },
+  "status": "drawing"
+}

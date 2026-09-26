@@ -1,0 +1,16 @@
+{
+ "set": "window",
+ "camera": {
+  "preset": "high",
+  "frame": "1:1"
+ },
+ "cups": [
+  {
+   "id": "DW80-280"
+  },
+  {
+   "id": "DW80-280",
+   "rotate": 150
+  }
+ ]
+}

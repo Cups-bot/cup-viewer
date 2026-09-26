@@ -1,0 +1,16 @@
+{
+ "set": "living",
+ "camera": {
+  "preset": "high",
+  "frame": "4:5"
+ },
+ "cups": [
+  {
+   "id": "HB80-280"
+  },
+  {
+   "id": "HB80-280",
+   "rotate": 150
+  }
+ ]
+}

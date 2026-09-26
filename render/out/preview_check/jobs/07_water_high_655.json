@@ -1,0 +1,12 @@
+{
+ "set": "water",
+ "camera": {
+  "preset": "high",
+  "frame": "1:1"
+ },
+ "cups": [
+  {
+   "id": "BM90-655"
+  }
+ ]
+}

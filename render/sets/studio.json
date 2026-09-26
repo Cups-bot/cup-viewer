@@ -1,0 +1,83 @@
+{
+  "title": "Серый фотобокс",
+  "source": "greybox",
+  "_about": [
+    "Фон не берётся из готового файла, а строится кодом под высоту стакана.",
+    "Поэтому 410, 500 и 650 мл занимают в кадре одинаковую долю,",
+    "а само изделие остаётся в натуральную величину: один метр это один метр.",
+    "Мощности света заданы для стакана 135 мм и пересчитываются по высоте."
+  ],
+  "camera": "catalog",
+  "cameras": {
+    "catalog": 8,
+    "print": 2
+  },
+  "lens_mm": 90,
+  "sensor_mm": 36,
+  "distance_in_heights": 3.75,
+  "cup_rotation_deg": 0,
+  "gray_linear": 0.4,
+  "world_strength": 0.4,
+  "key_w_at_135mm": 14.0,
+  "fill_w_at_135mm": 2.8,
+  "rim_w_at_135mm": 14.0,
+  "samples": 512,
+  "resolution": 1600,
+  "_keys": {
+    "camera": "какая из cameras снимает по умолчанию",
+    "cameras": "имя камеры -> наклон вниз в градусах",
+    "distance_in_heights": "дистанция съёмки в высотах стакана",
+    "gray_linear": "яркость циклорамы, линейная",
+    "world_strength": "общая подсветка сцены",
+    "key_w_at_135mm": "рисующий свет слева, ватт для стакана 135 мм",
+    "fill_w_at_135mm": "заполняющий справа",
+    "rim_w_at_135mm": "контурный сверху-сзади"
+  },
+  "exposure": -1.86,
+  "_color_before_pbn": {
+    "exposure": 0.0,
+    "view_transform": "AgX",
+    "look": "AgX - Medium High Contrast"
+  },
+  "exposure_mode": "card",
+  "_exposure_calibration": {
+    "date": "2026-09-25",
+    "cup": "HB90-530",
+    "card": "18 % серого",
+    "mode": "card",
+    "measured": 0.1737,
+    "at_ev": -1.909999966621399,
+    "legacy_frame_gmean": null
+  },
+  "_rim_before": 6.0,
+  "camera_presets": [
+    {
+      "id": "front",
+      "label": "Каталог, 8°"
+    },
+    {
+      "id": "level",
+      "label": "Прямо, 2°",
+      "orbit": [
+        0,
+        -6
+      ]
+    },
+    {
+      "id": "high",
+      "label": "Сверху, 25°",
+      "orbit": [
+        0,
+        17
+      ]
+    },
+    {
+      "id": "top",
+      "label": "Сверху, 45°",
+      "orbit": [
+        0,
+        37
+      ]
+    }
+  ]
+}

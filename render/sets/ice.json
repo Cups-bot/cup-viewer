@@ -1,0 +1,84 @@
+{
+  "enabled": false,
+  "_disabled": "2026-09-25: решение владельца — лёд не используем вообще; файлы сцены оставлены",
+  "title": "Лёд",
+  "source": "authored",
+  "environment": "ice",
+  "cup_position_h": [
+    0.1,
+    0,
+    0
+  ],
+  "cup_rotation_deg": [
+    0,
+    0,
+    0
+  ],
+  "camera": {
+    "position_h": [
+      0.08,
+      -4.4,
+      1.45
+    ],
+    "target_h": [
+      0,
+      0,
+      0.6
+    ],
+    "lens_mm": 100,
+    "fstop": 7.1
+  },
+  "world_strength": 0.012,
+  "world_color": [
+    0.9,
+    0.95,
+    1
+  ],
+  "samples": 512,
+  "resolution": 1600,
+  "catalogue": "S07",
+  "exposure": -0.94,
+  "_color_before_pbn": {
+    "exposure": -0.15
+  },
+  "exposure_mode": "auto",
+  "_exposure_calibration": {
+    "date": "2026-09-25",
+    "cup": "HB90-530",
+    "card": "18 % серого",
+    "mode": "auto",
+    "measured": 0.0414,
+    "at_ev": -1.1399999856948853,
+    "legacy_frame_gmean": 0.1381
+  },
+  "camera_presets": [
+    {
+      "id": "front",
+      "label": "Как в сцене"
+    },
+    {
+      "id": "high",
+      "label": "Сверху",
+      "orbit": [
+        0,
+        15
+      ]
+    },
+    {
+      "id": "low",
+      "label": "Ниже",
+      "orbit": [
+        0,
+        -5
+      ]
+    },
+    {
+      "id": "right",
+      "label": "Справа",
+      "orbit": [
+        -25,
+        0
+      ]
+    }
+  ]
+}

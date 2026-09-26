@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>GLB test</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; background: #b9bcc0; font: 13px system-ui, sans-serif; }
+  #grid { display: grid; grid-template-columns: repeat(3, 205px); gap: 4px; padding: 4px; }
+  canvas { width: 205px; height: 205px; display: block; background: #c8cbcf; }
+  #grid div { font-size: 10px; line-height: 12px; }
+  #log { padding: 6px 10px; white-space: pre-wrap; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "/Cups-bot/cup-viewer/node_modules/three/build/three.module.js",
+  "three/addons/": "/Cups-bot/cup-viewer/node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="grid"></div>
+<div id="log"></div>
+<script type="module">
+// Same texture rules as cup-viewer (js/loaders/TextureManager.js, print.uv = 0,
+// sheet = false): the design is set as map of material "Paper_Print",
+// channel 0, flipY = false, sRGB, repeat wrapping.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const q = new URLSearchParams(location.search);
+const glb = q.get('glb');
+const art = q.get('art');
+const log = (s) => (document.getElementById('log').textContent += s + '\n');
+const allViews = [['front', 0], ['seam (back)', Math.PI], ['side', Math.PI / 2], ['bottom', 'under'], ['top', 'top'], ['seam close', 'seamclose']];
+const only = q.get('only');
+const views = only ? [allViews[+only]] : allViews;
+const px = only ? 440 : 205;
+if (only) document.getElementById('grid').style.gridTemplateColumns = '440px';
+
+const tex = art ? await new THREE.TextureLoader().loadAsync(art) : null;
+if (tex) {
+  tex.colorSpace = THREE.SRGBColorSpace; tex.channel = 0; tex.flipY = false;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
+}
+const gltf = await new GLTFLoader().loadAsync(glb);
+const model = gltf.scene;
+const mats = new Set();
+model.traverse((n) => { if (n.isMesh) { (Array.isArray(n.material) ? n.material : [n.material]).forEach((m) => mats.add(m)); } });
+let printed = 0;
+for (const m of mats) {
+  if (m.name === 'Paper_Print' && tex) { m.map = tex; m.needsUpdate = true; printed++; }
+}
+const box = new THREE.Box3().setFromObject(model);
+log(`materials: ${[...mats].map((m) => m.name).join(', ')}; print materials textured: ${printed}`);
+log(`size (m): ${box.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(4)).join(' x ')}`);
+
+for (const [label, how] of views) {
+  const cell = document.createElement('div');
+  const canvas = document.createElement('canvas');
+  cell.appendChild(canvas);
+  document.getElementById('grid').appendChild(cell);
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  r.setSize(900, 900, false);
+  canvas.style.width = canvas.style.height = px + 'px';
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  r.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xc8cbcf);
+  scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+  const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(-1, 1.5, 1.2); scene.add(key);
+  scene.add(model.clone());
+  const cam = new THREE.PerspectiveCamera(20, 1, 0.001, 10);
+  const c = box.getCenter(new THREE.Vector3());
+  if (how === 'under') { cam.position.set(0, -0.3, 0.05); }
+  else if (how === 'top') { cam.position.set(0, 0.35, 0.12); }
+  else if (how === 'seamclose') { cam.fov = 8; cam.position.set(0.02, 0.07, -0.45); }
+  else { cam.position.set(0.36 * Math.sin(how), 0.12, 0.36 * Math.cos(how)); }
+  cam.lookAt(how === 'seamclose' ? new THREE.Vector3(0, 0.02, -0.035) : c);
+  cam.updateProjectionMatrix();
+  r.render(scene, cam);
+  const cap = document.createElement('span'); cap.textContent = label; cell.appendChild(cap);
+}
+document.title = 'GLB test ready';
+</script>
+</body>
+</html>

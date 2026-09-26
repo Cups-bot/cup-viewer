@@ -1,0 +1,17 @@
+[
+  {
+    "cup": "410",
+    "pass": true,
+    "failed": []
+  },
+  {
+    "cup": "500",
+    "pass": true,
+    "failed": []
+  },
+  {
+    "cup": "650",
+    "pass": true,
+    "failed": []
+  }
+]

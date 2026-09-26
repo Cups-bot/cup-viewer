@@ -1,0 +1,311 @@
+{
+  "pass": true,
+  "failed": [],
+  "height_mm": {
+    "value": 111.51640117168427,
+    "expected": 111.5164,
+    "tolerance": 0.58,
+    "pass": true
+  },
+  "d_top_mm": {
+    "value": 89.00000709103797,
+    "expected": 89.0042,
+    "tolerance": 0.58,
+    "pass": true
+  },
+  "d_bottom_mm": {
+    "value": 57.47320430357995,
+    "expected": 57.4732,
+    "tolerance": 0.58,
+    "pass": true
+  },
+  "cone_half_angle_deg": {
+    "value": 6.59162617213901,
+    "expected": 6.5936,
+    "tolerance": 0.125,
+    "pass": true
+  },
+  "volume_to_brim_ml": {
+    "value": 420.6390993296764
+  },
+  "volume_nominal_ml": {
+    "value": 410.0,
+    "expected": 410.0,
+    "tolerance": 0.0,
+    "pass": true
+  },
+  "material_volume_cm3": {
+    "value": 14.534159643860292,
+    "expected": 14.4188,
+    "tolerance": 0.35,
+    "pass": true
+  },
+  "mass_g": {
+    "value": 13.153414477693564,
+    "expected": 13.049,
+    "tolerance": 0.4,
+    "pass": true
+  },
+  "wall_min_mm": {
+    "value": 0.509999999999997,
+    "expected": 0.51,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "wall_max_mm": {
+    "value": 0.5100000000000111,
+    "expected": 0.51,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "rib_count": {
+    "value": 4,
+    "expected": 4,
+    "tolerance": 0,
+    "pass": true
+  },
+  "rib_offset_mm": {
+    "value": 2.0,
+    "expected": 2.0,
+    "tolerance": 0.05,
+    "pass": true
+  },
+  "rib_section_area_mm2": {
+    "value": 5.767754614723348
+  },
+  "rib_volume_mm3": {
+    "value": 12.71768431345259
+  },
+  "marking_area_mm2": {
+    "value": 58.28314677943253
+  },
+  "marking_volume_mm3": {
+    "value": 14.570786694858132
+  },
+  "marking_relief_mm": {
+    "value": 0.25
+  },
+  "bottom_thickness_mm": {
+    "value": 0.5,
+    "expected": 0.5,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "step_thickness_mm": {
+    "value": 0.25,
+    "expected": 0.25,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "rim_slab_mm": {
+    "value": 0.62,
+    "expected": 0.62,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "rim_lip_mm": {
+    "value": 0.45,
+    "expected": 0.45,
+    "tolerance": 0.03,
+    "pass": true
+  },
+  "nesting_pitch_mm": {
+    "value": 5.75,
+    "expected": 5.75,
+    "tolerance": 0.2,
+    "pass": true
+  },
+  "uv_sector_angle_deg": {
+    "value": 41.337428030321234
+  },
+  "uv_r_in_mm": {
+    "value": 250.261723888863
+  },
+  "uv_r_out_mm": {
+    "value": 361.609220995744
+  },
+  "uv_max_stretch": {
+    "value": 1.0001207060323385,
+    "expected": 1.0,
+    "tolerance": 0.02,
+    "pass": true
+  },
+  "uv_outside_0_1": {
+    "value": 0,
+    "expected": 0,
+    "tolerance": 0,
+    "pass": true
+  },
+  "poly_count": {
+    "value": 29495
+  },
+  "quad_count": {
+    "value": 26089
+  },
+  "tri_count": {
+    "value": 3406
+  },
+  "ngon_count": {
+    "value": 0,
+    "expected": 0,
+    "tolerance": 0,
+    "pass": true
+  },
+  "vert_count": {
+    "value": 27860
+  },
+  "non_manifold_edges": {
+    "value": 0,
+    "expected": 0,
+    "tolerance": 0,
+    "pass": true
+  },
+  "flipped_faces": {
+    "value": 0,
+    "expected": 0,
+    "tolerance": 0,
+    "pass": true
+  },
+  "fill_level_nominal_mm": {
+    "value": 109.5097820589695
+  },
+  "headspace_at_nominal_mm": {
+    "value": 2.0066179410304983
+  },
+  "normals_outward": {
+    "value": true,
+    "expected": true,
+    "tolerance": 0,
+    "pass": true
+  },
+  "uv_islands_disjoint": {
+    "value": true,
+    "expected": true,
+    "tolerance": 0,
+    "pass": true
+  },
+  "uv_min_island_gap_px": {
+    "value": 546.2294921875,
+    "expected": ">= 4 (ТЗ п.4.3.9)",
+    "tolerance": null,
+    "pass": true
+  },
+  "uv_texel_density_px_per_mm": {
+    "value": 15.986549791951296
+  },
+  "uv_island_bounds": {
+    "value": {
+      "body": [
+        0.691717,
+        0.001953,
+        0.938283,
+        0.248047
+      ],
+      "wall": [
+        0.001953,
+        0.381404,
+        0.998047,
+        0.878596
+      ],
+      "rim": [
+        0.187857,
+        0.001953,
+        0.432143,
+        0.248047
+      ]
+    }
+  },
+  "uv_bands": {
+    "value": {
+      "full": {
+        "z_range_mm": [
+          0.0,
+          110.611
+        ],
+        "r_range_mm": [
+          28.7366,
+          41.52220874447804
+        ],
+        "alpha_deg": 41.337428030321234,
+        "r_in_mm": 250.261723888863,
+        "r_out_mm": 361.609220995744,
+        "slant_mm": 111.34749710688101
+      },
+      "visible": {
+        "z_range_mm": [
+          5.75,
+          109.73400000000001
+        ],
+        "r_range_mm": [
+          29.40124682789911,
+          41.420835654379346
+        ],
+        "alpha_deg": 41.337428030321234,
+        "r_in_mm": 256.0500099396587,
+        "r_out_mm": 360.7263815406922,
+        "slant_mm": 104.6763716010335
+      }
+    }
+  },
+  "print_band": {
+    "value": {
+      "z_range_mm": [
+        8.0,
+        93.6764
+      ],
+      "r_range_mm": [
+        29.661326021424852,
+        39.56472558417538
+      ],
+      "s_range_mm": [
+        258.3149914377962,
+        344.5618629164735
+      ],
+      "height_along_generator_mm": 86.24687147867729,
+      "circumference_mm": {
+        "bottom": 186.36760784928018,
+        "middle": 217.48005516118158,
+        "top": 248.59250247308302
+      },
+      "seam_gap_mm": {
+        "bottom": 10.0,
+        "middle": 15.0,
+        "top": 20.0
+      },
+      "print_width_mm": {
+        "bottom": 176.36760784928018,
+        "middle": 202.48005516118158,
+        "top": 228.59250247308302
+      },
+      "centerline_length_mm": 202.48005516118158,
+      "artwork_aspect_w_h": 2.347679999166584
+    }
+  },
+  "uv_fit": {
+    "value": {
+      "wall": {
+        "scale": 2.8225531578812526,
+        "dx": -0.9112765921935806,
+        "dy": -1.9437218444841773
+      },
+      "rim": {
+        "scale": 0.24428696066564232,
+        "dx": 0.187856516268227,
+        "dy": 0.0037599143343577048
+      },
+      "body": {
+        "scale": 0.24609375,
+        "dx": 0.6917168573301468,
+        "dy": 0.001953125
+      }
+    }
+  },
+  "_notes": [
+    "масса 13.153 г при плотности 0.905 г/см3; надпись листа Part weight 13.13 г, расхождение +0.023 г.",
+    "SECTION C-C режет два из четырёх рёбер расстыковки: сплошного уступа-кольца нет. Рёбра: 4 шт, 0.64 мм у пола и 0.46 мм у полки.",
+    "Размеры вложенных стаканов на SECTION C-C не являются высотой одного изделия. Высота одного стакана 111.5164 мм; шаг вложения 5.750 мм; толщина стенки в середине высоты 0.510 мм.",
+    "клеймо дна построено выпуклым рельефом 0.25 мм по векторам нижнего вида: площадь знаков 58.3 мм2, объём 14.6 мм3.",
+    "печатное поле шелкографии живёт в отдельном UV-слое UVPrint; UVMap остаётся геометрической развёрткой и целиком лежит в 0..1.",
+    "Не смоделированы: следы толкателей и допуски формы; расположение сверять по чертежу своего объёма."
+  ]
+}

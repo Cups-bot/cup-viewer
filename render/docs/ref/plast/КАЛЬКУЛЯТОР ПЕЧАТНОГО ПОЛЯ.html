@@ -1,0 +1,388 @@
+<title>Печатное поле стакана</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#E9EBEE; --surface:#FFFFFF; --sunk:#DFE3E8;
+    --ink:#14181F; --muted:#5C6672; --hair:#C6CCD4;
+    --accent:#B4372E; --ok:#1F7A5C; --warn:#A8690F;
+    --band:#C8D4DE; --field:#B4372E;
+    --shadow:0 1px 2px rgba(20,24,31,.06), 0 8px 24px -16px rgba(20,24,31,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12151A; --surface:#1A1F26; --sunk:#0D1015;
+      --ink:#E6EAF0; --muted:#8B96A5; --hair:#2C333D;
+      --accent:#E0685C; --ok:#4FB894; --warn:#D69A3E;
+      --band:#2A3742; --field:#E0685C;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12151A; --surface:#1A1F26; --sunk:#0D1015;
+    --ink:#E6EAF0; --muted:#8B96A5; --hair:#2C333D;
+    --accent:#E0685C; --ok:#4FB894; --warn:#D69A3E;
+    --band:#2A3742; --field:#E0685C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.55; margin:0;
+    padding:40px 24px 72px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:36px}
+  h1{font-size:31px; font-weight:600; letter-spacing:-.015em; margin:0; text-wrap:balance}
+  .lede{margin:8px 0 0; color:var(--muted); max-width:62ch}
+  h2{
+    font-size:12px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 14px; padding-bottom:8px;
+    border-bottom:1px solid var(--hair);
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  /* --- готовые ответы --- */
+  .answers{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px}
+  .ans{
+    background:var(--surface); border:1px solid var(--hair); border-radius:4px;
+    padding:20px 22px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .ans-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+  .ans-title{font-size:19px; font-weight:600}
+  .ans-spec{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--muted)}
+  .chip{
+    font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    padding:3px 9px; border-radius:2px; white-space:nowrap;
+  }
+  .chip.ok{background:color-mix(in srgb,var(--ok) 14%,transparent); color:var(--ok)}
+  .chip.bad{background:color-mix(in srgb,var(--accent) 14%,transparent); color:var(--accent)}
+  .kv{display:grid; grid-template-columns:1fr auto; gap:5px 16px; font-size:14px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right}
+  .note{font-size:13px; color:var(--muted); margin:0; border-left:2px solid var(--accent); padding-left:12px}
+
+  /* --- калькулятор --- */
+  .calc{display:grid; grid-template-columns:280px 1fr; gap:28px; align-items:start}
+  @media (max-width:800px){ .calc{grid-template-columns:1fr} }
+  .controls{display:flex; flex-direction:column; gap:20px}
+  .cups{display:flex; gap:6px}
+  .cups button{
+    flex:1; font:inherit; font-weight:500; padding:9px 0; cursor:pointer;
+    background:var(--surface); color:var(--muted);
+    border:1px solid var(--hair); border-radius:3px;
+  }
+  .cups button[aria-pressed="true"]{
+    background:var(--ink); color:var(--paper); border-color:var(--ink);
+  }
+  .cups button:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:5px}
+  .field input{
+    width:100%; font-family:"IBM Plex Mono",monospace; font-size:15px;
+    padding:8px 10px; background:var(--surface); color:var(--ink);
+    border:1px solid var(--hair); border-radius:3px;
+  }
+  .presets{display:flex; flex-direction:column; gap:6px}
+  .presets button{
+    font:inherit; font-size:13px; text-align:left; padding:8px 10px; cursor:pointer;
+    background:transparent; color:var(--ink);
+    border:1px dashed var(--hair); border-radius:3px;
+  }
+  .presets button:hover{border-color:var(--accent); color:var(--accent)}
+
+  .results{display:flex; flex-direction:column; gap:20px}
+  table{border-collapse:collapse; width:100%; font-size:14px}
+  th,td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--hair)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  tbody td{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  tbody th{font-weight:500; font-size:14px}
+  .neg{color:var(--accent); font-weight:600}
+  .tablewrap{overflow-x:auto}
+  .figures{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:560px){ .figures{grid-template-columns:1fr} }
+  figure{margin:0; background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:12px}
+  figcaption{font-size:12px; color:var(--muted); margin-top:8px; text-align:center}
+  svg{display:block; width:100%; height:auto}
+
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:28px}
+  @media (max-width:800px){ .cols{grid-template-columns:1fr} }
+  p{margin:0 0 10px; max-width:64ch}
+  code{font-family:"IBM Plex Mono",monospace; font-size:13px; background:var(--sunk); padding:1px 5px; border-radius:2px}
+  footer{color:var(--muted); font-size:13px; border-top:1px solid var(--hair); padding-top:16px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Печатное поле стакана</h1>
+    <p class="lede">Где встанет прямоугольник печати и какой останется зазор на стыке. Отступы считаются по видимой части — той, что не закрыта следующим стаканом в стопке. Геометрия взята из заводского 3D, не с проставленных на чертеже размеров.</p>
+    <p class="lede" style="margin-top:10px">Видимая стенка по образующей: <span class="mono">104.68</span> мм у 410 и <span class="mono">127.17</span> мм у 500. Отступ сверху, высота макета и отступ снизу в сумме дают именно это число — третья величина всегда следует из двух других.</p>
+  </header>
+
+  <section>
+    <h2>Ответ по вашим двум случаям</h2>
+    <div class="answers" id="answers"></div>
+  </section>
+
+  <section>
+    <h2>Калькулятор</h2>
+    <div class="calc">
+      <div class="controls">
+        <div class="cups" id="cups" role="group" aria-label="Объём стакана"></div>
+        <div class="field">
+          <label for="top">Отступ сверху от видимой части, мм</label>
+          <input class="mono" id="top" type="number" step="0.5" value="15">
+        </div>
+        <div class="field">
+          <label for="w">Ширина макета, мм</label>
+          <input class="mono" id="w" type="number" step="1" value="200">
+        </div>
+        <div class="field">
+          <label for="h">Высота макета по образующей, мм</label>
+          <input class="mono" id="h" type="number" step="1" value="80">
+        </div>
+        <div class="presets">
+          <button type="button" data-p="410,15,205,85">410 — 205 × 85, отступ 15</button>
+          <button type="button" data-p="500,15,205,110">500 — 205 × 110, отступ 15</button>
+          <button type="button" data-p="410,15,200,80">410 — 200 × 80, прежний вариант</button>
+          <button type="button" data-p="500,15,220,110">500 — 220 × 110, не влезает</button>
+        </div>
+      </div>
+
+      <div class="results">
+        <dl class="kv" id="summary"></dl>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Уровень</th><th>Высота z</th><th>Обхват</th><th>Краска</th><th>Зазор</th></tr></thead>
+            <tbody id="levels"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="font-size:12px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 10px">Что уходит на трафарет</h3>
+          <dl class="kv" id="screen"></dl>
+        </div>
+        <div class="figures">
+          <figure>
+            <svg id="side" viewBox="0 0 300 330" role="img" aria-label="Разрез стакана с печатным полем"></svg>
+            <figcaption>Разрез: видимая часть и поле печати</figcaption>
+          </figure>
+          <figure>
+            <svg id="ring" viewBox="0 0 300 330" role="img" aria-label="Вид сверху: зазор на трёх высотах"></svg>
+            <figcaption>Сверху: один и тот же угол, разный зазор</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div>
+      <h2>Как считается</h2>
+      <p>Конус катится по плоскому трафарету без проскальзывания, поворачиваясь вокруг своей вершины. Поэтому изображение на трафарете — <b>кольцевой сектор</b>, а не прямоугольник, и его прямые стороны ложатся на стакан образующими.</p>
+      <p>Развёртка изометрична: длины дуг и образующая переносятся один в один. Отсюда всё остальное. Угол обхвата один и тот же по всей высоте, а зазор в миллиметрах растёт вместе с радиусом.</p>
+      <p class="mono" style="font-size:13px">Δφ = W / r<sub>сер</sub>  ·  зазор(z) = (2π − Δφ) · r(z)<br>R = r / sin β  ·  α<sub>сектора</sub> = Δφ · sin β</p>
+      <p><b>Зазор нельзя задать одним числом</b> — он всегда тройка. Ровным по высоте он был бы только на цилиндре.</p>
+      <p>Ширина макета имеет смысл только с указанием, на каком радиусе она мерена. Здесь — по центральной линии поля.</p>
+    </div>
+    <div>
+      <h2>Геометрия изделий</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Стакан</th><th>Высота</th><th>Полуугол</th><th>R дна</th><th>Видимая часть</th></tr></thead>
+          <tbody id="geo"></tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px; font-size:13px; color:var(--muted)">Видимая часть начинается там, где кончается ребро расстыковки, и обрывается под завитком венчика. Всё, что ниже и выше, в стопке не видно.</p>
+    </div>
+  </section>
+
+  <footer>
+    Размеры сняты из заводских STEP и OBJ (Siemens NX, AP214). Венчик у всех трёх объёмов одинаковый — 89.0042 мм.
+  </footer>
+</div>
+
+<script>
+const CUPS = {
+  410:{H:111.5164, beta:6.59162617, r0:28.736602, vis:[5.75,109.734]},
+  500:{H:135.29999554, beta:5.683295461, r0:28.34000228, vis:[6.9,133.443]},
+  650:{H:178.849995, beta:4.273214608, r0:28.2634009, vis:[10.329,177.047]}
+};
+const TAU = Math.PI*2;
+const f = (x,n=2)=> (x<0?"−":"") + Math.abs(x).toFixed(n);
+
+function calc(ml, topMargin, W, Hgen){
+  const c = CUPS[ml];
+  const b = c.beta*Math.PI/180, cb = Math.cos(b), tb = Math.tan(b);
+  const zTop = c.vis[1] - topMargin*cb;
+  const zBot = zTop - Hgen*cb;
+  const zMid = (zTop+zBot)/2;
+  const R = z => c.r0 + tb*z;
+  const rs = [R(zBot), R(zMid), R(zTop)];
+  const dphi = W/rs[1];
+  const sb = Math.sin(b);
+  const Rin = rs[0]/sb, Rout = rs[2]/sb, alpha = dphi*sb;
+  return {
+    c, cb, zs:[zBot,zMid,zTop], rs,
+    Rin, Rout, alpha,
+    arc: [Rin*alpha, (Rin+Rout)/2*alpha, Rout*alpha],
+    stretch: [rs[0]/rs[1], rs[2]/rs[1]],
+    circ: rs.map(r=>TAU*r),
+    ink: rs.map(r=>dphi*r),
+    gap: rs.map(r=>(TAU-dphi)*r),
+    dphi,
+    botVis:(zBot-c.vis[0])/cb,
+    botBase:zBot,
+    fits: (TAU-dphi)*rs[0] > 0 && zBot >= c.vis[0]
+  };
+}
+
+/* --- готовые ответы --- */
+const CASES = [
+  {ml:410, top:15, W:205, H:85, label:"410 мл", spec:"макет 205 × 85, отступ сверху 15"},
+  {ml:500, top:15, W:205, H:110, label:"500 мл", spec:"макет 205 × 110, отступ сверху 15"}
+];
+document.getElementById("answers").innerHTML = CASES.map(k=>{
+  const r = calc(k.ml,k.top,k.W,k.H);
+  const bad = r.gap[0] <= 0;
+  const rows = [
+    ["Отступ снизу, от видимой части", f(r.botVis)+" мм"],
+    ["Отступ снизу, от дна стакана", f(r.botBase)+" мм"],
+    ["Зазор внизу", f(r.gap[0])+" мм"],
+    ["Зазор посередине", f(r.gap[1])+" мм"],
+    ["Зазор вверху", f(r.gap[2])+" мм"]
+  ];
+  return `<div class="ans">
+    <div class="ans-head">
+      <div><div class="ans-title">${k.label}</div><div class="ans-spec">${k.spec}</div></div>
+      <span class="chip ${bad?"bad":"ok"}">${bad?"не помещается":"помещается"}</span>
+    </div>
+    <dl class="kv">${rows.map(([a,v],i)=>
+      `<dt>${a}</dt><dd class="${bad&&i>1?"neg":""}">${v}</dd>`).join("")}</dl>
+    ${bad?`<p class="note">Не помещается: обхват по центральной линии всего ${f(r.circ[1])} мм. Под зазор 10 мм снизу нужна ширина ${f(r.rs[1]*(TAU-10/r.rs[0]))} мм.</p>`
+         :`<p class="note">Точно под зазор 10 мм снизу нужно ${f(r.rs[1]*(TAU-10/r.rs[0]))} мм — 205 это ближайшее кратное пяти. Запечатка охватывает ${f(r.dphi*180/Math.PI,1)}° из 360.</p>`}
+  </div>`;
+}).join("");
+
+/* --- таблица геометрии --- */
+document.getElementById("geo").innerHTML = Object.entries(CUPS).map(([ml,c])=>
+  `<tr><th>${ml} мл</th><td>${f(c.H)}</td><td>${f(c.beta,3)}°</td><td>${f(c.r0,3)}</td>
+   <td>${f(c.vis[0])} – ${f(c.vis[1])}</td></tr>`).join("");
+
+/* --- интерактив --- */
+let cur = 410;
+const cupsBox = document.getElementById("cups");
+cupsBox.innerHTML = Object.keys(CUPS).map(ml=>
+  `<button type="button" data-ml="${ml}" aria-pressed="${ml==410}">${ml}</button>`).join("");
+const $ = id => document.getElementById(id);
+
+function draw(r){
+  const S = 250/185;                       // мм -> px, общий для всех объёмов
+  const cx = 150, baseY = 300;
+  const zy = z => baseY - z*S;
+  const rx = (z,sign) => cx + sign*(r.c.r0 + Math.tan(r.c.beta*Math.PI/180)*z)*S;
+  const c = getComputedStyle(document.documentElement);
+  const ink=c.getPropertyValue("--ink"), hair=c.getPropertyValue("--hair"),
+        band=c.getPropertyValue("--band"), field=c.getPropertyValue("--field"),
+        muted=c.getPropertyValue("--muted");
+  const H=r.c.H, vis=r.c.vis;
+  const poly = (z0,z1,fill,op) =>
+    `<polygon points="${rx(z0,-1)},${zy(z0)} ${rx(z1,-1)},${zy(z1)} ${rx(z1,1)},${zy(z1)} ${rx(z0,1)},${zy(z0)}"
+      fill="${fill}" fill-opacity="${op}" />`;
+  const t = (x,y,s,anchor,col,size)=>
+    `<text x="${x}" y="${y}" text-anchor="${anchor}" fill="${col}" font-size="${size}"
+      font-family="IBM Plex Mono, monospace">${s}</text>`;
+  $("side").innerHTML =
+    poly(0,H,hair,.35) +
+    poly(vis[0],vis[1],band,.85) +
+    poly(r.zs[0],r.zs[2],field,.55) +
+    `<polyline points="${rx(0,-1)},${zy(0)} ${rx(H,-1)},${zy(H)}" fill="none" stroke="${ink}" stroke-width="1.2"/>
+     <polyline points="${rx(0,1)},${zy(0)} ${rx(H,1)},${zy(H)}" fill="none" stroke="${ink}" stroke-width="1.2"/>
+     <line x1="${rx(0,-1)}" y1="${zy(0)}" x2="${rx(0,1)}" y2="${zy(0)}" stroke="${ink}" stroke-width="1.2"/>
+     <line x1="${rx(H,-1)}" y1="${zy(H)}" x2="${rx(H,1)}" y2="${zy(H)}" stroke="${ink}" stroke-width="1.2"/>
+     <line x1="${cx}" y1="${zy(0)+6}" x2="${cx}" y2="${zy(H)-10}" stroke="${muted}" stroke-width=".6" stroke-dasharray="6 3 1 3"/>` +
+    [[r.zs[2],"верх поля"],[r.zs[0],"низ поля"]].map(([z,l])=>
+      `<line x1="${rx(z,-1)-14}" y1="${zy(z)}" x2="${rx(z,1)+14}" y2="${zy(z)}" stroke="${field}" stroke-width=".9"/>`
+      + t(rx(z,1)+18, zy(z)+4, f(z,1), "start", field, 10)).join("") +
+    t(cx, 22, `${cur} мл`, "middle", ink, 13) +
+    t(cx, 38, `поле ${f(r.zs[0],1)} – ${f(r.zs[2],1)} мм`, "middle", muted, 10) +
+    t(rx(vis[1],-1)-18, zy(vis[1])+4, "видимая", "end", muted, 10) +
+    t(rx(vis[0],-1)-18, zy(vis[0])+4, "часть", "end", muted, 10);
+
+  // вид сверху: три кольца, одинаковый угол, разный зазор
+  const SR = 105/r.rs[2];
+  const gapA = TAU - r.dphi;               // угол зазора, общий для всех колец
+  const arc = (rad, a0, a1, col, wid) => {
+    const large = (a1-a0) > Math.PI ? 1 : 0;
+    const p = a => `${(150 + rad*Math.sin(a)).toFixed(2)},${(165 - rad*Math.cos(a)).toFixed(2)}`;
+    return `<path d="M ${p(a0)} A ${rad} ${rad} 0 ${large} 1 ${p(a1)}" fill="none"
+             stroke="${col}" stroke-width="${wid}" stroke-linecap="butt"/>`;
+  };
+  const labels=["низ","середина","верх"];
+  let ringSvg = "";
+  r.rs.forEach((rad,i)=>{
+    const R0 = rad*SR;
+    if (gapA > 0){
+      ringSvg += arc(R0, gapA/2, TAU - gapA/2, field, 6);
+      ringSvg += arc(R0, -gapA/2, gapA/2, hair, 6);
+    } else {
+      ringSvg += arc(R0, 0, Math.PI, field, 6) + arc(R0, Math.PI, TAU-0.001, field, 6);
+    }
+    ringSvg += t(150, 165 - R0 - 7, `${labels[i]} ${f(r.gap[i],1)}`, "middle",
+                 r.gap[i] < 0 ? field : muted, 10);
+  });
+  $("ring").innerHTML = ringSvg +
+    `<circle cx="150" cy="165" r="1.8" fill="${muted}"/>` +
+    t(150, 22, gapA>0 ? `угол запечатки ${f(r.dphi*180/Math.PI,1)}°`
+                      : `перехлёст ${f((r.dphi-TAU)*180/Math.PI,1)}°`,
+      "middle", gapA>0?ink:field, 12) +
+    t(150, 300, "зазор, мм — на трёх высотах поля", "middle", muted, 10) +
+    t(150, 316, "угол один, дуга разная", "middle", muted, 10);
+}
+
+function render(){
+  const top=+$("top").value, W=+$("w").value, Hg=+$("h").value;
+  const r = calc(cur, top, W, Hg);
+  const warn = [];
+  if (r.gap[0] <= 0) warn.push(`краска сходится внахлёст, максимум ${f(r.circ[1])} мм по центральной линии`);
+  if (r.zs[0] < r.c.vis[0]) warn.push(`низ поля уходит под ребро расстыковки (ниже ${f(r.c.vis[0])} мм)`);
+  if (r.zs[2] > r.c.vis[1]) warn.push(`верх поля заходит под завиток венчика`);
+  $("summary").innerHTML = [
+    ["Поле по высоте", `${f(r.zs[0])} – ${f(r.zs[2])} мм`],
+    ["Отступ снизу от видимой части", f(r.botVis)+" мм"],
+    ["Отступ снизу от дна", f(r.botBase)+" мм"],
+    ["Угол запечатки", f(r.dphi*180/Math.PI,1)+"°"],
+    ["Ширина под зазор 10 мм снизу", f(r.rs[1]*(TAU-10/r.rs[0]))+" мм"],
+    ["Ширина под зазор 15 мм снизу", f(r.rs[1]*(TAU-15/r.rs[0]))+" мм"]
+  ].map(([a,v])=>`<dt>${a}</dt><dd>${v}</dd>`).join("") +
+   (warn.length? `<dt style="grid-column:1/-1"><p class="note" style="margin:8px 0 0">${warn.join("; ")}</p></dt>`:"");
+  $("levels").innerHTML = ["низ","середина","верх"].map((l,i)=>
+    `<tr><th>${l}</th><td>${f(r.zs[i])}</td><td>${f(r.circ[i])}</td><td>${f(r.ink[i])}</td>
+     <td class="${r.gap[i]<0?"neg":""}">${f(r.gap[i])}</td></tr>`).join("");
+  $("screen").innerHTML = [
+    ["Кольцевой сектор, R внутренний", f(r.Rin)+" мм"],
+    ["R наружный", f(r.Rout)+" мм"],
+    ["Ширина кольца", f(r.Rout-r.Rin)+" мм"],
+    ["Угол сектора", f(r.alpha*180/Math.PI,3)+"°"],
+    ["Дуга: низ / середина / верх", `${f(r.arc[0])} / ${f(r.arc[1])} / ${f(r.arc[2])} мм`],
+    ["Масштаб по горизонтали, низ", f((r.stretch[0]-1)*100,1)+" %"],
+    ["Масштаб по горизонтали, верх", "+"+f((r.stretch[1]-1)*100,1)+" %"]
+  ].map(([a,v])=>`<dt>${a}</dt><dd>${v}</dd>`).join("");
+  draw(r);
+}
+
+cupsBox.addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  cur = +b.dataset.ml;
+  [...cupsBox.children].forEach(x=>x.setAttribute("aria-pressed", x===b));
+  render();
+});
+["top","w","h"].forEach(id=>$(id).addEventListener("input", render));
+document.querySelectorAll(".presets button").forEach(b=>b.addEventListener("click",()=>{
+  const [ml,top,w,h] = b.dataset.p.split(",").map(Number);
+  cur = ml;
+  [...cupsBox.children].forEach(x=>x.setAttribute("aria-pressed", +x.dataset.ml===ml));
+  $("top").value=top; $("w").value=w; $("h").value=h; render();
+}));
+render();
+</script>

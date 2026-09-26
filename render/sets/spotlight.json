@@ -1,0 +1,80 @@
+{
+  "title": "Тёмная студия",
+  "source": "blend",
+  "_about": [
+    "Фон заимствован из mockup/scenes/4.blend.",
+    "scene и camera — имена внутри того файла.",
+    "hero — что убрать со сцены, fit_ref — по чему считается посадка стакана."
+  ],
+  "scene": "Studio Product Spotlight Scene",
+  "camera": "Camera.005",
+  "hero": [
+    "bottle",
+    "bottle top0",
+    "Cylinder.004"
+  ],
+  "fit_ref": [
+    "bottle"
+  ],
+  "height_scale": 2.2,
+  "offset": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "samples": 512,
+  "resolution": 1600,
+  "_keys": {
+    "hero": "ассет: банка, крышка и подложка под ней",
+    "height_scale": "выбрано: банка 55 мм, стакан вытянутый — по высоте банки он был бы неразличим",
+    "rotation_deg": "выбрано: наклон по осям X, Y, Z",
+    "samples": "выбрано: сцены ассетов авторски настроены на 200-600, взят общий уровень",
+    "resolution": "выбрано: 1600 по большей стороне, пропорция кадра берётся из сцены"
+  },
+  "rotation_deg": [
+    0.0,
+    0.0,
+    14.0
+  ],
+  "exposure": -1.31,
+  "exposure_mode": "auto",
+  "_exposure_calibration": {
+    "date": "2026-09-25",
+    "cup": "HB90-530",
+    "card": "18 % серого",
+    "mode": "auto",
+    "measured": 0.0051,
+    "at_ev": -1.2300000190734863,
+    "legacy_frame_gmean": 0.0149
+  },
+  "camera_presets": [
+    {
+      "id": "front",
+      "label": "Как в сцене"
+    },
+    {
+      "id": "high",
+      "label": "Сверху",
+      "orbit": [
+        0,
+        15
+      ]
+    },
+    {
+      "id": "low",
+      "label": "Ниже",
+      "orbit": [
+        0,
+        -5
+      ]
+    },
+    {
+      "id": "left",
+      "label": "Слева",
+      "orbit": [
+        25,
+        0
+      ]
+    }
+  ]
+}

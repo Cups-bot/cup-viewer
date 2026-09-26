@@ -1,0 +1,21 @@
+{
+  "id": "PG95-520",
+  "nominal_ml": 400,
+  "brim_ml_by_code": 520,
+  "brim_ml_by_model": 505.8,
+  "height_mm": 128.0,
+  "top_d_mm": 95.0,
+  "bottom_d_mm": 60.17,
+  "wall_mm": 0.3,
+  "print_z_mm": [
+    29.0,
+    92.5
+  ],
+  "print_width_mm": 50.0,
+  "art": {
+    "A": "PG95-520_test_A.png",
+    "B": "PG95-520_test_B.png"
+  },
+  "verts": 58370,
+  "source": "шаблон MyCups/Formacia PG95-520-P, векторный 1:1; Polyer 400 мл Ø95×128"
+}

@@ -1,0 +1,74 @@
+{
+  "title": "Городской подоконник",
+  "source": "authored",
+  "environment": "urban",
+  "cup_position_h": [
+    0,
+    0,
+    0
+  ],
+  "cup_rotation_deg": [
+    0,
+    0,
+    0
+  ],
+  "camera": {
+    "position_h": [
+      0.65,
+      -4.1,
+      1.63
+    ],
+    "target_h": [
+      0,
+      0,
+      0.6
+    ],
+    "lens_mm": 85,
+    "fstop": 4.5
+  },
+  "world_strength": 0.12,
+  "world_color": [
+    0.9,
+    0.95,
+    1
+  ],
+  "samples": 512,
+  "resolution": 1600,
+  "catalogue": "S14",
+  "exposure": -0.03,
+  "_color_before_pbn": {
+    "exposure": -0.25
+  },
+  "exposure_mode": "auto",
+  "_exposure_calibration": {
+    "date": "2026-09-25",
+    "cup": "HB90-530",
+    "card": "18 % серого",
+    "mode": "auto",
+    "measured": 0.1244,
+    "at_ev": -0.029999999329447746,
+    "legacy_frame_gmean": 0.1245
+  },
+  "camera_presets": [
+    {
+      "id": "front",
+      "label": "Как в сцене"
+    },
+    {
+      "id": "high",
+      "label": "Сверху",
+      "orbit": [
+        0,
+        15
+      ]
+    },
+    {
+      "id": "low",
+      "label": "Ниже",
+      "orbit": [
+        0,
+        -5
+      ]
+    }
+  ]
+}

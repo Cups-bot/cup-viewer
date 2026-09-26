@@ -1,0 +1,166 @@
+mv  Cup 410ml-003-252215-new part 3D-Rev06-20260121.stp  ->  factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.stp
+mv  Cup 500ml-004-252214-new part 3D-Rev06-20260121.stp  ->  factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.stp
+mv  Cup 650ml-005-252213-new part 3D-Rev06-20260121.stp  ->  factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.stp
+mv  Cup 410ml-003-252215-new part 3D-Rev06-20260121.obj  ->  factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.obj
+mv  Cup 500ml-004-252214-new part 3D-Rev06-20260121.obj  ->  factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.obj
+mv  Cup 650ml-005-252213-new part 3D-Rev06-20260121.obj  ->  factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.obj
+mv  Cup 410ml-003-252215-new part 3D-Rev06-20260121.mtl  ->  factory/Cup 410ml-003-252215-new part 3D-Rev06-20260121.mtl
+mv  Cup 500ml-004-252214-new part 3D-Rev06-20260121.mtl  ->  factory/Cup 500ml-004-252214-new part 3D-Rev06-20260121.mtl
+mv  Cup 650ml-005-252213-new part 3D-Rev06-20260121.mtl  ->  factory/Cup 650ml-005-252213-new part 3D-Rev06-20260121.mtl
+mv  Cup 410ml-003-252215-new part 2D-Rev06-20260121.pdf  ->  factory/Cup 410ml-003-252215-new part 2D-Rev06-20260121.pdf
+mv  Cup 500ml-004-252214-new part 2D-Rev06-20260121.pdf  ->  factory/Cup 500ml-004-252214-new part 2D-Rev06-20260121.pdf
+mv  Cup 650ml-005-252213-new part 2D-Rev06-20260121.pdf  ->  factory/Cup 650ml-005-252213-new part 2D-Rev06-20260121.pdf
+mv  cup410  ->  product/cup410
+mv  cup500  ->  product/cup500
+mv  cup650  ->  product/cup650
+mv  check  ->  product/check
+mv  bkshots/bk  ->  mockup/bk
+mv  bkshots/art  ->  mockup/art
+mv  bkshots/params  ->  mockup/params
+mv  bkshots/out  ->  mockup/out
+mv  bkshots/make_cone_template.py  ->  mockup/tools/make_cone_template.py
+mv  bkshots/make_field_grid.py  ->  mockup/tools/make_field_grid.py
+mv  bkshots/PRINT.md  ->  docs/ПЕЧАТЬ.md
+mv  bkshots/README.md  ->  _архив/before_studio_20260906/bkshots_README.md
+mv  4.blend  ->  mockup/scenes/4.blend
+mv  studio/src/drinks.py  ->  _архив/lemonade_v2_20260907/src_drinks.py
+mv  studio/src/ice.py  ->  _архив/lemonade_v2_20260907/src_ice.py
+mv  studio/src/citrus.py  ->  _архив/lemonade_v2_20260907/src_citrus.py
+mv  studio/src/bubbles.py  ->  _архив/lemonade_v2_20260907/src_bubbles.py
+mv  studio/src/dew.py  ->  _архив/lemonade_v2_20260907/src_dew.py
+mv  studio/src/scatter.py  ->  _архив/lemonade_v2_20260907/src_scatter.py
+mv  studio/src/ppmat.py  ->  _архив/lemonade_v2_20260907/src_ppmat.py
+mv  studio/src/variants.py  ->  _архив/lemonade_v2_20260907/src_variants.py
+mv  studio/assets/citrus  ->  _архив/lemonade_v2_20260907/citrus_atlas
+mv  library/filled  ->  _архив/lemonade_v2_20260907/library_filled
+mv  studio/validate.py  ->  _архив/lemonade_v2_20260907/validate_lemonade.py
+mv  studio/batch.py  ->  _архив/lemonade_v2_20260907/batch_lemonade.py
+mv  studio/ЛИМОНАД.bat  ->  _архив/lemonade_v2_20260907/ЛИМОНАД.bat
+mv  docs/studio_validation.json  ->  _архив/lemonade_v2_20260907/studio_validation.json
+mv  docs/studio_validation_v2.json  ->  _архив/lemonade_v2_20260907/studio_validation_v2.json
+mv  studio/out/S01_410_lemonade_clear_pp_none_hero_v2.blend  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_clear_pp_none_hero_v2.blend
+mv  studio/out/S01_410_lemonade_clear_pp_none_hero_v2.json  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_clear_pp_none_hero_v2.json
+mv  studio/out/S01_410_lemonade_clear_pp_none_hero_v2.png  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_clear_pp_none_hero_v2.png
+mv  studio/out/S01_410_lemonade_frosted_pp_none_drink_v1.blend  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_frosted_pp_none_drink_v1.blend
+mv  studio/out/S01_410_lemonade_frosted_pp_none_drink_v1.blend1  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_frosted_pp_none_drink_v1.blend1
+mv  studio/out/S01_410_lemonade_frosted_pp_none_drink_v1.json  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_frosted_pp_none_drink_v1.json
+mv  studio/out/S01_410_lemonade_frosted_pp_none_drink_v1.png  ->  _архив/lemonade_v2_20260907/out_S01_410_lemonade_frosted_pp_none_drink_v1.png
+mv  studio/out/S01_500_lemonade_clear_pp_none_hero_v2.blend  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_clear_pp_none_hero_v2.blend
+mv  studio/out/S01_500_lemonade_clear_pp_none_hero_v2.json  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_clear_pp_none_hero_v2.json
+mv  studio/out/S01_500_lemonade_clear_pp_none_hero_v2.png  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_clear_pp_none_hero_v2.png
+mv  studio/out/S01_500_lemonade_frosted_pp_none_drink_v1.blend  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_frosted_pp_none_drink_v1.blend
+mv  studio/out/S01_500_lemonade_frosted_pp_none_drink_v1.json  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_frosted_pp_none_drink_v1.json
+mv  studio/out/S01_500_lemonade_frosted_pp_none_drink_v1.png  ->  _архив/lemonade_v2_20260907/out_S01_500_lemonade_frosted_pp_none_drink_v1.png
+mv  studio/out/S01_650_lemonade_clear_pp_none_hero_v2.blend  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_clear_pp_none_hero_v2.blend
+mv  studio/out/S01_650_lemonade_clear_pp_none_hero_v2.json  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_clear_pp_none_hero_v2.json
+mv  studio/out/S01_650_lemonade_clear_pp_none_hero_v2.png  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_clear_pp_none_hero_v2.png
+mv  studio/out/S01_650_lemonade_frosted_pp_none_drink_v1.blend  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_frosted_pp_none_drink_v1.blend
+mv  studio/out/S01_650_lemonade_frosted_pp_none_drink_v1.blend1  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_frosted_pp_none_drink_v1.blend1
+mv  studio/out/S01_650_lemonade_frosted_pp_none_drink_v1.json  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_frosted_pp_none_drink_v1.json
+mv  studio/out/S01_650_lemonade_frosted_pp_none_drink_v1.png  ->  _архив/lemonade_v2_20260907/out_S01_650_lemonade_frosted_pp_none_drink_v1.png
+mv  studio/out/printed  ->  _архив/lemonade_v2_20260907/out_printed
+mv  studio/out/draft  ->  _архив/lemonade_v2_20260907/out_draft
+mv  library/empty  ->  _архив/lemonade_v2_20260907/library_empty_frosted_pp
+mv  assets  ->  _архив/blenderkit_downloads
+mv  studio/out/S01_410_empty_frosted_pp_none_catalog_v1.blend  ->  _архив/studio_v1_frosted_pp_20260907/S01_410_empty_frosted_pp_none_catalog_v1.blend
+mv  studio/out/S01_410_empty_frosted_pp_none_catalog_v1.json  ->  _архив/studio_v1_frosted_pp_20260907/S01_410_empty_frosted_pp_none_catalog_v1.json
+mv  studio/out/S01_410_empty_frosted_pp_none_catalog_v1.png  ->  _архив/studio_v1_frosted_pp_20260907/S01_410_empty_frosted_pp_none_catalog_v1.png
+mv  studio/out/S01_500_empty_frosted_pp_none_catalog_v1.blend  ->  _архив/studio_v1_frosted_pp_20260907/S01_500_empty_frosted_pp_none_catalog_v1.blend
+mv  studio/out/S01_500_empty_frosted_pp_none_catalog_v1.json  ->  _архив/studio_v1_frosted_pp_20260907/S01_500_empty_frosted_pp_none_catalog_v1.json
+mv  studio/out/S01_500_empty_frosted_pp_none_catalog_v1.png  ->  _архив/studio_v1_frosted_pp_20260907/S01_500_empty_frosted_pp_none_catalog_v1.png
+mv  studio/out/S01_650_empty_frosted_pp_none_catalog_v1.blend  ->  _архив/studio_v1_frosted_pp_20260907/S01_650_empty_frosted_pp_none_catalog_v1.blend
+mv  studio/out/S01_650_empty_frosted_pp_none_catalog_v1.json  ->  _архив/studio_v1_frosted_pp_20260907/S01_650_empty_frosted_pp_none_catalog_v1.json
+mv  studio/out/S01_650_empty_frosted_pp_none_catalog_v1.png  ->  _архив/studio_v1_frosted_pp_20260907/S01_650_empty_frosted_pp_none_catalog_v1.png
+mv  studio/out/validation  ->  _архив/studio_v1_frosted_pp_20260907/validation
+mv  studio/README.md  ->  _архив/studio_v1_frosted_pp_20260907/README.md
+mv  studio/params/studio.json  ->  _архив/studio_v1_frosted_pp_20260907/studio_params.json
+mv  studio/run.py  ->  _архив/studio_v1_frosted_pp_20260907/run.py
+mv  studio/СЕРЫЙ БОКС.bat  ->  _архив/studio_v1_frosted_pp_20260907/СЕРЫЙ БОКС.bat
+mv  studio/ПЕЧАТЬ В СТУДИИ.bat  ->  _архив/studio_v1_frosted_pp_20260907/ПЕЧАТЬ В СТУДИИ.bat
+mv  studio/СОБРАТЬ БЕЗ РЕНДЕРА.bat  ->  _архив/studio_v1_frosted_pp_20260907/СОБРАТЬ БЕЗ РЕНДЕРА.bat
+mv  studio/studio.bat  ->  _архив/studio_v1_frosted_pp_20260907/studio.bat
+mv  studio/src/common.py  ->  _архив/studio_v1_frosted_pp_20260907/src_common.py
+mv  studio/src/stage.py  ->  _архив/studio_v1_frosted_pp_20260907/src_stage.py
+mv  studio/src/__init__.py  ->  _архив/studio_v1_frosted_pp_20260907/src___init__.py
+mv  bkshots/run.py  ->  _архив/studio_v1_frosted_pp_20260907/bkshots_run.py
+mv  bkshots/РЕЖИМ - ПОЛНАЯ ЗАПЕЧАТКА.bat  ->  _архив/studio_v1_frosted_pp_20260907/РЕЖИМ - ПОЛНАЯ ЗАПЕЧАТКА.bat
+mv  bkshots/РЕЖИМ - ПРЯМОУГОЛЬНЫЙ МАКЕТ.bat  ->  _архив/studio_v1_frosted_pp_20260907/РЕЖИМ - ПРЯМОУГОЛЬНЫЙ МАКЕТ.bat
+mv  bkshots/СОБРАТЬ И ОТРЕНДЕРИТЬ.bat  ->  _архив/studio_v1_frosted_pp_20260907/СОБРАТЬ И ОТРЕНДЕРИТЬ.bat
+mv  bkshots/СОБРАТЬ.bat  ->  _архив/studio_v1_frosted_pp_20260907/СОБРАТЬ.bat
+mv  bkshots/СТАКАН 410.bat  ->  _архив/studio_v1_frosted_pp_20260907/СТАКАН 410.bat
+mv  bkshots/СТАКАН 500.bat  ->  _архив/studio_v1_frosted_pp_20260907/СТАКАН 500.bat
+mv  bkshots/СТАКАН 650.bat  ->  _архив/studio_v1_frosted_pp_20260907/СТАКАН 650.bat
+mv  mockup/out/living.blend  ->  _архив/mockup_out_20260907/living.blend
+mv  mockup/out/podium.blend  ->  _архив/mockup_out_20260907/podium.blend
+mv  mockup/out/spotlight.blend  ->  _архив/mockup_out_20260907/spotlight.blend
+mv  mockup/out/spotlight.png  ->  _архив/mockup_out_20260907/spotlight.png
+mv  mockup/out/water.blend  ->  _архив/mockup_out_20260907/water.blend
+mv  docs/AUDIT_2026-09-06.md  ->  docs/отчёты/аудит_2026-09-06.md
+mv  docs/geometry_reverification.json  ->  docs/отчёты/geometry_reverification.json
+mv  docs/integrity_report.json  ->  docs/отчёты/integrity_report.json
+mv  docs/rib_diagnostic.json  ->  docs/отчёты/rib_diagnostic.json
+mv  docs/CLEANUP_MOVES_20260907.txt  ->  docs/отчёты/перемещения_2026-09-07.txt
+mv  docs/existing_code_changes.patch  ->  _архив/before_studio_20260906/existing_code_changes.patch
+mv  docs/GEOMETRY_AND_LEGACY.md  ->  docs/ГЕОМЕТРИЯ.md
+mv  docs/art-direction  ->  docs/арт-дирекшен
+mv  mockup/out/living_650ml_clean.blend  ->  _архив/mockup_out_old_material_20260907/living_650ml_clean.blend
+mv  mockup/out/living_650ml_rect.blend  ->  _архив/mockup_out_old_material_20260907/living_650ml_rect.blend
+mv  mockup/out/podium_650ml_clean.blend  ->  _архив/mockup_out_old_material_20260907/podium_650ml_clean.blend
+mv  mockup/out/podium_650ml_rect.blend  ->  _архив/mockup_out_old_material_20260907/podium_650ml_rect.blend
+mv  mockup/out/spotlight_650ml_rect.blend  ->  _архив/mockup_out_old_material_20260907/spotlight_650ml_rect.blend
+mv  mockup/out/studio_650ml_rect.blend  ->  _архив/mockup_out_old_material_20260907/studio_650ml_rect.blend
+mv  mockup/out/water_650ml_rect.blend  ->  _архив/mockup_out_old_material_20260907/water_650ml_rect.blend
+mv  mockup/out/living_650ml_clean.png  ->  _архив/mockup_out_old_material_20260907/living_650ml_clean.png
+mv  mockup/out/living_650ml_rect.png  ->  _архив/mockup_out_old_material_20260907/living_650ml_rect.png
+mv  mockup/out/podium_650ml_rect.png  ->  _архив/mockup_out_old_material_20260907/podium_650ml_rect.png
+mv  mockup/out/spotlight_650ml_rect.png  ->  _архив/mockup_out_old_material_20260907/spotlight_650ml_rect.png
+mv  mockup/out/studio_650ml_rect.png  ->  _архив/mockup_out_old_material_20260907/studio_650ml_rect.png
+mv  mockup/out/water_650ml_rect.png  ->  _архив/mockup_out_old_material_20260907/water_650ml_rect.png
+mv  mockup/out/living_650ml_clean.json  ->  _архив/mockup_out_old_material_20260907/living_650ml_clean.json
+mv  mockup/out/living_650ml_rect.json  ->  _архив/mockup_out_old_material_20260907/living_650ml_rect.json
+mv  mockup/out/podium_650ml_rect.json  ->  _архив/mockup_out_old_material_20260907/podium_650ml_rect.json
+mv  mockup/out/spotlight_650ml_rect.json  ->  _архив/mockup_out_old_material_20260907/spotlight_650ml_rect.json
+mv  mockup/out/studio_650ml_rect.json  ->  _архив/mockup_out_old_material_20260907/studio_650ml_rect.json
+mv  mockup/out/water_650ml_rect.json  ->  _архив/mockup_out_old_material_20260907/water_650ml_rect.json
+mv  mockup/out/s07_ice_650ml_clean.blend  ->  _архив/scenes_before_ref_pass_20260907/s07_ice_650ml_clean.blend
+mv  mockup/out/s07_ice_650ml_clean.blend1  ->  _архив/scenes_before_ref_pass_20260907/s07_ice_650ml_clean.blend1
+mv  mockup/out/s07_ice_650ml_clean.json  ->  _архив/scenes_before_ref_pass_20260907/s07_ice_650ml_clean.json
+mv  mockup/out/s07_ice_650ml_clean.png  ->  _архив/scenes_before_ref_pass_20260907/s07_ice_650ml_clean.png
+mv  mockup/out/s12_cream_650ml_clean.blend  ->  _архив/scenes_before_ref_pass_20260907/s12_cream_650ml_clean.blend
+mv  mockup/out/s12_cream_650ml_clean.json  ->  _архив/scenes_before_ref_pass_20260907/s12_cream_650ml_clean.json
+mv  mockup/out/s12_cream_650ml_clean.png  ->  _архив/scenes_before_ref_pass_20260907/s12_cream_650ml_clean.png
+mv  mockup/out/s14_urban_650ml_clean.blend  ->  _архив/scenes_before_ref_pass_20260907/s14_urban_650ml_clean.blend
+mv  mockup/out/s14_urban_650ml_clean.json  ->  _архив/scenes_before_ref_pass_20260907/s14_urban_650ml_clean.json
+mv  mockup/out/s14_urban_650ml_clean.png  ->  _архив/scenes_before_ref_pass_20260907/s14_urban_650ml_clean.png
+mv  mockup/out/material_review  ->  docs/отчёты/материал_2026-09-07
+mv  mockup/out/scene_review  ->  docs/отчёты/сцены_2026-09-07
+mv  mockup/art/field_grid_220x110.png  ->  _архив/art_before_200mm_20260907/field_grid_220x110.png
+mv  mockup/art/field_grid_202.27x153.44.png  ->  _архив/art_before_200mm_20260907/field_grid_202.27x153.44.png
+mv  mockup/art/field_grid_202.48x86.25.png  ->  _архив/art_before_200mm_20260907/field_grid_202.48x86.25.png
+mv  docs/отчёты/сцены_07_12_14_2026-09-07.md  ->  docs/отчёты/сцены_1_создание_2026-09-07.md
+mv  docs/отчёты/сцены_по_ref_2026-09-07.md  ->  docs/отчёты/сцены_2_правка_по_ref_2026-09-07.md
+mv  mockup/out/material_review  ->  docs/отчёты/материал_2026-09-07  (копированием: файл был занят)
+mv  mockup/out/living_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/living_500ml_clean.png
+mv  mockup/out/podium_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/podium_500ml_clean.png
+mv  mockup/out/s07_ice_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/s07_ice_500ml_clean.png
+mv  mockup/out/s12_cream_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/s12_cream_500ml_clean.png
+mv  mockup/out/s14_urban_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/s14_urban_500ml_clean.png
+mv  mockup/out/spotlight_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/spotlight_500ml_clean.png
+mv  mockup/out/studio_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/studio_500ml_clean.png
+mv  mockup/out/water_500ml_clean.png  ->  _архив/mockup_out_before_512_20260907/water_500ml_clean.png
+mv  mockup/out/living_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/living_500ml_clean.json
+mv  mockup/out/podium_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/podium_500ml_clean.json
+mv  mockup/out/s07_ice_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/s07_ice_500ml_clean.json
+mv  mockup/out/s12_cream_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/s12_cream_500ml_clean.json
+mv  mockup/out/s14_urban_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/s14_urban_500ml_clean.json
+mv  mockup/out/spotlight_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/spotlight_500ml_clean.json
+mv  mockup/out/studio_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/studio_500ml_clean.json
+mv  mockup/out/water_500ml_clean.json  ->  _архив/mockup_out_before_512_20260907/water_500ml_clean.json
+mv  mockup/out/living_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/living_500ml_clean.blend
+mv  mockup/out/podium_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/podium_500ml_clean.blend
+mv  mockup/out/s07_ice_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/s07_ice_500ml_clean.blend
+mv  mockup/out/s12_cream_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/s12_cream_500ml_clean.blend
+mv  mockup/out/s14_urban_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/s14_urban_500ml_clean.blend
+mv  mockup/out/spotlight_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/spotlight_500ml_clean.blend
+mv  mockup/out/studio_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/studio_500ml_clean.blend
+mv  mockup/out/water_500ml_clean.blend  ->  _архив/mockup_out_before_512_20260907/water_500ml_clean.blend

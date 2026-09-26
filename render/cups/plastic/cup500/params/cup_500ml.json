@@ -1,0 +1,485 @@
+{
+  "_about": [
+    "Единственный источник размеров для модели стакана 500 мл, TOOL NO. 252214, Rev06.",
+    "Все линейные размеры в миллиметрах, углы в градусах.",
+    "У каждого объекта есть карта _src: ключ -> откуда значение взято на чертеже.",
+    "Значения, помеченные 'вектор', сняты с векторной геометрии PDF (чертёж 1:1, 1 pt = 0.35278 мм)",
+    "и не проставлены на листе размерной линией; они перепроверены по соседним проставленным размерам."
+  ],
+  "drawing": {
+    "file": "Cup 500ml-004-252214-new part 2D-Rev06-20260121.pdf",
+    "tool_no": "252214",
+    "part_name": "cup-500ml",
+    "rev": "Rev06",
+    "date": "2026-01-21",
+    "part_weight_g_stated": 15.38,
+    "_src": {
+      "file": "исходный PDF",
+      "tool_no": "основная надпись, TOOL NO.",
+      "part_name": "основная надпись, PART NAME",
+      "rev": "таблица изменений, Rev06",
+      "date": "таблица изменений, 2026.01.21",
+      "part_weight_g_stated": "надпись Part weight:15.38g — см. README, расходится с геометрией"
+    }
+  },
+  "material": {
+    "name": "PP",
+    "density_g_cm3": 0.905,
+    "_src": {
+      "name": "ДОПУЩЕНИЕ: графа MATERIAL в основной надписи пуста",
+      "density_g_cm3": "ДОПУЩЕНИЕ: PP-гомополимер, 0.905 г/см3"
+    }
+  },
+  "geometry": {
+    "height_mm": 135.3,
+    "_src": {
+      "height_mm": "SECTION C-C, размер 135.30 (142.20 и 128.40 относятся к стопке из двух стаканов)"
+    },
+    "cone": {
+      "r_bottom_mm": 28.34,
+      "included_angle_deg": 11.37,
+      "_src": {
+        "r_bottom_mm": "SECTION C-C, D56.68/2",
+        "included_angle_deg": "SECTION C-C, 11.37 град (полный угол конуса, полуугол 5.685)"
+      }
+    },
+    "wall": {
+      "thickness": [
+        [
+          0.0,
+          0.5
+        ],
+        [
+          135.3,
+          0.5
+        ]
+      ],
+      "_src": {
+        "thickness": "DETAIL E, 0.50; борт по SECTION C-C постоянной толщины (две параллельные прямые, offset 0.5005 по нормали). Список пар (высота, толщина) интерполируется линейно."
+      }
+    },
+    "ribs": {
+      "count": 4,
+      "azimuth_start_deg": 0.0,
+      "top_z_mm": 6.9,
+      "offset_from_outer_mm": 2.0,
+      "width_base_mm": 0.644,
+      "width_top_mm": 0.456,
+      "embed_mm": 0.02,
+      "_src": {
+        "count": "вид сверху: элементы 0.46-4X / 0.64-4X, четыре азимута 0/90/180/270",
+        "azimuth_start_deg": "вид сверху: рёбра на осях, первое на 0 град",
+        "top_z_mm": "SECTION C-C, 6.90 — полка ребра; 4.90 = 6.90 - 2.00 от пола",
+        "offset_from_outer_mm": "вектор: поверхность ребра смещена ровно на 2.000 мм по нормали от наружного конуса",
+        "width_base_mm": "вид сверху, 0.64-4X — тангенциальная ширина у пола (вектор 0.644)",
+        "width_top_mm": "вид сверху, 0.46-4X — тангенциальная ширина у полки (вектор 0.456)",
+        "embed_mm": "утопление ребра в стенку и пол, чтобы не было совпадающих граней; на объём влияет на ~0.5 мм3"
+      }
+    },
+    "foot": {
+      "recess_z_mm": 1.5,
+      "ring_r_mm": 27.65,
+      "draft_deg": 3.5,
+      "_src": {
+        "recess_z_mm": "вектор: плоскость поднутрения дна, 1.500 (дно 0.50 при полу 2.000)",
+        "ring_r_mm": "SECTION C-C, D55.30/2",
+        "draft_deg": "SECTION C-C, 7.00 град / 2 (полный угол между симметричными гранями кольца)"
+      }
+    },
+    "bottom": {
+      "floor_z_mm": 2.0,
+      "step_z_out_mm": 2.8,
+      "step_z_in_mm": 3.5,
+      "chamfer_outer_deg": 35.0,
+      "chamfer_outer_r_out_mm": 13.458,
+      "chamfer_outer_r_in_mm": 13.963,
+      "chamfer_gate_deg": 50.345,
+      "gate_pad_z_mm": 3.3,
+      "gate_pad_r_mm": 2.467,
+      "gate_land_z_mm": 4.1,
+      "gate_land_r_mm": 2.5,
+      "gate_chamfer_r_mm": 2.955,
+      "gate_dome_r_mm": 5.5,
+      "_src": {
+        "floor_z_mm": "SECTION C-C, 4.90 от полa до уступа 6.90; толщина дна 0.50",
+        "step_z_out_mm": "SECTION C-C, 0.70 (наружная плоскость ступени)",
+        "step_z_in_mm": "SECTION C-C, 0.70 (внутренняя плоскость ступени)",
+        "chamfer_outer_deg": "вектор: 35.00 град от оси (не проставлен)",
+        "chamfer_outer_r_out_mm": "вектор: угол наружного поднутрения (не проставлен)",
+        "chamfer_outer_r_in_mm": "вектор: угол внутренней ступени (не проставлен)",
+        "chamfer_gate_deg": "DETAIL D, 100.69 град / 2",
+        "gate_pad_z_mm": "вектор: плоская наружная площадка литника (не проставлена)",
+        "gate_pad_r_mm": "вектор: радиус наружной площадки (не проставлен)",
+        "gate_land_z_mm": "DETAIL D: плоский поясок вокруг следа литника",
+        "gate_land_r_mm": "DETAIL D, D5.00/2",
+        "gate_chamfer_r_mm": "вектор: наружный край пояска литника (не проставлен)",
+        "gate_dome_r_mm": "DETAIL D, R5.5 (купол внутрь стакана; высота над пояском 0.60)"
+      }
+    },
+    "rim": {
+      "slab_t_mm": 0.62,
+      "lip_t_mm": 0.45,
+      "lip_draft_deg": 3.5,
+      "d_max_mm": 89.0,
+      "d_max_below_top_mm": 1.857,
+      "_src": {
+        "slab_t_mm": "DETAIL E, 0.62 (толщина полки венчика по оси)",
+        "lip_t_mm": "DETAIL E, 0.45 (толщина свисающей губы по радиусу)",
+        "lip_draft_deg": "DETAIL E, 3.50 град",
+        "d_max_mm": "SECTION C-C, D89.00 (наибольший наружный диаметр)",
+        "d_max_below_top_mm": "SECTION C-C, 1.86 (вектор: 1.857) — ниже плоскости кромки"
+      }
+    },
+    "fillets": {
+      "bottom_gate_chamfer_out": 0.8,
+      "bottom_step_out": 0.8,
+      "bottom_recess_out": 0.8,
+      "foot_top": 0.5,
+      "foot_bottom": 0.2,
+      "rim_wall_to_slab": 0.4,
+      "rim_slab_to_lip": 0.2,
+      "rim_top_outer": 0.8,
+      "rim_top_inner": 0.95,
+      "floor_outer": 0.3,
+      "floor_step_in": 0.3,
+      "bottom_step_in": 0.8,
+      "bottom_gate_chamfer_in": 0.5,
+      "gate_land": 0.5,
+      "_src": {
+        "bottom_gate_chamfer_out": "вектор R0.80 (прим.1 — неоговорённые радиусы 0.2, здесь проставлен геометрией)",
+        "bottom_step_out": "вектор R0.80",
+        "bottom_recess_out": "вектор R0.80",
+        "foot_top": "вектор R0.50",
+        "foot_bottom": "вектор R0.20 (прим.1: general unspecified radius 0.2 mm)",
+        "rim_wall_to_slab": "DETAIL E, R0.40",
+        "rim_slab_to_lip": "DETAIL E, R0.20",
+        "rim_top_outer": "DETAIL E, R0.80",
+        "rim_top_inner": "DETAIL E, R0.95",
+        "floor_outer": "вектор R0.30 — сплошная окружность вида сверху 27.765/28.064, общий стык пола и внутреннего конуса",
+        "floor_step_in": "вектор R0.30",
+        "bottom_step_in": "вектор R0.80",
+        "bottom_gate_chamfer_in": "вектор R0.50",
+        "gate_land": "вектор R0.50",
+        "rib_top": "вектор R0.70 (полка ребра)",
+        "rib_base": "вектор R0.30 (основание ребра у пола)"
+      },
+      "rib_top": 0.7,
+      "rib_base": 0.3
+    }
+  },
+  "mesh": {
+    "segments": 128,
+    "arc_segments": 8,
+    "wall_rows": 24,
+    "merge_distance_mm": 0.001,
+    "shade_smooth_angle_deg": 30.0,
+    "unit_scale_length": 1.0,
+    "object_name": "Cup_500ml",
+    "collection_name": "CUP500",
+    "_src": {
+      "segments": "ТЗ п.4.2.3 — 128 сегментов по умолчанию",
+      "arc_segments": "ТЗ — дискретизация скруглений профиля",
+      "wall_rows": "ТЗ — число рядов вдоль прямого борта (на UV не влияет, только на затенение)",
+      "merge_distance_mm": "ТЗ п.4.2.6 — merge by distance 1e-6 м",
+      "unit_scale_length": "1.0, а не 0.001 из ТЗ: геометрия строится в метрах, и при scale_length=0.001 Blender показывал бы 135.3 мм как 0.135 мм. За единицы отображения отвечает length_unit=MILLIMETERS",
+      "shade_smooth_angle_deg": "ТЗ п.4.2.6 — угол автосглаживания",
+      "object_name": "ТЗ п.4.2.6",
+      "collection_name": "ТЗ п.3"
+    }
+  },
+  "uv": {
+    "mode": "cone_sector",
+    "band": "full",
+    "bands": {
+      "full": [
+        0.0,
+        134.32
+      ],
+      "visible": [
+        6.9,
+        133.443
+      ]
+    },
+    "seam_azimuth_deg": 180.0,
+    "texture_size_px": 4096,
+    "padding_px": 8,
+    "_src": {
+      "mode": "ТЗ п.4.3.8 — cone_sector | rect",
+      "band": "ТЗ — какой пояс борта считать печатным полем",
+      "bands": "full — весь прямой конус от опорной плоскости до касательной R0.40; visible — от верха пятки до плоскости D89.00",
+      "seam_azimuth_deg": "ТЗ п.4.3.9 — один шов, задняя сторона",
+      "texture_size_px": "ТЗ п.4.3.9 — padding считается при 4096",
+      "padding_px": "ТЗ п.4.3.9 — не менее 4 px"
+    }
+  },
+  "shader": {
+    "name": "Cup_PP",
+    "base_color": [
+      0.88,
+      0.892,
+      0.9,
+      1.0
+    ],
+    "roughness": 0.45,
+    "ior": 1.49,
+    "metallic": 0.0,
+    "maps": {
+      "design": null,
+      "normal": null,
+      "roughness": null
+    },
+    "_src": {
+      "name": "ТЗ п.4.4.11",
+      "base_color": "матовый полупрозрачный PP по фото: подложка почти бесцветная, цвет даёт рассеяние",
+      "roughness": "матовая (фрост) поверхность неокрашенного PP — на фото нет резкого блика",
+      "ior": "ТЗ п.4.4.11 — IOR 1.49",
+      "metallic": "ТЗ п.4.4.11 — metallic 0",
+      "maps": "ТЗ п.4.4.11 — подключаются только если путь задан и файл существует",
+      "transmission": "на фото сквозь стенку видны пальцы: пропускание высокое, «молочность» даёт шероховатость при Thin Wall",
+      "subsurface_weight": "0: при Thin Wall и шероховатом пропускании подповерхностное рассеяние избыточно",
+      "subsurface_radius_mm": "радиус рассеяния в мм, значение выбрано",
+      "thin_wall": "стенка 0.5 мм — тонкая оболочка, а не объём; иначе преломление считается как в толстом стекле"
+    },
+    "transmission": 0.95,
+    "subsurface_weight": 0.0,
+    "subsurface_radius_mm": [
+      1.6,
+      1.4,
+      1.2
+    ],
+    "thin_wall": true,
+    "ink": {
+      "roughness": 0.1,
+      "transmission": 0.0,
+      "_src": {
+        "roughness": "по фото: слой краски глянцевый, у него резкий блик, в отличие от матовой подложки",
+        "transmission": "краска укрывистая, просвета нет"
+      }
+    }
+  },
+  "render": {
+    "engine": "BLENDER_EEVEE",
+    "samples": 128,
+    "resolution": [
+      1920,
+      1080
+    ],
+    "camera": {
+      "clip_start_m": 0.0005,
+      "clip_end_m": 10.0,
+      "focal_mm": 85.0,
+      "location_m": [
+        0.4,
+        -0.54,
+        0.235
+      ],
+      "look_at_m": [
+        0.0,
+        0.0,
+        0.062
+      ]
+    },
+    "world_strength": 1.0,
+    "world_color": [
+      0.16,
+      0.165,
+      0.17,
+      1.0
+    ],
+    "isolate_collection": true,
+    "_src": {
+      "engine": "в подключённой сборке Blender 5.2.0 LTS Cycles не зарегистрирован — доступен только BLENDER_EEVEE",
+      "samples": "ТЗ п.4.4.12 — сэмплы из конфига",
+      "resolution": "ТЗ п.4.4.12 — 1920x1080",
+      "camera": "ТЗ — clip_start <= 0.001 м обязателен при стенке 0.5 мм; высота камеры близка к середине стакана, как на референсах",
+      "world_strength": "выбрано",
+      "world_color": "фон превью; применяется к отдельному миру CUP500_World, мир пользователя не переписывается",
+      "isolate_collection": "на время кадра прячутся объекты вне CUP500 и возвращаются как были — ТЗ п.3: сцену пользователя не трогаем",
+      "use_raytracing": "EEVEE без трассировки не считает преломление — полупрозрачность выглядела бы плоской",
+      "lights": "трёхточечный свет: key — узкий высокий прямоугольник, он даёт на глянцевой краске вертикальный блик, как отражение окна на референсных фото; fill и rim — мягкие квадраты",
+      "studio": "пол студии: стенка конуса наклонена наружу, её зеркальное направление уходит вниз, и на референсных фото блик на глянцевой краске — это отражение светлого стола. Без пола отражать нечего."
+    },
+    "use_raytracing": true,
+    "lights": [
+      {
+        "name": "CUP500_Key",
+        "power_w": 30.0,
+        "location_m": [
+          0.3,
+          -0.5,
+          0.22
+        ],
+        "size_m": [
+          0.06,
+          0.72
+        ]
+      },
+      {
+        "name": "CUP500_Fill",
+        "power_w": 10.0,
+        "location_m": [
+          -0.52,
+          -0.3,
+          0.16
+        ],
+        "size_m": [
+          0.45,
+          0.45
+        ]
+      },
+      {
+        "name": "CUP500_Rim",
+        "power_w": 26.0,
+        "location_m": [
+          -0.26,
+          0.46,
+          0.3
+        ],
+        "size_m": [
+          0.28,
+          0.28
+        ]
+      }
+    ],
+    "studio": {
+      "enabled": true,
+      "floor_size_m": 1.6,
+      "floor_color": [
+        0.62,
+        0.62,
+        0.63,
+        1.0
+      ],
+      "floor_roughness": 0.55
+    }
+  },
+  "verify": {
+    "tolerances": {
+      "height_mm": [
+        135.3,
+        0.58
+      ],
+      "d_top_mm": [
+        89.0,
+        0.58
+      ],
+      "d_bottom_mm": [
+        56.68,
+        0.58
+      ],
+      "cone_half_angle_deg": [
+        5.685,
+        0.125
+      ],
+      "volume_to_brim_ml": [
+        507.4,
+        5.0
+      ],
+      "volume_nominal_ml": [
+        500.0,
+        0.0
+      ],
+      "material_volume_cm3": [
+        16.89,
+        0.25
+      ],
+      "mass_g": [
+        15.38,
+        0.3
+      ],
+      "wall_min_mm": [
+        0.5,
+        0.03
+      ],
+      "wall_max_mm": [
+        0.5,
+        0.03
+      ],
+      "bottom_thickness_mm": [
+        0.5,
+        0.03
+      ],
+      "step_thickness_mm": [
+        0.7,
+        0.03
+      ],
+      "rim_slab_mm": [
+        0.62,
+        0.03
+      ],
+      "rim_lip_mm": [
+        0.45,
+        0.03
+      ],
+      "nesting_pitch_mm": [
+        6.9,
+        0.2
+      ],
+      "uv_max_stretch": [
+        1.0,
+        0.02
+      ],
+      "uv_outside_0_1": [
+        0,
+        0
+      ],
+      "ngon_count": [
+        0,
+        0
+      ],
+      "non_manifold_edges": [
+        0,
+        0
+      ],
+      "flipped_faces": [
+        0,
+        0
+      ],
+      "rib_offset_mm": [
+        2.0,
+        0.05
+      ],
+      "rib_count": [
+        4,
+        0
+      ]
+    },
+    "_src": {
+      "tolerances": "таблица допусков внизу листа (53-180 -> +-0.58; 6-10 -> +-0.2; углы xx.xx -> +-0.25 град), прим.2 — стенка +-0.03; mass_g — Part weight 15.38 г при PP 0.905 г/см3"
+    }
+  },
+  "marking": {
+    "enabled": true,
+    "source": "params/bottom_marking.json",
+    "relief_mm": 0.25,
+    "plane_z_mm": 1.5,
+    "raised": true,
+    "mirror_x": true,
+    "embed_mm": 0.02,
+    "_src": {
+      "enabled": "ТЗ заказчика: клеймо дна нужно геометрией",
+      "source": "извлечено extract_marking.py из векторов нижнего вида чертежа",
+      "relief_mm": "ДОПУЩЕНИЕ: на чертеже глубина не проставлена, принято 0.25 мм по указанию заказчика",
+      "plane_z_mm": "плоскость поднутрения дна (foot.recess_z_mm)",
+      "raised": "выпуклая гравировка (знаки выступают наружу), по указанию заказчика",
+      "mirror_x": "нижний вид чертежа — взгляд на дно снаружи; при взгляде снизу экранное «вправо» соответствует -X модели, поэтому X зеркалим (проверено ортогональным рендером)",
+      "embed_mm": "утопление рельефа в дно, чтобы не было совпадающих граней"
+    }
+  },
+  "print": {
+    "top_margin_mm": 15.0,
+    "bottom_margin_mm": 20.0,
+    "seam_gap_bottom_mm": 10.0,
+    "seam_gap_top_mm": 20.0,
+    "seam_azimuth_deg": 180.0,
+    "uv_layer": "UVPrint",
+    "_src": {
+      "top_margin_mm": "заказчик: отступ от кромки вниз",
+      "bottom_margin_mm": "заказчик: отступ от опорной плоскости вверх",
+      "seam_gap_bottom_mm": "заказчик: зазор на стыке снизу (примерно)",
+      "seam_gap_top_mm": "заказчик: зазор на стыке сверху (примерно); зазор разный из-за искажения при печати на конусе",
+      "seam_azimuth_deg": "стык на задней стороне",
+      "uv_layer": "отдельный UV-слой под прямоугольный макет шелкографии; UVMap остаётся аналитической развёрткой"
+    }
+  }
+}

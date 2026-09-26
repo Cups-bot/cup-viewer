@@ -1,0 +1,144 @@
+{
+  "_about": [
+    "Единственный источник размеров HB90-430. Код не содержит размерных литералов изделия.",
+    "Все длины в миллиметрах, углы в градусах. Рядом с каждым блоком — _src: откуда число.",
+    "Сверено с чертежом и развёрткой 20.09.2026. Фотографий изделия нет."
+  ],
+  "model": "HB90-430",
+  "label": "HB90-430 · однослойный",
+  "hero_rotation_deg": 0.0,
+  "_hero_rotation_src": "не задано: логотипа на черновике нет",
+  "sources": {
+    "drawing": "draw/HB90-430 Paper cup.pdf",
+    "template": "Mockups/_HB90-430-0000.pdf",
+    "artwork": null,
+    "photos": null,
+    "note": "фотографий нет: сверка по чертежу, развёртке и контрольному объёму 0.3 л"
+  },
+  "cup": {
+    "height_mm": 111.6,
+    "rim_od_mm": 89.4,
+    "curl_d_mm": 3.3,
+    "base_od_mm": 59.8,
+    "taper_deg": 6.277,
+    "wall_mm": 0.38,
+    "curl_sheet_mm": 0.3,
+    "floor_mm": 0.3,
+    "floor_top_mm": 7.0,
+    "fill_line_z_mm": 86.1,
+    "fill_volume_ml": 300.0,
+    "brim_volume_ml": 430.0,
+    "_src": {
+      "curl_d": "чертёж draw/HB90-430 Paper cup.pdf",
+      "rim_od": "чертёж draw/HB90-430 Paper cup.pdf",
+      "height": "чертёж draw/HB90-430 Paper cup.pdf",
+      "base_od": "чертёж draw/HB90-430 Paper cup.pdf",
+      "wall": "чертёж draw/HB90-430 Paper cup.pdf",
+      "floor": "чертёж draw/HB90-430 Paper cup.pdf",
+      "floor_top": "чертёж draw/HB90-430 Paper cup.pdf",
+      "taper_deg": "шаблон: видимая дуга 39.358° = 360°·sinβ; по чертежу 6.3°",
+      "curl_sheet_mm": "0.8 стенки, не больше 0.30 (как HB80-280)",
+      "fill_line_z_mm": "чертёж: выноска 0.3L, 86.1 мм от опоры (по образующей 86.62 = 86.1/cos 6.3°)",
+      "fill_volume_ml": "чертёж: выноска 0.3L — на этой высоте в стакане должно быть 300 мл (проверка объёма в check_model.py)",
+      "brim_volume_ml": "артикул HB90-430: полный объём 430 мл (до самого венчика)"
+    }
+  },
+  "construction": {
+    "heel_gap_mm": 0.02,
+    "return_top_mm": 5.86,
+    "skirt_end_above_heel_mm": 0.1,
+    "floor_bend_outer_mm": 0.5,
+    "curl_turn_deg": 325.0,
+    "curl_end_radius_mm": 1.05,
+    "neck_start_mm": 107.2,
+    "_src": {
+      "return_top_mm": "подворот кончается там, где кончается заготовка: лист ниже линии сгиба ровно 6.43 мм (шаблон: синяя нижняя − высечка)",
+      "curl_end_radius_mm": "0.7 радиуса скрутки (как HB80-280)",
+      "neck_start_mm": "H − Ø скрутки − 1.1 (как HB80-280)",
+      "other": "как HB80-280"
+    }
+  },
+  "template": {
+    "apex_mm": [
+      146.262,
+      415.848
+    ],
+    "visible": {
+      "R_top_mm": 380.33,
+      "R_bottom_mm": 270.48,
+      "left_deg": [
+        -20.5151,
+        0.0019905,
+        270.48
+      ],
+      "right_deg": [
+        18.8429,
+        0.0023838,
+        270.48
+      ]
+    },
+    "die": {
+      "R_top_mm": 393.26,
+      "R_bottom_mm": 264.05,
+      "left_deg": [
+        -20.5293,
+        0.0019828,
+        264.05
+      ],
+      "right_deg": [
+        20.4948,
+        -0.001698,
+        264.05
+      ]
+    },
+    "_src": {
+      "all": "шаблон PDF Mockups/_HB90-430-0000.pdf: извлечено work/v4/survey_templates.py"
+    }
+  },
+  "registration": {
+    "reference": "heel",
+    "R_at_reference_mm": 270.48,
+    "design_shift_mm": 0.0,
+    "_src": {
+      "R_at_reference_mm": "синяя нижняя дуга = линия сгиба у пятки (правило HB, проверено на 7 чертежах)"
+    }
+  },
+  "seam": {
+    "azimuth_deg": 90.0,
+    "ramp_mm": 6.0,
+    "layer_gap_mm": 0.015,
+    "_src": {
+      "azimuth_deg": "шов сзади (+Y), середина развёртки смотрит вперёд (−Y)",
+      "ramp_mm": "подобрано по IMG_8014: за скрытым краем клапан плавно ложится на стенку; при 2.2 мм читалась вторая линия, на фото её нет",
+      "layer_gap_mm": "технический зазор между слоями нахлёста",
+      "compress": "подобрано: в обжатой зоне каждый слой нахлёста тоньше на 40 %, шов почти не выступает из силуэта (фото IMG_8014, IMG_8013)",
+      "compress_zones": "шов проклеен и прижат по всей длине, поэтому нахлёст обжат везде, а не только в пятке и скрутке: на фото IMG_8014 у реального стакана виден только волосок кромки клапана, без приподнятой полосы"
+    },
+    "compress": 0.4,
+    "compress_zones": {
+      "RETURN": 1.0,
+      "HEEL": 1.0,
+      "WALL": 1.0,
+      "NECK": 1.0,
+      "CURL": 1.0
+    },
+    "compress_fade_mm": 2.0
+  },
+  "mesh": {
+    "segments": 256,
+    "strip_columns": 6,
+    "wall_row_mm": 3.0,
+    "heel_rows": 10,
+    "return_rows": 4,
+    "neck_rows": 6,
+    "curl_rows": 30,
+    "floor_ring_mm": 4.0,
+    "smooth_angle_deg": 30.0,
+    "_src": {
+      "segments": "как требует cup-viewer: не меньше 256 по окружности",
+      "wall_row_mm": "ровная сетка стенки, как у пластиковых стаканов",
+      "smooth_angle_deg": "как у пластика: грани круче 30° острые"
+    }
+  },
+  "status": "drawing"
+}
