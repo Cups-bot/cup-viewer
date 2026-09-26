@@ -64,12 +64,18 @@ export function projector(matrixWorld) {
   };
 }
 
-// Кадр одиночного стакана: кадр фона, отмасштабированный вокруг центра
-// стакана. zoom — рост стакана к эталону; узкий формат обрезает бока.
-export function single(base, cupCentre, zoom, aspect, limits) {
+// Кадр одиночного стакана: композиция кадра фона, перенесённая с эталона на
+// стакан — окно масштабируется вокруг центра эталона и сдвигается так, чтобы
+// тот пришёлся на центр стакана. Масштаб прямо вокруг центра стакана сдвигал
+// композицию: низкому стакану не хватало воздуха снизу, высокому — сверху.
+// zoom — рост стакана к эталону; узкий формат обрезает бока.
+export function single(base, refCentre, cupCentre, zoom, aspect, limits) {
   const [w0, h0] = size(base);
   const k = Math.max(limits[0], Math.min(limits[1], zoom));
-  return scaleAbout(base, cupCentre, (aspect * k * h0) / w0, k);
+  const w = scaleAbout(base, refCentre, (aspect * k * h0) / w0, k);
+  const dx = cupCentre[0] - refCentre[0];
+  const dy = cupCentre[1] - refCentre[1];
+  return [w[0] + dx, w[1] + dx, w[2] + dy, w[3] + dy];
 }
 
 // Кадр под группу: главный — как в одиночном кадре, группа влезает по ширине.

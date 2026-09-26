@@ -205,7 +205,8 @@ export function frameFor(photo, preset, placed, aspect) {
   const hero = cupMetrics(placed[0]?.cup);
   const height = mm(hero.heightMm);
   const zoom = hero.heightMm / data.reference.heightMm;
-  const singleWin = single(preset.baseWindow, tan(new THREE.Vector3(0, height / 2, 0)), zoom, aspect,
+  const refCentre = tan(new THREE.Vector3(0, mm(data.reference.heightMm) / 2, 0));
+  const singleWin = single(preset.baseWindow, refCentre, tan(new THREE.Vector3(0, height / 2, 0)), zoom, aspect,
     data.fit.zoomLimits);
   const atOrigin = placed.length === 1 && !placed[0].posMm?.[0] && !placed[0].posMm?.[1] && !placed[0].floorMm;
   let win = singleWin;

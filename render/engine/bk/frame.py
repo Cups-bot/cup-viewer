@@ -138,16 +138,22 @@ def backdrop_window(base: Window) -> Window:
     return scale_about(base, centre(base), OVERSCAN, OVERSCAN)
 
 
-def single(base: Window, cup_centre: Tuple[float, float], zoom: float, aspect: float) -> Window:
-    """Кадр одиночного стакана: кадр фона, отмасштабированный вокруг стакана.
+def single(base: Window, ref_centre: Tuple[float, float], cup_centre: Tuple[float, float],
+           zoom: float, aspect: float) -> Window:
+    """Кадр одиночного стакана: композиция кадра фона, перенесённая с эталона.
 
     zoom — рост стакана к эталону: стакан занимает ту же долю высоты кадра,
-    центр стакана остаётся в той же точке кадра. Узкий формат обрезает кадр
-    по бокам вокруг стакана, высота кадра та же.
+    что эталон, и стоит в кадре там же — окно масштабируется вокруг центра
+    эталона и сдвигается на центр стакана. (Масштаб прямо вокруг центра
+    стакана сдвигал композицию: низкому не хватало воздуха снизу, высокому —
+    сверху.) Узкий формат обрезает кадр по бокам, высота кадра та же.
     """
     w0, h0 = size(base)
     k = max(ZOOM_LIMITS[0], min(ZOOM_LIMITS[1], zoom))
-    return scale_about(base, cup_centre, aspect * k * h0 / w0, k)
+    x0, x1, y0, y1 = scale_about(base, ref_centre, aspect * k * h0 / w0, k)
+    dx = cup_centre[0] - ref_centre[0]
+    dy = cup_centre[1] - ref_centre[1]
+    return (x0 + dx, x1 + dx, y0 + dy, y1 + dy)
 
 
 def group(single_win: Window, hero_box: Window, group_box: Window, aspect: float) -> Window:

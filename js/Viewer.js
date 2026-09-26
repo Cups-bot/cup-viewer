@@ -99,6 +99,12 @@ export class Viewer {
   // догружается уже после того, как enterPhotoScene вернул управление.
   #pending = new Set();
 
+  // Поколение второго стакана фото-сцены. Сборка ждёт модель и чистый лист, и
+  // за это время второй успевают убрать, сменить или уйти в сцену на один
+  // стакан; а две сборки подряд оставляли в сцене лишний стакан. Ставит
+  // стакан только последняя начатая сборка, и любое снятие отменяет начатые.
+  #companionGen = 0;
+
   #track(promise) {
     this.#pending.add(promise);
     const settle = () => this.#pending.delete(promise);
@@ -826,6 +832,7 @@ export class Viewer {
       companion.loader.applyMaterial(target.material);
     } else {
       this.#dropCompanion();
+      const gen = ++this.#companionGen;
       const stubControls = { target: new THREE.Vector3(), update() {} };
       const loader = new ModelLoader({
         scene: this.scene,
@@ -835,7 +842,7 @@ export class Viewer {
         maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
       });
       await loader.load(target.model.file, null, target.model, target.material);
-      if (this.photoSecond !== target) {
+      if (gen !== this.#companionGen) {
         loader.dispose();
         return;
       }
@@ -847,6 +854,11 @@ export class Viewer {
       });
       // Чистый лист, а не то, что лежит в файле модели (техническая развёртка).
       await textures.replaceTexture(blankSheetUrl());
+      if (gen !== this.#companionGen) {
+        textures.dispose();
+        loader.dispose();
+        return;
+      }
       companion = { model: loader.currentModel, cup: target.model, loader, textures, clone: false };
       const height = cupHeight(target.model);
       if (height) loader.setNaturalHeight(height, [0, 0, 0]);
@@ -875,6 +887,7 @@ export class Viewer {
   }
 
   #dropCompanion() {
+    this.#companionGen++;
     const companion = this.companion;
     if (!companion) return;
     this.companion = null;
