@@ -38,17 +38,11 @@ for (const width of widths.length ? widths : [1280, 390]) {
     state.set({ tab: 'scene', sceneId: 'living' });
     await settle();
   });
-  // Выбор делаем кнопками панели — как человек: пара, формат 4:5. На узком
-  // экране группы панели открываются вкладками.
-  const tab = async (id) => {
-    const button = page.locator(`#photo-tabs [data-group="${id}"]`);
-    if (await button.isVisible()) await button.click();
-  };
-  await tab('second');
-  await page.locator('#photo-second .second-row').nth(1).click();
-  await tab('frame');
+  // Выбор делаем кнопками — как человек: второй стакан тот же (пара) через
+  // окно выбора, формат 4:5.
+  await page.locator('#second-add:visible, #action-second:visible').first().click();
+  await page.locator('#cup-dialog .cup-card[data-id="HB80-280"]').click();
   await page.locator('#photo-frames [data-id="4:5"]').click();
-  await tab('scene');
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.cupViewer.viewer.whenReady());
   await page.screenshot({ path: resolve(OUT, `page-${width}.png`) });
@@ -57,6 +51,16 @@ for (const width of widths.length ? widths : [1280, 390]) {
   await page.waitForTimeout(800);
   await page.screenshot({ path: resolve(OUT, `page-${width}-dark.png`) });
   console.log(`page-${width}: ${JSON.stringify(await page.evaluate(() => window.cupViewer.viewer.photoJob()))}`);
+  // Фотобокс и один стакан: воздух под стаканом (кадр по композиции эталона).
+  if (await page.locator('#second-remove').isVisible()) await page.locator('#second-remove').click();
+  else {
+    await page.locator('#action-second').click();
+    await page.locator('#cup-second-none').click();
+  }
+  await page.locator('#photo-scenes [data-id="studio"]').click();
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => window.cupViewer.viewer.whenReady());
+  await page.screenshot({ path: resolve(OUT, `page-${width}-studio.png`) });
   await page.close();
 }
 await browser.close();

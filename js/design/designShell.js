@@ -43,7 +43,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPublish({ state, mode, catalog, feedback, viewer });
-  initPhotoPanel({ state, viewer, catalog, mode, picker });
+  initPhotoPanel({ state, viewer, catalog, mode, picker, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
   initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
@@ -115,16 +115,27 @@ function initModelPicker({ state, catalog, actions }) {
 
   // То же окно — для второго стакана «Фотореала»: на одно открытие другой
   // заголовок и другой обработчик выбора, потом всё как было.
+  // Внизу окна тогда — «Без второго стакана».
   const title = document.getElementById('cup-dialog-title');
-  const pickSecond = async ({ activeId, onSelect, from }) => {
+  const foot = document.getElementById('cup-dialog-foot');
+  const none = document.getElementById('cup-second-none');
+  const pickSecond = async ({ activeId, onSelect, onRemove, from }) => {
     const p = await ensure();
     const saved = { onSelect: p.onSelect, onToggle: p.onToggle, title: title?.textContent };
+    const remove = () => {
+      p.close();
+      onRemove?.();
+    };
     const restore = () => {
       p.onSelect = saved.onSelect;
       p.onToggle = saved.onToggle;
       if (title) title.textContent = saved.title;
+      if (foot) foot.hidden = true;
+      none?.removeEventListener('click', remove);
       p.setActive(state.get().modelId);
     };
+    if (foot) foot.hidden = !onRemove;
+    if (onRemove) none?.addEventListener('click', remove);
     p.onSelect = (id) => onSelect(id);
     // Закрытие приходит раньше выбора (CupPicker#choose) — возвращаем после.
     p.onToggle = (open) => {

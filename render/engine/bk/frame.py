@@ -30,6 +30,7 @@ OVERSCAN = 1.6
 ZOOM_LIMITS = (0.55, 1.25)
 
 SAFE_W = 0.86       # доля ширины кадра, в которую должна влезть группа
+MAX_W = 0.6         # одиночный стакан не шире этой доли кадра (низкий в 3:4)
 MARGIN = 0.06       # поле от края кадра до группы, доля ширины
 
 
@@ -139,7 +140,7 @@ def backdrop_window(base: Window) -> Window:
 
 
 def single(base: Window, ref_centre: Tuple[float, float], cup_centre: Tuple[float, float],
-           zoom: float, aspect: float) -> Window:
+           zoom: float, aspect: float, cup_box: Optional[Window] = None) -> Window:
     """Кадр одиночного стакана: композиция кадра фона, перенесённая с эталона.
 
     zoom — рост стакана к эталону: стакан занимает ту же долю высоты кадра,
@@ -147,13 +148,19 @@ def single(base: Window, ref_centre: Tuple[float, float], cup_centre: Tuple[floa
     эталона и сдвигается на центр стакана. (Масштаб прямо вокруг центра
     стакана сдвигал композицию: низкому не хватало воздуха снизу, высокому —
     сверху.) Узкий формат обрезает кадр по бокам, высота кадра та же.
+
+    Низкий широкий стакан ростом с эталон занял бы узкий кадр почти во всю
+    ширину (в 3:4 — до 80 %): тогда окно раздвигается вокруг стакана, пока
+    он не уже MAX_W кадра.
     """
     w0, h0 = size(base)
     k = max(ZOOM_LIMITS[0], min(ZOOM_LIMITS[1], zoom))
     x0, x1, y0, y1 = scale_about(base, ref_centre, aspect * k * h0 / w0, k)
     dx = cup_centre[0] - ref_centre[0]
     dy = cup_centre[1] - ref_centre[1]
-    return (x0 + dx, x1 + dx, y0 + dy, y1 + dy)
+    win = (x0 + dx, x1 + dx, y0 + dy, y1 + dy)
+    f = size(cup_box)[0] / (size(win)[0] * MAX_W) if cup_box else 0.0
+    return scale_about(win, cup_centre, f, f) if f > 1 else win
 
 
 def group(single_win: Window, hero_box: Window, group_box: Window, aspect: float) -> Window:

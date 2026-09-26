@@ -12,6 +12,10 @@ import * as THREE from 'three';
 
 export const ASPECTS = Object.freeze({ '1:1': 1, '3:4': 0.75, '4:5': 0.8 });
 
+// Стакан не шире этой доли кадра — как MAX_W в render/engine/bk/frame.py
+// (сцены, выгруженные раньше, его в fit не несут).
+export const MAX_W = 0.6;
+
 export const size = (w) => [w[1] - w[0], w[3] - w[2]];
 export const centre = (w) => [(w[0] + w[1]) / 2, (w[2] + w[3]) / 2];
 export const union = (a, b) => [
@@ -68,14 +72,18 @@ export function projector(matrixWorld) {
 // стакан — окно масштабируется вокруг центра эталона и сдвигается так, чтобы
 // тот пришёлся на центр стакана. Масштаб прямо вокруг центра стакана сдвигал
 // композицию: низкому стакану не хватало воздуха снизу, высокому — сверху.
-// zoom — рост стакана к эталону; узкий формат обрезает бока.
-export function single(base, refCentre, cupCentre, zoom, aspect, limits) {
+// zoom — рост стакана к эталону; узкий формат обрезает бока. Низкий широкий
+// стакан ростом с эталон занял бы узкий кадр почти во всю ширину (в 3:4 — до
+// 80 %): тогда окно раздвигается вокруг стакана, пока он не уже maxW кадра.
+export function single(base, refCentre, cupCentre, zoom, aspect, limits, cupBox = null, maxW = MAX_W) {
   const [w0, h0] = size(base);
   const k = Math.max(limits[0], Math.min(limits[1], zoom));
   const w = scaleAbout(base, refCentre, (aspect * k * h0) / w0, k);
   const dx = cupCentre[0] - refCentre[0];
   const dy = cupCentre[1] - refCentre[1];
-  return [w[0] + dx, w[1] + dx, w[2] + dy, w[3] + dy];
+  const win = [w[0] + dx, w[1] + dx, w[2] + dy, w[3] + dy];
+  const f = cupBox ? size(cupBox)[0] / (size(win)[0] * maxW) : 0;
+  return f > 1 ? scaleAbout(win, cupCentre, f, f) : win;
 }
 
 // Кадр под группу: главный — как в одиночном кадре, группа влезает по ширине.

@@ -278,7 +278,7 @@ def export_set(cfg: dict, name: str, out_root: str, quick: bool, only=None,
                 "color": {"transform": scene.view_settings.view_transform, "look": scene.view_settings.look,
                           "exposure": round(scene.view_settings.exposure, 4)},
                 "fit": {"overscan": frame.OVERSCAN, "zoomLimits": list(frame.ZOOM_LIMITS),
-                        "safeW": frame.SAFE_W, "margin": frame.MARGIN},
+                        "safeW": frame.SAFE_W, "margin": frame.MARGIN, "maxW": frame.MAX_W},
             }
 
         file = f"{pre['id']}.webp"

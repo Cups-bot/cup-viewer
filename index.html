@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=15a02211" />
-    <link rel="stylesheet" href="css/design.css?v=2a377a3d" />
+    <link rel="stylesheet" href="css/design.css?v=889cb974" />
   </head>
   <body>
     <div class="app">
@@ -51,6 +51,27 @@
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
 
+        <!-- «Фотореал»: второй стакан в кадре (js/design/photoPanel.js). -->
+        <div class="second-cup" id="second-cup" hidden>
+          <div class="second-cup__card" id="second-card" hidden>
+            <button class="cup-current second-cup__btn" id="second-btn" type="button" aria-haspopup="dialog">
+              <span class="cup-current__art" id="second-art" aria-hidden="true"></span>
+              <span class="cup-current__text">
+                <span class="cup-current__name" id="second-name"></span>
+                <span class="cup-current__meta" id="second-meta"></span>
+              </span>
+            </button>
+            <button class="icon-btn second-cup__remove" id="second-remove" type="button" aria-label="Убрать второй стакан" data-tip="Убрать" data-tip-side="left">
+              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
+            </button>
+          </div>
+          <button class="second-cup__add" id="second-add" type="button" aria-haspopup="dialog" aria-describedby="second-note">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
+            <span>Второй стакан</span>
+          </button>
+          <p class="second-cup__note" id="second-note" hidden>В этой сцене — один стакан</p>
+        </div>
+
         <p class="rail__label">Макет</p>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
@@ -88,6 +109,22 @@
             </nav>
             <div class="stage-swatches">
               <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
+            </div>
+            <!-- «Фотореал»: ракурс и формат кадра. Ракурс — стрелками и точками,
+                 без подписей: «Сверху, 25°» людей пугает, а что меняется — видно
+                 по кадру. -->
+            <div class="photo-bar" id="photo-bar" hidden>
+              <div class="angle-switch" role="group" aria-label="Ракурс">
+                <span class="stage-card__label">Ракурс</span>
+                <button class="icon-btn angle-switch__arrow angle-switch__arrow--prev" type="button" data-step="-1" aria-label="Предыдущий ракурс">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
+                </button>
+                <span class="angle-switch__dots" id="photo-angles"></span>
+                <button class="icon-btn angle-switch__arrow angle-switch__arrow--next" type="button" data-step="1" aria-label="Следующий ракурс">
+                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
+                </button>
+              </div>
+              <div class="segmented photo-bar__frames" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
             </div>
           </div>
 
@@ -159,38 +196,17 @@
             <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
           </div>
 
-          <!-- «Фотореал» (CupViewer v2): панель справа от кадра (на узком экране —
-               под ним). Стаканы не двигаются — только поворот жестом по кадру. -->
-          <aside class="photo-panel" id="photo-panel" aria-label="Фотореал" hidden>
-            <!-- На узком экране группы открываются по одной, вкладками: кадру
-                 остаётся больше места. На широком вкладок нет — видно всё. -->
-            <div class="segmented photo-panel__tabs" id="photo-tabs" role="tablist" aria-label="Настройки кадра">
-              <button class="segmented__item" type="button" role="tab" data-group="scene" aria-controls="photo-group-scene">Сцена</button>
-              <button class="segmented__item" type="button" role="tab" data-group="preset" aria-controls="photo-group-preset">Ракурс</button>
-              <button class="segmented__item" type="button" role="tab" data-group="frame" aria-controls="photo-group-frame">Формат</button>
-              <button class="segmented__item" type="button" role="tab" data-group="second" aria-controls="photo-group-second">Второй стакан</button>
-            </div>
+          <!-- «Фотореал» (CupViewer v2): справа от кадра (на узком экране — под
+               ним) — фон сцены и рендер. Стаканы не двигаются — только поворот
+               жестом по кадру. -->
+          <aside class="photo-panel" id="photo-panel" aria-label="Фон сцены" hidden>
             <div class="photo-panel__body">
-              <section class="photo-panel__group" id="photo-group-scene" data-group="scene">
-                <p class="photo-panel__label">Сцена</p>
-                <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Сцена"></div>
-              </section>
-              <section class="photo-panel__group" id="photo-group-preset" data-group="preset">
-                <p class="photo-panel__label">Ракурс</p>
-                <div class="segmented photo-panel__seg" id="photo-presets" role="radiogroup" aria-label="Ракурс сцены"></div>
-              </section>
-              <section class="photo-panel__group" id="photo-group-frame" data-group="frame">
-                <p class="photo-panel__label">Формат</p>
-                <div class="segmented photo-panel__seg" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
-              </section>
-              <section class="photo-panel__group" id="photo-group-second" data-group="second">
-                <p class="photo-panel__label">Второй стакан</p>
-                <div class="second-list" id="photo-second" role="radiogroup" aria-label="Второй стакан"></div>
-              </section>
+              <p class="photo-panel__label">Фон</p>
+              <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон"></div>
             </div>
             <div class="photo-panel__actions">
               <div class="photo-panel__row">
-                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" disabled aria-describedby="photo-render-note">Рендер · 1 кредит</button>
+                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" disabled aria-describedby="photo-render-note">Рендер · 1 токен</button>
                 <!-- Задание (JSON) — пока рендер запускают руками (render/README.md). -->
                 <button class="icon-btn photo-panel__job" id="photo-job" type="button" aria-label="Задание для рендера" data-tip="Задание для рендера (JSON)" data-tip-side="left">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
@@ -209,6 +225,10 @@
             <svg class="icon"><use href="assets/icons/sprite.svg#cup" /></svg>
           </span>
           <span class="action-bar__text" id="action-cup-name">Стакан</span>
+        </button>
+        <button class="action-bar__item" type="button" id="action-second" aria-haspopup="dialog" hidden>
+          <svg class="icon" aria-hidden="true"><use id="action-second-icon" href="assets/icons/sprite.svg#plus" /></svg>
+          <span class="action-bar__text" id="action-second-name">Второй</span>
         </button>
         <button class="action-bar__item" type="button" data-mobile-nav="design">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
@@ -250,6 +270,10 @@
         <p>Ничего не нашлось.</p>
         <button class="btn" type="button" id="cup-reset-search">Сбросить поиск</button>
       </div>
+      <!-- Только при выборе второго стакана «Фотореала» (designShell pickSecond). -->
+      <div class="cup-dialog__foot" id="cup-dialog-foot" hidden>
+        <button class="btn btn--block" type="button" id="cup-second-none">Без второго стакана</button>
+      </div>
     </div>
 
     <!-- «Как пользоваться». -->
@@ -285,6 +309,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=67afcb6c"></script>
+    <script type="module" src="dist/design.js?v=cba84585"></script>
   </body>
 </html>

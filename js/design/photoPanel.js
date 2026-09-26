@@ -1,25 +1,15 @@
-// Панель «Фотореал» (CupViewer v2): сцена, ракурс, формат кадра, второй
-// стакан и задание рендера. Только Design Mode: раскладку собирает
-// пользователь, клиент по ссылке её только смотрит (право arrangeScene).
+// «Фотореал» (CupViewer v2) в Design Mode: фон сцены (панель справа от кадра),
+// ракурс и формат (строка над кадром), второй стакан (левая панель, на
+// телефоне — нижняя) и задание рендера. Раскладку собирает пользователь,
+// клиент по ссылке её только смотрит (право arrangeScene).
 //
 // Источник истины — ViewerState: сцена — sceneId, остальное — photo { preset,
-// frame, second }. Панель показывает состояние и пишет в него намерения,
-// движок доводит сцену (bindEngine). Стаканы в сцене не двигаются — места
-// выбирает раскладка, как у рендера; повернуть стакан можно жестом по кадру.
+// frame, second }. Здесь только показ состояния и намерения, сцену доводит
+// движок (bindEngine). Стаканы в сцене не двигаются — места выбирает
+// раскладка, как у рендера; повернуть стакан можно жестом по кадру.
 
 import { PHOTO_FRAMES } from '../state/viewerState.js';
 import { sceneFolder } from '../catalog/catalog.js';
-
-// Соседний объём той же серии (тип и стенка — как у стакана), как у рендера
-// (run.py --second bigger/smaller).
-export function neighbour(catalog, modelId, step) {
-  const me = catalog.model(modelId);
-  if (!me) return null;
-  const row = catalog.models
-    .filter((m) => m.type === me.type && m.wall === me.wall)
-    .sort((a, b) => a.fullVolumeMl - b.fullVolumeMl);
-  return row[row.findIndex((m) => m.id === me.id) + step]?.id ?? null;
-}
 
 const el = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
@@ -46,53 +36,26 @@ function download(name, text) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Снимок стакана для строки выбора — те же, что в окне выбора (обе темы).
-function cupThumb(model) {
-  const box = el('span', { class: 'second-row__art', 'aria-hidden': 'true' });
-  if (!model) return box;
-  for (const theme of ['light', 'dark']) {
-    box.append(el('img', {
-      class: `second-row__img second-row__img--${theme}`,
-      src: `assets/thumbs/${theme}/${model.id}.webp`,
-      alt: '',
-      loading: 'lazy',
-      decoding: 'async',
-    }));
-  }
-  return box;
-}
+// Раскладка второго: тот же стакан — пара в линию (другой стороной), другой —
+// сбоку от главного, как у рендера (run.py --second).
+const secondFor = (modelId, heroId) => ({ modelId, kind: modelId === heroId ? 'pair' : 'side' });
 
-export function initPhotoPanel({ state, viewer, catalog, mode, picker }) {
-  const root = document.getElementById('photo-panel');
-  if (!root) return;
+export function initPhotoPanel({ state, viewer, catalog, mode, picker, cupPhoto, describe }) {
+  const panel = document.getElementById('photo-panel');
+  const bar = document.getElementById('photo-bar');
+  const secondBox = document.getElementById('second-cup');
+  const secondItem = document.getElementById('action-second');
   if (!mode.can('arrangeScene')) {
-    root.remove();
+    for (const node of [panel, bar, secondBox, secondItem]) node?.remove();
     return;
   }
-  const sceneBox = document.getElementById('photo-scenes');
-  const presetBox = document.getElementById('photo-presets');
-  const frameBox = document.getElementById('photo-frames');
-  const secondBox = document.getElementById('photo-second');
-
-  // ── вкладки узкого экрана ────────────────────────────────────────────────
-  // На широком экране вкладки спрятаны и открыты все группы (CSS).
-  const tabs = [...root.querySelectorAll('#photo-tabs [data-group]')];
-  const groups = [...root.querySelectorAll('.photo-panel__group')];
-  const openGroup = (id) => {
-    for (const tab of tabs) {
-      const on = tab.dataset.group === id;
-      tab.setAttribute('aria-selected', String(on));
-      tab.classList.toggle('is-active', on);
-    }
-    for (const group of groups) group.classList.toggle('is-open', group.dataset.group === id);
-  };
-  for (const tab of tabs) tab.addEventListener('click', () => openGroup(tab.dataset.group));
-  openGroup('scene');
+  if (!panel) return;
 
   const photo = () => state.get().photo ?? { preset: null, frame: '1:1', second: null };
   const patch = (next) => state.set({ photo: { ...photo(), ...next } });
 
-  // ── сцены карточками ────────────────────────────────────────────────────
+  // ── фон: сцены карточками ───────────────────────────────────────────────
+  const sceneBox = document.getElementById('photo-scenes');
   const sceneButtons = catalog.scenes.map((scene) => {
     const button = el('button', { type: 'button', class: 'scene-card', role: 'radio', title: scene.note ?? '' },
       el('img', { class: 'scene-card__img', src: `${sceneFolder(scene.id)}/thumb.webp`, alt: '', loading: 'lazy', decoding: 'async' }),
@@ -103,124 +66,112 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker }) {
     return button;
   });
 
+  // ── ракурс: стрелки по кругу и точки ────────────────────────────────────
+  const dotBox = document.getElementById('photo-angles');
+  const arrows = [...(bar?.querySelectorAll('[data-step]') ?? [])];
+  let presets = [];
+  let dots = [];
+  const presetId = () => {
+    const id = photo().preset;
+    return presets.some((p) => p.id === id) ? id : presets[0]?.id ?? null;
+  };
+  for (const arrow of arrows) {
+    arrow.addEventListener('click', () => {
+      if (presets.length < 2) return;
+      const i = presets.findIndex((p) => p.id === presetId());
+      const next = (i + Number(arrow.dataset.step) + presets.length) % presets.length;
+      patch({ preset: presets[next].id });
+    });
+  }
+
   // ── формат ──────────────────────────────────────────────────────────────
+  const frameBox = document.getElementById('photo-frames');
   const frameButtons = PHOTO_FRAMES.map((id) => {
     const button = el('button', { type: 'button', class: 'segmented__item', role: 'radio', text: id });
     button.dataset.id = id;
     button.addEventListener('click', () => patch({ frame: id }));
-    frameBox.append(button);
+    frameBox?.append(button);
     return button;
   });
 
   // ── второй стакан ───────────────────────────────────────────────────────
-  // Что выбрано, помним сами: при смене главного «такой же» и «больше /
-  // меньше» следуют за ним, а «другой» остаётся тем, что выбрали.
-  let choice = 'none';
-  const secondFor = (id, heroId, otherId = null) => {
-    if (id === 'pair') return { modelId: heroId, kind: 'pair' };
-    if (id === 'bigger' || id === 'smaller') {
-      const other = neighbour(catalog, heroId, id === 'bigger' ? 1 : -1);
-      return other ? { modelId: other, kind: 'side' } : null;
-    }
-    if (id === 'other' && otherId) return { modelId: otherId, kind: otherId === heroId ? 'pair' : 'side' };
-    return null;
-  };
-  const choose = (id, otherId = null) => {
-    const second = secondFor(id, state.get().modelId, otherId);
-    if (id !== 'none' && !second) return;
-    choice = id;
-    patch({ second });
-  };
+  // Выбор — то же окно, что у главного; тот же стакан — пара.
+  const addButton = document.getElementById('second-add');
+  const card = document.getElementById('second-card');
+  const note = document.getElementById('second-note');
+  const art = document.getElementById('second-art');
+  const name = document.getElementById('second-name');
+  const meta = document.getElementById('second-meta');
+  const itemIcon = document.getElementById('action-second-icon');
+  const itemName = document.getElementById('action-second-name');
+  const pick = (from) => picker?.pickSecond({
+    activeId: photo().second?.modelId ?? null,
+    from,
+    onSelect: (id) => patch({ second: secondFor(id, state.get().modelId) }),
+    onRemove: photo().second ? () => patch({ second: null }) : null,
+  });
+  addButton?.addEventListener('click', (event) => pick(event.currentTarget));
+  document.getElementById('second-btn')?.addEventListener('click', (event) => pick(event.currentTarget));
+  document.getElementById('second-remove')?.addEventListener('click', () => patch({ second: null }));
+  secondItem?.addEventListener('click', (event) => !secondItem.disabled && pick(event.currentTarget));
 
-  const rows = {};
-  const row = (id, title, onClick) => {
-    const sub = el('span', { class: 'second-row__sub' });
-    const button = el('button', { type: 'button', class: 'second-row', role: 'radio' },
-      el('span', { class: 'second-row__dot', 'aria-hidden': 'true' }),
-      el('span', { class: 'second-row__text' }, el('span', { class: 'second-row__title', text: title }), sub));
-    button.addEventListener('click', onClick);
-    secondBox.append(button);
-    rows[id] = { button, sub };
-  };
-  row('none', 'Нет', () => choose('none'));
-  row('pair', 'Такой же', () => choose('pair'));
-  row('bigger', 'Объём больше', () => choose('bigger'));
-  row('smaller', 'Объём меньше', () => choose('smaller'));
-  row('other', 'Другой стакан…', (event) => {
-    picker?.pickSecond({
-      activeId: photo().second?.modelId ?? null,
-      from: event.currentTarget,
-      onSelect: (id) => choose('other', id),
-    });
+  // Сменился главный: пара следует за ним, другой стакан остаётся собой.
+  state.subscribe(['modelId'], (s) => {
+    const second = photo().second;
+    if (!second) return;
+    patch({ second: secondFor(second.kind === 'pair' ? s.modelId : second.modelId, s.modelId) });
   });
 
-  // ── ракурс и общий показ ────────────────────────────────────────────────
-  let presetButtons = [];
+  // ── показ ───────────────────────────────────────────────────────────────
   let shownScene = null;
+  let shownSecond = null;
   const render = () => {
     const s = state.get();
+    const on = s.tab === 'scene';
+    for (const node of [panel, bar, secondBox, secondItem]) if (node) node.hidden = !on;
     const scene = catalog.scene(s.sceneId);
-    root.hidden = s.tab !== 'scene';
     const p = photo();
 
     for (const button of sceneButtons) radio(button, button.dataset.id === s.sceneId);
 
     if (scene && scene.id !== shownScene) {
       shownScene = scene.id;
-      presetBox.replaceChildren();
-      presetButtons = (scene.presets ?? []).map((preset) => {
-        const button = el('button', { type: 'button', class: 'segmented__item', role: 'radio', text: preset.label });
-        button.dataset.id = preset.id;
-        button.addEventListener('click', () => patch({ preset: preset.id }));
-        presetBox.append(button);
-        return button;
+      presets = scene.presets ?? [];
+      dots = presets.map((preset, i) => {
+        const dot = el('button', { type: 'button', class: 'angle-switch__dot', role: 'radio', 'aria-label': `Ракурс ${i + 1} из ${presets.length}` });
+        dot.dataset.id = preset.id;
+        dot.addEventListener('click', () => patch({ preset: preset.id }));
+        return dot;
       });
+      dotBox?.replaceChildren(...dots);
+      for (const arrow of arrows) arrow.disabled = presets.length < 2;
     }
-    const presetId = p.preset && scene?.presets?.some((x) => x.id === p.preset) ? p.preset : scene?.presets?.[0]?.id;
-    for (const button of presetButtons) radio(button, button.dataset.id === presetId);
+    for (const dot of dots) radio(dot, dot.dataset.id === presetId());
     for (const button of frameButtons) radio(button, button.dataset.id === (p.frame ?? '1:1'));
 
-    // Второй стакан: что доступно и что выбрано.
-    const hero = catalog.model(s.modelId);
+    // В сцене на один стакан второй не показывается, но желание остаётся —
+    // в другой сцене он вернётся (движок делает так же).
     const oneCup = (scene?.maxCups ?? 2) < 2;
-    const bigger = catalog.model(neighbour(catalog, s.modelId, 1));
-    const smaller = catalog.model(neighbour(catalog, s.modelId, -1));
-    // Какой пункт выбран — по состоянию: оно могло прийти из сессии или ссылки.
-    const matches = (id) => p.second && secondFor(id, s.modelId, p.second.modelId)?.modelId === p.second.modelId;
-    let current = 'none';
-    if (p.second) {
-      current = choice !== 'none' && matches(choice) ? choice : (['pair', 'bigger', 'smaller'].find(matches) ?? 'other');
+    const second = oneCup ? null : catalog.model(p.second?.modelId);
+    if (card) card.hidden = !second;
+    if (addButton) {
+      addButton.hidden = Boolean(second);
+      addButton.disabled = oneCup;
     }
-    const other = current === 'other' ? catalog.model(p.second.modelId) : null;
-    const subs = {
-      none: oneCup ? 'В этой сцене — один стакан' : '',
-      pair: hero ? `${hero.name}, другой стороной` : '',
-      bigger: bigger ? `${bigger.name} · ${bigger.fullVolumeMl} мл` : 'В серии нет больше',
-      smaller: smaller ? `${smaller.name} · ${smaller.fullVolumeMl} мл` : 'В серии нет меньше',
-      other: other ? `${other.name} · ${other.fullVolumeMl} мл` : 'Любой из каталога',
-    };
-    const available = { none: true, pair: !oneCup, bigger: !oneCup && Boolean(bigger), smaller: !oneCup && Boolean(smaller), other: !oneCup };
-    const active = oneCup ? 'none' : current;
-    choice = current;
-    for (const [id, { button, sub }] of Object.entries(rows)) {
-      sub.textContent = subs[id];
-      button.disabled = !available[id];
-      radio(button, id === active);
+    if (note) note.hidden = !oneCup;
+    const pair = second?.id === s.modelId;
+    if (second && second.id !== shownSecond) {
+      art?.replaceChildren(...cupPhoto(second));
+      if (name) name.textContent = `${second.volumeMl} мл`;
     }
-    const art = rows.other.button.querySelector('.second-row__art');
-    if (other && !art) rows.other.button.append(cupThumb(other));
-    else if (art && (!other || !art.querySelector(`img[src*="/${other.id}.webp"]`))) {
-      art.remove();
-      if (other) rows.other.button.append(cupThumb(other));
+    if (second && meta) meta.textContent = pair ? 'Такой же, другой стороной' : describe(second);
+    shownSecond = second?.id ?? null;
+    if (secondItem) {
+      secondItem.disabled = oneCup;
+      itemIcon?.setAttribute('href', `assets/icons/sprite.svg#${second ? 'cup' : 'plus'}`);
+      if (itemName) itemName.textContent = pair ? 'Пара' : second ? `${second.volumeMl} мл` : 'Второй';
     }
   };
-
-  // Сменился главный стакан — второй следует за ним («другой» — остаётся).
-  state.subscribe(['modelId'], (s) => {
-    const p = photo();
-    if (!p.second) return;
-    patch({ second: secondFor(choice, s.modelId, p.second.modelId) });
-  });
   state.subscribe(['tab', 'sceneId', 'photo', 'modelId'], render);
   render();
 

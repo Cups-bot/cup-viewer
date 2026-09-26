@@ -100,8 +100,8 @@ def run(scene, cam, cups: List[dict], cfg: dict, shot: dict, name: str, st: dict
     # от него пара берёт долю высоты и точку кадра.
     hc = frame.to_tan(cam_inv, origin + UP * hero["height"] * s * 0.5)
     rc = frame.to_tan(cam_inv, origin + UP * href * s * 0.5)
-    single = frame.single(base, rc, hc, hero["height"] / href, aspect)
     hero_box0 = tan_box(origin, hero)
+    single = frame.single(base, rc, hc, hero["height"] / href, aspect, hero_box0)
 
     def window_for(placed) -> Tuple[frame.Window, Optional[frame.Window]]:
         g = None

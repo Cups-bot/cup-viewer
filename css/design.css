@@ -739,12 +739,20 @@
   transition: transform 0.45s var(--spring);
 }
 
-/* ── «Фотореал»: кадр и панель ──────────────────────────────────────────── */
-/* Карточка становится сеткой «кадр | панель»: снимок занимает всю высоту
-   карточки, настройки сцены — справа, а не полосами поверх и под кадром. */
+/* ── «Фотореал»: кадр, строка ракурса и фоны ────────────────────────────── */
+/* Карточка становится сеткой «кадр | фоны»: снимок занимает всю высоту
+   карточки. Ракурс и формат — в строке вкладок над кадром, второй стакан — в
+   левой панели под первым (js/design/photoPanel.js). */
 
 .stage-card__foot[hidden],
-.photo-panel[hidden] {
+.photo-panel[hidden],
+.photo-bar[hidden],
+.second-cup[hidden],
+.second-cup__card[hidden],
+.second-cup__add[hidden],
+.second-cup__note[hidden],
+.cup-dialog__foot[hidden],
+.action-bar__item[hidden] {
   display: none;
 }
 
@@ -774,12 +782,75 @@
     grid-row: 2;
     border-left: 1px solid var(--line);
   }
+}
 
-  .photo-panel__tabs {
-    display: none;
+/* Ракурс и формат. */
+.photo-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.angle-switch {
+  display: flex;
+  align-items: center;
+}
+
+.angle-switch .stage-card__label {
+  margin-right: 4px;
+}
+
+.angle-switch__arrow {
+  width: 32px;
+  height: 32px;
+}
+
+.angle-switch__arrow--prev .icon {
+  transform: rotate(90deg);
+}
+
+.angle-switch__arrow--next .icon {
+  transform: rotate(-90deg);
+}
+
+.angle-switch__dots {
+  display: flex;
+}
+
+.angle-switch__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 32px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.angle-switch__dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: var(--line-strong);
+  border-radius: 50%;
+  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.angle-switch__dot.is-active::before {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+@media (hover: hover) {
+  .angle-switch__dot:hover:not(.is-active)::before {
+    background: var(--muted);
   }
 }
 
+/* Фоны: сцены карточками со снимком (catalog/scenes/<id>/thumb.webp). */
 .photo-panel {
   display: flex;
   flex-direction: column;
@@ -791,17 +862,11 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
-  padding: 14px 14px 12px;
+  padding: 14px;
   overflow-y: auto;
   scrollbar-width: thin;
-}
-
-.photo-panel__group {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
 }
 
 .photo-panel__label {
@@ -811,39 +876,16 @@
   color: var(--muted);
 }
 
-/* Ракурсы и форматы — в строку; четыре ракурса — сеткой 2 × 2: подписи
-   вроде «Сверху, 25°» вчетвером в строку не помещаются. button:nth-of-type —
-   не nth-child: первым ребёнком стоит бегущая подложка (motion.js). */
-.photo-panel__seg {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-}
-
-.photo-panel__seg:has(> button:nth-of-type(4)) {
-  grid-auto-flow: row;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.photo-panel__seg .segmented__item {
-  justify-content: center;
-  min-width: 0;
-  padding: 0 6px;
-  white-space: nowrap;
-}
-
-/* Сцены — карточками со снимком (catalog/scenes/<id>/thumb.webp), подпись
-   под снимком: поверх снимка она закрывала бы и без того маленькую картинку. */
 .scene-cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 10px;
 }
 
 .scene-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
   padding: 0;
   font: inherit;
@@ -856,10 +898,10 @@
 .scene-card__img {
   display: block;
   width: 100%;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   background: var(--surface-3);
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 0 0 1px var(--line);
   transition: box-shadow 0.2s var(--ease);
 }
@@ -869,14 +911,13 @@
 }
 
 .scene-card__name {
-  display: -webkit-box;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.25;
   text-align: center;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scene-card.is-active .scene-card__name {
@@ -896,99 +937,6 @@
   .scene-card.is-active:hover .scene-card__img {
     box-shadow: 0 0 0 2px var(--accent);
   }
-}
-
-/* Второй стакан — список вариантов, как радиокнопки. */
-.second-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 3px;
-  background: var(--surface-3);
-  border-radius: 12px;
-}
-
-.second-row {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 3px 10px;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: 9px;
-}
-
-.second-row.is-active {
-  background: var(--segment-on);
-  box-shadow: var(--segment-shadow);
-}
-
-.second-row:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.second-row__dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--line-strong);
-  transition: box-shadow 0.2s var(--ease);
-}
-
-.second-row.is-active .second-row__dot {
-  box-shadow: inset 0 0 0 4.5px var(--accent);
-}
-
-.second-row__text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.second-row__title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.second-row__sub {
-  overflow: hidden;
-  font-size: 11.5px;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.second-row__sub:empty {
-  display: none;
-}
-
-.second-row__art {
-  position: relative;
-  width: 26px;
-  height: 32px;
-}
-
-.second-row__img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.second-row__img--dark,
-:root[data-theme='dark'] .second-row__img--light {
-  display: none;
-}
-
-:root[data-theme='dark'] .second-row__img--dark {
-  display: block;
 }
 
 .photo-panel__actions {
@@ -1021,9 +969,76 @@
   text-align: center;
 }
 
-/* Узкий экран: панель под кадром, группы — вкладками, по одной. Кнопки
-   просмотра прячутся: стакан крутится жестом по кадру, снимок — «Скачать»
-   внизу, а их строка отняла бы у кадра 56 px. */
+/* Второй стакан — в левой панели под первым. */
+.second-cup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.second-cup__card {
+  position: relative;
+}
+
+.second-cup__btn {
+  grid-template-columns: 56px minmax(0, 1fr);
+  padding-right: 44px;
+}
+
+.second-cup__remove {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+}
+
+.second-cup__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.second-cup__add:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (hover: hover) {
+  .second-cup__add:not(:disabled):hover {
+    border-color: var(--accent);
+  }
+}
+
+.second-cup__note {
+  margin: 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Окно выбора: «Без второго стакана» внизу. */
+.cup-dialog__foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* Узкий экран: над кадром — вкладки, под ними ракурс и формат; под кадром —
+   лента фонов и рендер. Кнопки просмотра прячутся: стакан крутится жестом по
+   кадру, снимок — «Скачать» внизу, а их строка отняла бы у кадра 56 px. */
 @media (max-width: 1023px) {
   .stage-card.is-photo > .stage {
     --stage-bottom: 0px;
@@ -1039,100 +1054,59 @@
     border-top: 1px solid var(--line);
   }
 
-  .photo-panel__tabs {
-    display: flex;
-    margin: 10px 12px 0;
-  }
-
-  .photo-panel__tabs .segmented__item {
-    flex: 1 1 0;
-    justify-content: center;
-    min-width: 0;
-    padding: 0 4px;
-    font-size: 12.5px;
-    white-space: nowrap;
-  }
-
-  /* Высота строки постоянная: иначе кадр прыгал бы при смене вкладки. */
   .photo-panel__body {
     flex: none;
-    justify-content: center;
-    height: 98px;
-    padding: 8px 12px;
+    padding: 10px 12px 4px;
     overflow: hidden;
   }
 
-  .photo-panel__group:not(.is-open),
   .photo-panel__label {
     display: none;
   }
 
-  .scene-cards,
-  .photo-panel__seg,
-  .second-list {
+  .scene-cards {
+    grid-auto-columns: 96px;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 8px;
+    padding: 2px;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .scene-cards::-webkit-scrollbar,
-  .photo-panel__seg::-webkit-scrollbar,
-  .second-list::-webkit-scrollbar {
+  .scene-cards::-webkit-scrollbar {
     display: none;
-  }
-
-  .scene-cards {
-    grid-auto-columns: 84px;
-    grid-auto-flow: column;
-    grid-template-columns: none;
-    padding: 2px;
   }
 
   .scene-card__name {
-    -webkit-line-clamp: 1;
-  }
-
-  .photo-panel__seg,
-  .photo-panel__seg:has(> button:nth-of-type(4)) {
-    grid-auto-columns: minmax(max-content, 1fr);
-    grid-auto-flow: column;
-    grid-template-columns: none;
-  }
-
-  .photo-panel__seg .segmented__item {
-    height: 36px;
-    padding: 0 12px;
-  }
-
-  .second-list {
-    flex-direction: row;
-  }
-
-  .second-row {
-    flex: none;
-    grid-template-columns: auto;
-    min-height: 36px;
-    padding: 4px 12px;
-    white-space: nowrap;
-  }
-
-  .second-row__text {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  /* Из подписей остаётся одна — почему в сцене только один стакан. */
-  .second-row__dot,
-  .second-row__art,
-  .second-row:not(:first-child) .second-row__sub {
-    display: none;
+    font-size: 11px;
   }
 
   .photo-panel__actions {
-    padding: 10px 12px;
+    padding: 8px 12px 10px;
+    border-top: none;
   }
 
   .photo-panel__note {
     display: none;
+  }
+
+  /* Второй стакан — пятой кнопкой нижней панели. */
+  .action-bar {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .stage-card.is-photo > .stage-card__bar {
+    row-gap: 6px;
+  }
+
+  .photo-bar {
+    flex: 1 0 100%;
+    justify-content: space-between;
+    margin-left: 0;
   }
 }
