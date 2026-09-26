@@ -1222,7 +1222,7 @@
         "pet-clear"
       ],
       "defaultMaterial": "pet-clear",
-      "printType": null,
+      "printType": "dry-offset",
       "searchTerms": [
         "пэт",
         "pet",
@@ -1231,7 +1231,21 @@
         "пластиковый",
         "pg"
       ],
-      "web": null,
+      "web": {
+        "file": "assets/models/cups/PG95-400.glb",
+        "textureMapping": {
+          "materials": [
+            "PET_Print"
+          ],
+          "uv": 0,
+          "sheet": true,
+          "unwrapMm": [
+            238.3,
+            107.2
+          ],
+          "seamDeg": 90
+        }
+      },
       "render": {
         "adapter": "own",
         "blend": "cups/pet/PG95-400/PG95-400.blend",
@@ -1269,7 +1283,7 @@
         "pet-clear"
       ],
       "defaultMaterial": "pet-clear",
-      "printType": null,
+      "printType": "dry-offset",
       "searchTerms": [
         "пэт",
         "pet",
@@ -1278,7 +1292,21 @@
         "пластиковый",
         "pg"
       ],
-      "web": null,
+      "web": {
+        "file": "assets/models/cups/PG95-520.glb",
+        "textureMapping": {
+          "materials": [
+            "PET_Print"
+          ],
+          "uv": 0,
+          "sheet": true,
+          "unwrapMm": [
+            243.5,
+            128.0
+          ],
+          "seamDeg": 90
+        }
+      },
       "render": {
         "adapter": "own",
         "blend": "cups/pet/PG95-520/PG95-520.blend",
@@ -1316,7 +1344,7 @@
         "pet-clear"
       ],
       "defaultMaterial": "pet-clear",
-      "printType": null,
+      "printType": "dry-offset",
       "searchTerms": [
         "пэт",
         "pet",
@@ -1325,7 +1353,21 @@
         "пластиковый",
         "pg"
       ],
-      "web": null,
+      "web": {
+        "file": "assets/models/cups/PG95-600.glb",
+        "textureMapping": {
+          "materials": [
+            "PET_Print"
+          ],
+          "uv": 0,
+          "sheet": true,
+          "unwrapMm": [
+            243.5,
+            152.0
+          ],
+          "seamDeg": 90
+        }
+      },
       "render": {
         "adapter": "own",
         "blend": "cups/pet/PG95-600/PG95-600.blend",
