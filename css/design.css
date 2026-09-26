@@ -327,13 +327,7 @@
   display: none;
 }
 
-/* ── Ссылка клиенту (§31) ───────────────────────────────────────────────── */
-
-.publish-dialog {
-  width: min(520px, calc(100vw - 32px));
-  height: auto;
-  gap: 10px;
-}
+/* ── Поле ввода (вход по почте) ──────────────────────────────────────────── */
 
 .text-input {
   width: 100%;
@@ -350,16 +344,6 @@
   background: var(--surface);
   border-color: var(--action);
   outline: none;
-}
-
-.publish-link {
-  display: flex;
-  gap: 6px;
-}
-
-.publish-link .btn {
-  flex: none;
-  text-decoration: none;
 }
 
 /* ── Средняя ширина ─────────────────────────────────────────────────────── */
@@ -448,7 +432,8 @@
   .action-bar {
     grid-area: bar;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
     gap: 6px;
     padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
     background: var(--header-bg);

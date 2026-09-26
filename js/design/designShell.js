@@ -46,14 +46,13 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
-  initPublish({ state, mode, catalog, feedback, viewer, account });
   initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
   initActionBar({ exportCenter });
 
   // Кнопки, которым нужна модель в сцене.
   const needsModel = [
-    ...['texture-btn', 'export-btn', 'publish-btn'].map((id) => document.getElementById(id)),
-    ...document.querySelectorAll('[data-mobile-nav="design"], [data-mobile-nav="publish"], [data-mobile-nav="export"]'),
+    ...['texture-btn', 'export-btn'].map((id) => document.getElementById(id)),
+    ...document.querySelectorAll('[data-mobile-nav="design"], [data-mobile-nav="export"]'),
   ];
   const renderNeeds = ({ modelId }) => {
     for (const button of needsModel) if (button) button.disabled = !modelId;
@@ -242,25 +241,6 @@ function initPageHead({ state, catalog }) {
   render(state.get());
 }
 
-// «Ссылка клиенту» (§31): окно грузится при первом открытии.
-function initPublish(app) {
-  const button = document.getElementById('publish-btn');
-  if (!button) return;
-  if (!app.mode.can('publish')) {
-    button.remove();
-    return;
-  }
-  let dialog = null;
-  button.addEventListener('click', async () => {
-    if (button.disabled) return;
-    if (!dialog) {
-      const { createPublishDialog } = await import('./publish.js');
-      dialog ??= createPublishDialog(app);
-    }
-    dialog.open(button);
-  });
-}
-
 // Окно экспорта (§20): модуль грузится при первом открытии (§50).
 function initExport(app) {
   const button = document.getElementById('export-btn');
@@ -284,7 +264,6 @@ function initActionBar({ exportCenter }) {
   const nav = {
     cup: () => click('cup-btn'),
     design: () => click('texture-btn'),
-    publish: () => click('publish-btn'),
     export: () => exportCenter.open('photo'),
   };
   for (const button of document.querySelectorAll('[data-mobile-nav]')) {

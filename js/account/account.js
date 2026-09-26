@@ -37,6 +37,7 @@ const ERRORS = {
   bad_code: 'Код не подошёл — проверьте цифры',
   code_expired: 'Код устарел — запросите новый',
   not_enough_tokens: 'Не хватает токенов — пополните баланс',
+  paid_tokens_required: 'Знак снимается купленными токенами — пополните баланс',
   one_free_job_at_a_time: 'Бесплатные кадры — по одному: дождитесь готового',
   login_required: 'Войдите, чтобы продолжить',
 };
@@ -100,6 +101,9 @@ function modal(className, titleText, ...content) {
       opener = from ?? document.activeElement;
       onHide = whenHidden ?? null;
       shown = true;
+      // Последнее открытое — сверху: пакеты открываются и поверх «Моих рендеров»
+      // («Убрать знак» без купленных токенов), а слой у окон один.
+      document.body.append(backdrop, dialog);
       showLayer(backdrop);
       showLayer(dialog);
     },
@@ -209,7 +213,7 @@ export function initAccount({ catalog, feedback }) {
 
   // ── покупка пакета (тестовая оплата до эквайринга, этап Ж) ──────────────
   const packsBox = el('div', { class: 'packs' });
-  const buyNote = el('p', { class: 'export-note', text: 'Купленные токены не сгорают, кадры за них — без знака. Сейчас оплата тестовая: деньги не списываются.' });
+  const buyNote = el('p', { class: 'export-note', text: 'Купленные токены не сгорают, кадры за них — без знака, ими же снимается знак с бесплатных кадров. Сейчас оплата тестовая: деньги не списываются.' });
   const buy = modal('buy-dialog', 'Пополнить токены', packsBox, buyNote);
   const openBuy = async (from) => {
     if (!(await requireLogin(from))) return;
@@ -275,10 +279,19 @@ export function initAccount({ catalog, feedback }) {
       : el('div', { class: `render__img render__img--${job.status}` }, el('span', { class: 'spinner', 'aria-hidden': 'true' }));
     const actions = el('div', { class: 'render__actions' });
     if (job.status === 'done') {
-      actions.append(el('a', { class: 'btn btn--accent', href: `${job.imageUrl}?download=1`, download: '', text: 'Скачать PNG' }));
+      actions.append(el('a', { class: 'btn btn--accent', href: `${job.imageUrl}&download=1`, download: '', text: 'Скачать PNG' }));
       if (job.marked) {
-        const unmark = el('button', { class: 'btn', type: 'button', text: `Убрать знак · ${me?.unmarkPrice ?? 1}` });
-        unmark.addEventListener('click', () => act(() => api(`api/jobs/${job.id}/unmark`, { method: 'POST' }), 'Знак убран'));
+        const price = me?.unmarkPrice ?? 1;
+        const unmark = el('button', { class: 'btn', type: 'button', text: `Убрать знак · ${price}` });
+        // Только купленными: без них — сразу к пакетам, а не ошибка после клика.
+        unmark.addEventListener('click', () => {
+          if ((me?.balance.paid ?? 0) < price) {
+            feedback.onToast(ERRORS.paid_tokens_required, 'warning');
+            openBuy(unmark);
+            return;
+          }
+          act(() => api(`api/jobs/${job.id}/unmark`, { method: 'POST' }), 'Знак убран');
+        });
         actions.append(unmark);
       }
     }
@@ -297,7 +310,7 @@ export function initAccount({ catalog, feedback }) {
       el('div', { class: 'render__body' },
         el('p', { class: 'render__title', text: `${scene} · ${job.size === '3000' ? 'для печати' : '1600 px'} · ${job.frame}` }),
         el('p', { class: 'render__status', text: statusText(job) }),
-        job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен' }) : null,
+        job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен. Убрать — купленным токеном' }) : null,
         job.error && job.status === 'failed' ? el('p', { class: 'render__error', text: job.error.slice(0, 140) }) : null),
       actions);
   };

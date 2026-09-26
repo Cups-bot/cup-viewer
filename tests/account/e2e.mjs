@@ -126,19 +126,27 @@ try {
     const res = await page.evaluate(async (u) => [...new Uint8Array(await (await fetch(u)).arrayBuffer())], img);
     await writeFile(resolve(OUT, 'real-frame.png'), Buffer.from(res));
   }
+  // Знак снимается только купленными: без них «Убрать знак» ведёт к пакетам.
   await page.click('text=/Убрать знак/');
-  await page.waitForFunction(() => !document.querySelector('.render__mark'));
-  step('«Убрать знак» — кадр без знака');
-  await page.keyboard.press('Escape');
-
-  await page.click('.account__me');
-  await page.click('text=Пополнить токены');
   await page.waitForSelector('.buy-dialog:not([hidden]) .pack');
+  step('«Убрать знак» без купленных — окно пакетов');
   await page.screenshot({ path: resolve(OUT, '5-buy.png') });
   await page.click('.pack >> nth=0');
-  await page.waitForFunction(() => document.querySelector('.account__me')?.textContent.includes('11'));
+  await page.waitForFunction(() => document.querySelector('.account__me')?.textContent.includes('12'));
   step(`пакет куплен: ${await page.textContent('.account__me')}`);
-  await page.screenshot({ path: resolve(OUT, '6-after-buy.png') });
+  const thumbBefore = await page.$eval('.render__img', (i) => i.src);
+  await page.click('text=/Убрать знак/');
+  await page.waitForFunction(() => !document.querySelector('.render__mark'));
+  await page.waitForFunction(() => document.querySelector('.account__me')?.textContent.includes('11'));
+  const thumbAfter = await page.$eval('.render__img', (i) => i.src);
+  if (thumbAfter === thumbBefore) throw new Error('миниатюра не сменилась после «Убрать знак»');
+  await page.waitForFunction(() => {
+    const img = document.querySelector('.render__img');
+    return img?.complete && img.naturalWidth > 0;
+  }, null, { timeout: 10000 });
+  step('«Убрать знак» — кадр без знака, списан купленный токен, миниатюра новая');
+  await page.screenshot({ path: resolve(OUT, '6-unmarked.png') });
+  await page.keyboard.press('Escape');
 
   const admin = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await admin.context().addCookies(await page.context().cookies());
