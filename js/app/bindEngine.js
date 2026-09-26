@@ -19,6 +19,16 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     state.set({ photo: { ...photo, second: null } });
   };
 
+  // Углы стаканов фото-сцены: заданные явно (сцена из «Моих рендеров») —
+  // как заданы; иначе лицом к камере. Автоповорота в сцене нет: угол уходит
+  // в задание рендера, и стакан не должен стоять к камере случайной стороной.
+  const placeAngles = () => {
+    const angles = state.get().photo?.angles;
+    if (angles) angles.forEach((angle, index) => viewer.rotateCupTo(index, angle));
+    else viewer.facePhotoCups();
+  };
+
+  let shownModelId = null;
   const present = async (s) => {
     const result = await viewer.present({
       model: catalog.model(s.modelId),
@@ -29,6 +39,9 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     const shownId = result.model?.id ?? null;
     if (!viewer.presenting && shownId && shownId !== state.get().modelId) state.set({ modelId: shownId });
     dropFailedSecond();
+    // Другой стакан в сцене — тоже лицом к камере (новая модель встаёт с нулём).
+    if (viewer.photo && shownId && shownId !== shownModelId) placeAngles();
+    shownModelId = shownId;
     return result;
   };
   state.subscribe(['modelId', 'materialId', 'design'], present);
@@ -74,8 +87,11 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
         return;
       }
       dropFailedSecond();
-      if (state.get().tab !== 'scene') await viewer.exitPhotoScene();
-      state.get().photo?.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
+      if (state.get().tab !== 'scene') {
+        await viewer.exitPhotoScene();
+        return;
+      }
+      placeAngles();
     });
   state.subscribe(['tab', 'sceneId'], syncScene);
 
@@ -99,9 +115,11 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
       }
       if (!viewer.photo) return;
       const q = state.get().photo ?? {};
-      if (q.preset && viewer.photo.preset.id !== q.preset) await viewer.setPhotoPreset(q.preset);
+      const turned = Boolean(q.preset && viewer.photo.preset.id !== q.preset);
+      if (turned) await viewer.setPhotoPreset(q.preset);
       if (q.frame && viewer.photo.frameId !== q.frame) viewer.setPhotoFrame(q.frame);
-      q.angles?.forEach((angle, index) => viewer.rotateCupTo(index, angle));
+      // Камера встала в другую точку — стаканы снова лицом к ней.
+      if (turned || q.angles) placeAngles();
     });
   state.subscribe(['photo', 'materialId', 'design2'], syncPhoto);
 

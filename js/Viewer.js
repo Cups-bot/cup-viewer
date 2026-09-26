@@ -360,11 +360,10 @@ export class Viewer {
       const delta = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
 
       this.#stepSpin(delta);
-      if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
+      // В фото-сцене автоповорота нет: угол стакана уходит в задание рендера,
+      // и крутящийся стакан отдал бы в платный кадр случайную сторону.
+      if (this.autoRotate && !this.manualRotate && !this.photo && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
-        // Пара в фото-сцене вращается вместе: угол между стаканами (другая
-        // сторона дизайна у второго) сохраняется.
-        if (this.companion) this.companion.model.rotation.y += this.config.autoRotate.speed * delta;
         this.invalidateModel();
       }
 
@@ -768,6 +767,35 @@ export class Viewer {
     }
     this.companion.model.rotation.y = THREE.MathUtils.degToRad(degrees);
     this.invalidateModel();
+  }
+
+  // Стаканы фото-сцены — лицом к камере: середина макета (сторона «Спереди»,
+  // VIEWS.front) смотрит в точку съёмки. У пары второй — другой стороной
+  // (+150°, как при сборке пары), другой стакан — тоже лицом.
+  facePhotoCups() {
+    if (!this.photo) return;
+    const hero = this.#faceAngle(this.modelLoader.currentModel);
+    if (hero === null) return;
+    this.rotateCupTo(0, hero);
+    if (this.companion) {
+      const own = this.#faceAngle(this.companion.model) ?? hero;
+      this.rotateCupTo(1, this.companion.kind === 'pair' ? own + 150 : own);
+    }
+  }
+
+  // Угол поворота стакана (rotation.y, градусы), при котором его +Z — лицевая
+  // сторона в студии (orbitPosition, азимут 0) — смотрит на камеру. Считается
+  // в осях подставки: у наклонённого стакана («Вода») ось своя.
+  #faceAngle(model) {
+    const stand = model?.parent;
+    if (!stand) return null;
+    stand.updateWorldMatrix(true, false);
+    const eye = stand.worldToLocal(this.camera.position.clone());
+    const dx = eye.x - model.position.x;
+    const dz = eye.z - model.position.z;
+    if (Math.hypot(dx, dz) < 1e-6) return null;
+    const degrees = THREE.MathUtils.radToDeg(Math.atan2(dx, dz));
+    return ((degrees % 360) + 360) % 360;
   }
 
   getCupRotation(index) {
