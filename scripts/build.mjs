@@ -1,23 +1,19 @@
 // Сборка страниц.
 //
 // Делает три вещи:
-//   1. собирает два входа — dist/design.js (Design Mode, index.html) и
-//      dist/view.js (Client Mode, view.html). Общий движок уходит в чанк
-//      dist/chunks/*-<хеш>.js, модули «по требованию» — в свои чанки;
+//   1. собирает входы — dist/design.js (сайт, index.html) и dist/admin.js
+//      (админка, admin.html). Движок уходит в чанк dist/chunks/*-<хеш>.js,
+//      модули «по требованию» — в свои чанки;
 //   2. кладёт рядом декодер Draco (vendor/draco/) — свою копию, а не с gstatic;
 //   3. проставляет в HTML метку версии ?v=<хеш> у входов и стилей.
 //
 // Зачем сборка, а не import map:
 //
-//   • Карта импорта тянула three.js с unpkg.com. Для клиентской страницы это
+//   • Карта импорта тянула three.js с unpkg.com. Для страницы это
 //     и точка отказа (упал CDN — упала страница), и канал подмены кода:
 //     подписать карту импорта хешами (SRI) нельзя в принципе.
 //   • Карты импорта не поддерживаются Safari до 16.4. На iPhone с iOS 15–16.3
 //     страница не показывала НИЧЕГО и молча.
-//
-// Два входа, а не флаг режима: код выбора модели, материала и загрузки
-// макета импортируется только из design-входа и в клиентский бандл не
-// попадает вовсе (§37).
 //
 // Результат сборки (dist/) лежит в репозитории: сайт разворачивается копированием
 // файлов, Node на сервере не нужен. Node нужен только тому, кто правит js/.
@@ -38,14 +34,12 @@ const OUTDIR = resolve(root, 'dist');
 // Страница → файлы, которые получают метку версии.
 const PAGES = {
   'index.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/design.css', 'dist/design.js'],
-  'view.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/client.css', 'dist/view.js'],
   'admin.html': ['js/ui/themeBoot.js', 'css/app.css', 'css/viewer.css', 'css/admin.css', 'dist/admin.js'],
 };
 
 const options = {
   entryPoints: {
     design: resolve(root, 'js/entries/design.js'),
-    view: resolve(root, 'js/entries/view.js'),
     // Админка кабинета (этап Е) — без движка: только таблицы и запросы.
     admin: resolve(root, 'js/entries/admin.js'),
   },
@@ -144,7 +138,7 @@ async function run() {
   const result = await build(options);
   await writeFile(resolve(OUTDIR, 'meta.json'), JSON.stringify(result.metafile));
   await stampPages();
-  console.log('Готово: dist/design.js, dist/view.js, dist/admin.js');
+  console.log('Готово: dist/design.js, dist/admin.js');
 }
 
 run().catch((error) => {

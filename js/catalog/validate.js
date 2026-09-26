@@ -88,7 +88,6 @@ const BACKGROUND_RULES = [
   ['name', isString, 'непустая строка'],
   ['color', (v) => typeof v === 'string' && HEX.test(v), 'цвет #rrggbb'],
   ['sweep', isUnit, 'число 0…1'],
-  ['client', (v) => v === undefined || typeof v === 'boolean', 'true | false'],
 ];
 
 // Сцены фотореал-рендера (CupViewer v2): ракурсы и сколько стаканов в кадре.
@@ -99,15 +98,7 @@ const SCENE_RULES = [
   ['maxCups', (v) => v === 1 || v === 2, '1 или 2'],
 ];
 
-const BRAND_RULES = [
-  ['name', isString, 'непустая строка'],
-  ['title', isString, 'непустая строка'],
-  ['logo', isString, 'путь к логотипу'],
-  ['favicon', isString, 'путь к иконке'],
-  ['accent', (v) => typeof v === 'string' && HEX.test(v), 'цвет #rrggbb'],
-];
-
-// raw — содержимое файлов: { models, materials, backgrounds, scenes, brands }
+// raw — содержимое файлов: { models, materials, backgrounds, scenes }
 // (каждое — разобранный JSON или undefined, если файл не загрузился).
 export function validateCatalog(raw) {
   const errors = [];
@@ -116,6 +107,5 @@ export function validateCatalog(raw) {
   const models = collect('catalog/models.json', raw.models?.models, 'models', modelRules(materialIds), errors);
   const backgrounds = collect('catalog/backgrounds.json', raw.backgrounds?.backgrounds, 'backgrounds', BACKGROUND_RULES, errors);
   const scenes = collect('catalog/scenes/index.json', raw.scenes?.scenes, 'scenes', SCENE_RULES, errors);
-  const brands = collect('catalog/brands.json', raw.brands?.brands, 'brands', BRAND_RULES, errors);
-  return { models, materials, backgrounds, scenes, brands, errors };
+  return { models, materials, backgrounds, scenes, errors };
 }

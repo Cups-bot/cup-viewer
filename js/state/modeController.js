@@ -1,17 +1,14 @@
-// ModeController — права режимов (§37). Режим задаёт точка входа (design.js
-// или view.js), а не параметр адреса: по ссылке клиента Design Mode не открыть.
-//
-// Запреты логические. Действие, меняющее модель, материал, дизайн, публикацию
-// или полный экспорт, спрашивает can()/check(); а охрана на ViewerState
-// отклоняет такие патчи и тогда, когда их пытаются сделать в обход UI —
-// например, из консоли.
+// ModeController — права режима (§37). Режим задаёт точка входа (design.js),
+// а не параметр адреса. Страницы клиента по ссылке больше нет (владелец,
+// 2026-09-27: общий сервис) — режим один, но охрана осталась: действие
+// спрашивает can()/check(), а охрана на ViewerState отклоняет патчи в обход
+// UI до lock() и после него — по таблице.
 
 export const CAPABILITIES = Object.freeze({
   design: Object.freeze({
     changeModel: true,
     changeMaterial: true,
     uploadDesign: true,
-    publish: true,
     export: 'full',
     changeBackground: 'all',
     openScene: true,
@@ -21,29 +18,12 @@ export const CAPABILITIES = Object.freeze({
     autoRotate: true,
     fullscreen: true,
   }),
-  client: Object.freeze({
-    changeModel: false,
-    changeMaterial: false,
-    uploadDesign: false,
-    publish: false,
-    export: 'limited',
-    changeBackground: 'client',
-    openScene: true,
-    // Клиент видит сцену такой, какой её собрал пользователь, и только смотрит.
-    arrangeScene: false,
-    openUnwrap: true,
-    camera: true,
-    autoRotate: true,
-    fullscreen: true,
-  }),
 });
 
-// Что можно выгрузить при каждом уровне export (§20, §29). Владелец решил
-// дать клиенту тот же простой набор, что и сотруднику: фото 2048×2048,
-// 4 ракурса, оборот, развёртка. Уровни оставлены: их различит бэкенд (этап 06).
+// Что можно выгрузить при уровне export (§20, §29): фото 2048×2048,
+// 4 ракурса, оборот, развёртка.
 export const EXPORT_KINDS = Object.freeze({
   full: Object.freeze(['photo', 'angles', 'turn', 'unwrap']),
-  limited: Object.freeze(['photo', 'angles', 'turn', 'unwrap']),
 });
 
 // Какая capability охраняет какой ключ состояния.
@@ -82,13 +62,11 @@ export function createModeController(mode, { warn = console.warn } = {}) {
     },
 
     canUseBackground(background) {
-      if (!background) return false;
-      if (table.changeBackground === 'all') return true;
-      return table.changeBackground === 'client' && background.client === true;
+      return Boolean(background) && table.changeBackground === 'all';
     },
 
-    // Ставит охрану на состояние. До lock() охрана пропускает всё: клиент
-    // сначала разворачивает snapshot, и только потом права вступают в силу.
+    // Ставит охрану на состояние. До lock() охрана пропускает всё: сначала
+    // разворачивается стартовое состояние (сессия), потом права в силе.
     attach(state, catalog) {
       state.setGuard((patch, current) => {
         if (!locked) return true;

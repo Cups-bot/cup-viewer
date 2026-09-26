@@ -19,14 +19,13 @@ function debugAllowed() {
 }
 
 // Общий старт обеих оболочек: каталог, состояние, права режима, движок и
-// общий интерфейс сцены. Режим задаёт вызывающий вход (design.js | view.js).
+// общий интерфейс сцены. Режим задаёт вызывающий вход (design.js).
 //
 // initialState(catalog) — стартовое состояние; ставится ДО lock(), поэтому
-// клиентский snapshot разворачивается целиком, а дальше права уже действуют.
-// lock: false — права запрёт вызывающий сам (клиент сначала докачивает дизайн).
+// сессия разворачивается целиком, а дальше права уже действуют.
 // config — настройки движка (по умолчанию js/config.js); hooks — добавочные
 // hooks движка поверх тостов и индикатора загрузки.
-export async function boot({ mode: modeName, initialState, lock = true, config = CONFIG, hooks: extraHooks = {} }) {
+export async function boot({ mode: modeName, initialState, config = CONFIG, hooks: extraHooks = {} }) {
   const container = document.getElementById('canvas-container');
   if (!container) throw new Error('Нет элемента #canvas-container');
 
@@ -57,7 +56,7 @@ export async function boot({ mode: modeName, initialState, lock = true, config =
     autoRotate: config.autoRotate.enabled,
     ...(await initialState(catalog, mode)),
   });
-  if (lock) mode.lock();
+  mode.lock();
 
   const app = { catalog, state, mode, viewer, actions, feedback, unwrap, config };
   if (debugAllowed()) {

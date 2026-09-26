@@ -2,13 +2,12 @@ import { validateCatalog } from './validate.js';
 
 // Каталог в памяти: проверенные записи и поиск по id.
 export function createCatalog(raw) {
-  const { models, materials, backgrounds, scenes, brands, errors } = validateCatalog(raw);
+  const { models, materials, backgrounds, scenes, errors } = validateCatalog(raw);
   const index = (list) => new Map(list.map((item) => [item.id, item]));
   const byModel = index(models);
   const byMaterial = index(materials);
   const byBackground = index(backgrounds);
   const byScene = index(scenes);
-  const byBrand = index(brands);
 
   // Стакан, с которого открывается Design Mode без сессии (§11).
   const wanted = raw.models?.defaultModel;
@@ -20,13 +19,11 @@ export function createCatalog(raw) {
     materials,
     backgrounds,
     scenes,
-    brands,
     errors,
     model: (id) => byModel.get(id) ?? null,
     material: (id) => byMaterial.get(id) ?? null,
     background: (id) => byBackground.get(id) ?? null,
     scene: (id) => byScene.get(id) ?? null,
-    brand: (id) => byBrand.get(id) ?? null,
     materialsFor: (modelId) =>
       (byModel.get(modelId)?.materialCompatibility ?? []).map((id) => byMaterial.get(id)),
   });
@@ -37,14 +34,13 @@ export const CATALOG_FILES = {
   materials: 'catalog/materials.json',
   backgrounds: 'catalog/backgrounds.json',
   scenes: 'catalog/scenes/index.json',
-  brands: 'catalog/brands.json',
 };
 
 // Путь к папке сцены: там scene.json и её ассеты (§18).
 export const sceneFolder = (id) => `catalog/scenes/${id}`;
 
 // Загружает все файлы каталога. Файл, который не пришёл, — ошибка в консоль,
-// а не исключение: без брендов, например, Design Mode работает.
+// а не исключение: страница покажет, что пришло, и ошибку в консоли.
 export async function loadCatalog(fetchImpl = fetch) {
   const entries = await Promise.all(
     Object.entries(CATALOG_FILES).map(async ([key, url]) => {

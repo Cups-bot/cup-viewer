@@ -109,7 +109,7 @@ export function initToolbar({ state, catalog, mode, actions }) {
 
 }
 
-// Кружочки фонов: только те, что разрешены режиму (в клиенте — client: true).
+// Кружочки фонов: те, что разрешены режиму.
 function initSwatches({ state, catalog, mode, actions }) {
   const box = document.getElementById('bg-swatches');
   if (!box) return;

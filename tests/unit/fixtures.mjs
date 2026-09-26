@@ -35,16 +35,11 @@ export function rawCatalog() {
     },
     backgrounds: {
       backgrounds: [
-        { id: 'light', name: 'Light', color: '#ffffff', sweep: 0.07, client: true },
+        { id: 'light', name: 'Light', color: '#ffffff', sweep: 0.07 },
         { id: 'gray', name: 'Gray', color: '#777777', sweep: 0.07 },
       ],
     },
     scenes: { scenes: [{ id: 'living', name: 'Гостиная', maxCups: 2, presets: [{ id: 'front', label: 'Как в сцене' }] }] },
-    brands: {
-      brands: [
-        { id: 'mycups', name: 'MyCups', title: 'MyCups', logo: 'a.svg', favicon: 'b.svg', accent: '#e8290c' },
-      ],
-    },
   };
 }
 

@@ -52,11 +52,11 @@ test('повтор id — вторая запись исключается', () 
 
 test('нет файла — ошибка, но остальные каталоги целы', () => {
   const raw = rawCatalog();
-  delete raw.brands;
+  delete raw.scenes;
   const result = validateCatalog(raw);
-  assert.equal(result.brands.length, 0);
+  assert.equal(result.scenes.length, 0);
   assert.equal(result.models.length, 2);
-  assert.match(result.errors[0], /brands\.json: нет массива/);
+  assert.match(result.errors[0], /scenes\/index\.json: нет массива/);
 });
 
 test('настоящие файлы catalog/ проходят проверку', () => {
@@ -66,7 +66,6 @@ test('настоящие файлы catalog/ проходят проверку',
     materials: read('catalog/materials.json'),
     backgrounds: read('catalog/backgrounds.json'),
     scenes: read('catalog/scenes/index.json'),
-    brands: read('catalog/brands.json'),
   });
   assert.deepEqual(result.errors, []);
   // 20 бумажных и PP (с EM90-530) + 3 PET (CupViewer v2).

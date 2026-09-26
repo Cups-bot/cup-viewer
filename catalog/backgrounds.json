@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "backgrounds": [
     { "id": "studio", "name": "Студия", "color": "#eaf5ff", "sweep": 0.07 },
-    { "id": "light", "name": "Светлый", "color": "#f1f2f4", "sweep": 0.06, "client": true },
-    { "id": "warm", "name": "Тёплый", "color": "#efe6da", "sweep": 0.07, "client": true },
-    { "id": "dark", "name": "Тёмный", "color": "#1c1c1e", "sweep": 0.07, "client": true }
+    { "id": "light", "name": "Светлый", "color": "#f1f2f4", "sweep": 0.06 },
+    { "id": "warm", "name": "Тёплый", "color": "#efe6da", "sweep": 0.07 },
+    { "id": "dark", "name": "Тёмный", "color": "#1c1c1e", "sweep": 0.07 }
   ]
 }

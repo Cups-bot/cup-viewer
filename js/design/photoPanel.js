@@ -91,7 +91,7 @@ async function submitRender({ viewer, state, catalog }, size) {
 // Ручное задание (dev-сервер без кабинета, scripts/renderJobApi.mjs): папка
 // render/jobs/<время>/ для run.py --job.
 async function uploadRaster(url) {
-  const res = await fetch('api/snapshot-assets', { method: 'POST', body: await blobOf(url) });
+  const res = await fetch('api/render-art', { method: 'POST', body: await blobOf(url) });
   if (!res.ok) throw new Error(`растр: ${res.status}`);
   return (await res.json()).assetId;
 }

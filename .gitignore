@@ -40,6 +40,7 @@ render/jobs/
 
 # Локальные клиентские ссылки dev-сервера (scripts/snapshotApi.mjs)
 .local-snapshots/
+.local-render/
 
 # render/ — движок рендера (бывший 3DCupRender). Тяжёлые файлы Blender, текстуры
 # и тестовые макеты в git не кладутся: их список с размерами и хешами —

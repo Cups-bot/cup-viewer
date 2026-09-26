@@ -13,8 +13,6 @@ export const STATE_KEYS = Object.freeze([
   'materialId',
   'backgroundId',
   'sceneId',
-  'brandId',
-  'title',
   'design',
   // Макет второго стакана «Фотореала» (CupViewer v2): того же вида, что design.
   // null — у пары макет главного, у другого стакана — чистый лист.
@@ -39,8 +37,6 @@ const DEFAULTS = Object.freeze({
   materialId: null,
   backgroundId: null,
   sceneId: null,
-  brandId: null,
-  title: null,
   design: null,
   design2: null,
   tab: '3d',

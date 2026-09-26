@@ -20,11 +20,9 @@ export function createExporter({ state, mode, viewer, feedback }) {
   const listeners = new Set();
   const emit = (event) => listeners.forEach((fn) => fn(event));
 
-  // Имя файла — из модели и материала, не из исходника макета. Клиенту —
-  // без номенклатуры: код модели ему ни к чему (§25, §59).
+  // Имя файла — из модели и материала, не из исходника макета (§25).
   const baseName = () => {
     const { modelId, materialId } = state.get();
-    if (mode.mode === 'client') return 'cup';
     return `${modelId ?? 'cup'}_${materialId ?? 'material'}`;
   };
 

@@ -22,23 +22,23 @@ catalog:      npm run catalog — собрать catalog/models.json из catalo
 - Данные: `catalog/*.json`, сцены `catalog/scenes/<id>/`; проверка — `js/catalog/validate.js`.
 - Каталог стаканов — `catalog/cups.json`, один на сайт и рендер (общие поля + `web` + `render`); `catalog/models.json` из него собирает `npm run catalog`, руками не править. Стакан с `"web": null` на сайт не выходит.
 - Фотореал-рендер: `render/` — Blender + Python (бывший 3DCupRender), своё README и ТЗ в `render/docs/`. Нагрузка на ноутбук владельца: тяжёлое — по одному процессу, низкий приоритет, черновое качество.
-- Вкладка «Фотореал» (v2): сцены рендера в `catalog/scenes/<id>/` (scene.json, снимки фона, панорама); движок — `js/core/photoScene.js` + `js/core/frame.js`, UI — `js/design/photoPanel.js`, право `arrangeScene` (клиент только смотрит). Что видно на сайте, то и рендерит Blender: задание — `viewer.photoJob()`.
-- Входы: `index.html` → `js/entries/design.js` (+ `js/design/`), `view.html` → `js/entries/view.js` (+ `js/client/`). Экспорт — `js/export/`, по требованию.
+- Вкладка «Фотореал» (v2): сцены рендера в `catalog/scenes/<id>/` (scene.json, снимки фона, панорама); движок — `js/core/photoScene.js` + `js/core/frame.js`, UI — `js/design/photoPanel.js`, право `arrangeScene`. Что видно на сайте, то и рендерит Blender: задание — `viewer.photoJob()`.
+- Входы: `index.html` → `js/entries/design.js` (+ `js/design/`, кабинет `js/account/`), `admin.html` → `js/entries/admin.js`. Экспорт — `js/export/`, по требованию.
 - Материалы печати: `ModelLoader.applyMaterial`; крафт — хук `js/core/printShading.js`, soft-touch — физическая копия материала.
-- Ссылки клиенту: dev — `scripts/snapshotApi.mjs` (контракт этапа 06).
+- Ссылок клиенту и страницы клиента нет (владелец, 2026-09-27: общий сервис; CONCEPT-v2 §17).
 - render:check: `tests/render/` (capture.html + run.mjs), эталоны в `tests/render/baseline/`, кандидаты — `tests/render/candidates/`.
 
 ## Инварианты — нарушение = откат коммита
 - Рендер не деградирует (§58). Правка рендера, камеры, материалов, текстур, света, теней, сцен, порядка инициализации → `render:check` до и после, числа в отчёт. Пересъёмка эталонов (`render:baseline`) — только с явного «ок» человека в этой сессии.
-- Один движок, одно состояние, две оболочки (§60). Второго renderer/scene под Client Mode нет.
+- Один движок, одно состояние (§60): один renderer и одна сцена на страницу.
 - Стек фронтенда не меняется (§32): ES-модули + Three.js + текущая сборка. Никаких React/Vue/TypeScript-миграций, state-библиотек, UI-китов. Версию three не поднимать.
 - Цвет макета важнее эффектности (§15). outputColorSpace, toneMapping, toneMappingExposure, colorSpace текстур не трогать, если бриф этапа этого прямо не требует.
-- Client Mode: запреты логические — ModeController и отсутствие кода в клиентском бандле, а не CSS (§37).
-- Клиенту не уходят никогда: исходник макета (PDF/AI/EPS/CDR), пути private storage, SKU, имена исходных файлов, service_role ключ.
+- Права — логические: ModeController и охрана ViewerState, а не CSS (§37).
+- Наружу не уходят никогда: исходник макета (PDF/AI/EPS/CDR) — только растр развёртки и только в рендер, пути хранилища, имена исходных файлов, ключи и секреты.
 
 ## Соглашения
 - UI на русском. Тексты ошибок — дословно из §42.
-- Модели, материалы, фоны, сцены, бренды — данные в `catalog/`. Ветвления по конкретному id в UI-логике запрещены (§38).
+- Модели, материалы, фоны, сцены — данные в `catalog/`. Ветвления по конкретному id в UI-логике запрещены (§38).
 - Анимация камеры 250–400 ms (§12), появление модели 300–500 ms (§41).
 - 3D-текстура ≤ 2048 px по длинной стороне; unwrap — отдельный полноразмерный растр, в GPU не отправляется (§16, §49).
 - Комментарии — только «почему».

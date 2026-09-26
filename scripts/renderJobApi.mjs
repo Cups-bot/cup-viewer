@@ -1,9 +1,9 @@
 // Локальная замена API заданий рендера (CupViewer v2, до сервера этапа Г).
 //
+//   POST /api/render-art   тело — PNG/JPEG растр макета → { assetId }
 //   POST /api/render-job   { job, arts: { "<номер стакана>": assetId } } → { dir, command }
 //
-// Растры макетов страница заранее кладёт через /api/snapshot-assets (тот же
-// склад, что у клиентских ссылок, scripts/snapshotApi.mjs). Здесь задание
+// Растры макетов страница заранее кладёт через /api/render-art. Здесь задание
 // становится папкой render/jobs/<время>/: job.json и макеты рядом с ним —
 // ровно то, что читает render/engine/run.py --job (пути к макетам — от файла
 // задания). Исходник макета сюда не приходит: только растр развёртки, тот же,
@@ -11,14 +11,16 @@
 //
 // ТОЛЬКО ДЛЯ РАЗРАБОТКИ: ни входа, ни токенов здесь нет (этапы Г–Д).
 
+import { randomBytes } from 'node:crypto';
 import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const ASSET_RE = /^[A-Za-z0-9_-]{22}$/;
 const ID_RE = /^[A-Z]{2}\d{2}-\d{3}$/;
+const MAX_ART_BYTES = 64 * 1024 * 1024;
 
 export function createRenderJobApi({ root }) {
-  const assetsDir = resolve(root, '.local-snapshots', 'assets');
+  const assetsDir = resolve(root, '.local-render', 'assets');
   const jobsDir = resolve(root, 'render', 'jobs');
 
   const json = (res, status, body) => {
@@ -26,7 +28,7 @@ export function createRenderJobApi({ root }) {
     res.end(JSON.stringify(body));
   };
 
-  async function readJson(req, limit) {
+  async function readBody(req, limit) {
     const chunks = [];
     let size = 0;
     for await (const chunk of req) {
@@ -34,7 +36,25 @@ export function createRenderJobApi({ root }) {
       if (size > limit) throw Object.assign(new Error('too_large'), { status: 413 });
       chunks.push(chunk);
     }
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return Buffer.concat(chunks);
+  }
+  const readJson = async (req, limit) => JSON.parse((await readBody(req, limit)).toString('utf8'));
+
+  // Растр макета — только PNG или JPEG (исходник сюда не приходит).
+  async function saveArt(req, res) {
+    let body;
+    try {
+      body = await readBody(req, MAX_ART_BYTES);
+    } catch (error) {
+      return json(res, error.status ?? 400, { error: 'too_large' });
+    }
+    const png = body.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const jpeg = body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff;
+    if (!png && !jpeg) return json(res, 415, { error: 'unsupported_media' });
+    await mkdir(assetsDir, { recursive: true });
+    const assetId = randomBytes(16).toString('base64url');
+    await writeFile(resolve(assetsDir, `${assetId}.${png ? 'png' : 'jpg'}`), body);
+    return json(res, 201, { assetId });
   }
 
   const assetFile = async (assetId) => {
@@ -59,11 +79,12 @@ export function createRenderJobApi({ root }) {
   }
 
   return {
-    matches: (url) => url.pathname === '/api/render-job',
-    async handle(req, res) {
+    matches: (url) => url.pathname === '/api/render-job' || url.pathname === '/api/render-art',
+    async handle(req, res, url) {
       if (req.method !== 'POST') return json(res, 405, { error: 'method' });
       const origin = req.headers.origin;
       if (origin && origin !== `http://${req.headers.host}`) return json(res, 403, { error: 'forbidden' });
+      if (url.pathname === '/api/render-art') return saveArt(req, res);
       let input;
       try {
         input = await readJson(req, 64 * 1024);
