@@ -99,3 +99,16 @@ test('охрана отклоняет патч целиком', () => {
   assert.equal(state.set({ modelId: 'HB80-280', tab: 'unwrap' }), false);
   assert.equal(state.get().tab, '3d');
 });
+
+test('photo: формат и второй стакан проверяются, значения замораживаются', () => {
+  const state = createViewerState({ catalog: catalog(), warn: quiet });
+  assert.throws(() => state.set({ photo: { frame: '16:9' } }), /формат кадра/);
+  assert.throws(() => state.set({ photo: { second: { modelId: 'NOPE' } } }), /второго стакана/);
+  assert.throws(() => state.set({ photo: { second: { modelId: 'HB80-280', kind: 'stack' } } }), /раскладка/);
+  state.set({ photo: { preset: 'high', second: { modelId: 'HB80-280' } } });
+  const { photo } = state.get();
+  assert.deepEqual(photo, { preset: 'high', frame: '1:1', second: { modelId: 'HB80-280', kind: 'pair' } });
+  assert.ok(Object.isFrozen(photo) && Object.isFrozen(photo.second));
+  state.set({ photo: null });
+  assert.equal(state.get().photo, null);
+});

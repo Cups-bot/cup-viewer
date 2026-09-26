@@ -26,8 +26,10 @@ import {
   cupHeight,
   cupRotation,
   frameFor,
+  layoutPair,
   loadPhotoScene,
   presetOf,
+  stagePoint,
 } from './core/photoScene.js';
 import { applyWindow, backdropRect } from './core/frame.js';
 import { NEUTRAL_TONE_MAPPING } from './core/postprocessing.js';
@@ -196,6 +198,9 @@ export class Viewer {
       if (!this.photo || event.defaultPrevented || !event.isPrimary) return;
       if (!this.modelLoader.currentModel) return;
       drag = { id: event.pointerId, x: event.clientX, time: event.timeStamp };
+      // Со вторым стаканом крутится тот, по которому начали тянуть; мимо
+      // обоих — главный.
+      this.spinCup = this.#cupAt(event);
       this.spin = 0;
       this.cameraTween = null;
       this.setManualRotate(true);
@@ -207,7 +212,7 @@ export class Viewer {
       const width = el.clientWidth || 1;
       const degrees = ((event.clientX - drag.x) / width) * degreesPerWidth;
       const seconds = Math.max((event.timeStamp - drag.time) / 1000, 1 / 240);
-      this.rotateModelTo(this.getModelRotation() + degrees);
+      this.rotateCupTo(this.spinCup ?? 0, this.getCupRotation(this.spinCup ?? 0) + degrees);
       // Скорость для инерции — сглаженная, иначе последнее дрожание пальца
       // решало бы, куда укатится стакан.
       this.spin = this.spin * 0.6 + (degrees / seconds) * 0.4;
@@ -231,7 +236,8 @@ export class Viewer {
   // Инерция после жеста в фото-сцене: скорость гаснет экспонентой.
   #stepSpin(delta) {
     if (!this.spin) return;
-    this.rotateModelTo(this.getModelRotation() + this.spin * delta);
+    const cup = this.spinCup ?? 0;
+    this.rotateCupTo(cup, this.getCupRotation(cup) + this.spin * delta);
     this.spin *= Math.exp(-delta * 5);
     if (Math.abs(this.spin) < 5) {
       this.spin = 0;
@@ -350,6 +356,9 @@ export class Viewer {
       this.#stepSpin(delta);
       if (this.autoRotate && !this.manualRotate && this.modelLoader.currentModel) {
         this.modelLoader.currentModel.rotation.y += this.config.autoRotate.speed * delta;
+        // Пара в фото-сцене вращается вместе: угол между стаканами (другая
+        // сторона дизайна у второго) сохраняется.
+        if (this.companion) this.companion.model.rotation.y += this.config.autoRotate.speed * delta;
         this.invalidateModel();
       }
 
@@ -548,7 +557,8 @@ export class Viewer {
         applyEnvironmentIntensity(this.modelLoader.currentModel, photoEnvIntensity(this.photo.data));
         this.#placePhotoCamera();
         this.#standCupInScene();
-        // Кадр зависит от роста стакана (вырез вокруг него).
+        // Места и кадр зависят от роста стакана (вырез вокруг него).
+        this.#layoutCups();
         this.resize();
       } else {
         applyEnvironmentIntensity(
@@ -597,6 +607,11 @@ export class Viewer {
       const chosen = presetOf(photo, preset ?? this.photo?.preset?.id);
       const texture = await backdropOf(photo, chosen);
       this.#applyPhotoScene(photo, chosen, texture, frame ?? this.photo?.frameId ?? '1:1');
+      if (this.photoSecond) {
+        await this.#buildCompanion();
+        this.#layoutCups();
+        this.resize();
+      }
       return photo;
     } catch (error) {
       console.error(error);
@@ -639,7 +654,7 @@ export class Viewer {
         ...this.config.lighting,
         keyLight: {
           ...this.config.lighting.keyLight,
-          intensityScale: data.shadow?.keyScale ?? 0.5,
+          intensityScale: data.shadow?.keyScale ?? (photo.sun.physical ? 1 : 0.5),
         },
       },
     });
@@ -662,6 +677,7 @@ export class Viewer {
     // Зерно поверх кадра: оно есть в снятой сцене и его нет в 3D.
     this.pipeline.setGrain(data.grain ?? 0.03);
     this.#standCupInScene();
+    this.#layoutCups();
     // Через resize: холст ужимается до формы кадра, окно режется под стакан.
     this.resize();
     this.invalidateModel();
@@ -676,6 +692,8 @@ export class Viewer {
     this.photo.preset = preset;
     this.photo.backdrop = texture;
     this.#placePhotoCamera();
+    // Место пары зависит и от ракурса: кадр пары должен влезть в его снимок.
+    this.#layoutCups();
     this.resize();
     this.invalidateModel();
     return preset.id;
@@ -685,6 +703,7 @@ export class Viewer {
   setPhotoFrame(frameId) {
     if (!this.photo || !ASPECTS[frameId]) return;
     this.photo.frameId = frameId;
+    this.#layoutCups();
     this.resize();
     this.invalidateModel();
   }
@@ -694,8 +713,191 @@ export class Viewer {
   photoFrame() {
     const photo = this.photo;
     if (!photo) return null;
-    const fit = frameFor(photo, photo.preset, this.modelLoader.cup, ASPECTS[photo.frameId]);
-    return { scene: photo.id, preset: photo.preset.id, frame: photo.frameId, ...fit };
+    const fit = frameFor(photo, photo.preset, this.#placed(), ASPECTS[photo.frameId]);
+    return { scene: photo.id, preset: photo.preset.id, frame: photo.frameId, cups: this.#placed().length, ...fit };
+  }
+
+  // Задание рендера для текущей фото-сцены (render/engine/run.py --job):
+  // фон, ракурс, формат и стаканы с местами. Места считает сайт (раскладка
+  // та же, что у рендера), рендер ставит стаканы туда же.
+  // rotate — угол стакана на сайте; соответствие стороне дизайна у Blender —
+  // этап В (макет в рендер).
+  photoJob() {
+    const photo = this.photo;
+    if (!photo) return null;
+    return {
+      set: photo.id,
+      camera: { preset: photo.preset.id, frame: photo.frameId },
+      cups: this.#placed().map((c, i) => ({
+        id: c.cup.id,
+        rotate: Math.round(this.getCupRotation(i) * 10) / 10,
+        pos_mm: (c.posMm ?? [0, 0]).map((v) => Math.round(v * 10) / 10),
+      })),
+    };
+  }
+
+  // Второй стакан фото-сцены: { model, material, kind: 'pair' | 'side' } —
+  // записи каталога и раскладка; null — убрать. Стаканы не двигаются: места
+  // выбирает раскладка, человек только поворачивает.
+  async setPhotoSecond(target) {
+    this.photoSecond = target?.model ? target : null;
+    if (!this.photo) return;
+    if (this.photoSecond) await this.#buildCompanion();
+    else this.#dropCompanion();
+    this.#layoutCups();
+    this.resize();
+    this.invalidateModel();
+  }
+
+  // Поворот стакана фото-сцены: 0 — главный, 1 — второй.
+  rotateCupTo(index, degrees) {
+    if (index !== 1 || !this.companion) {
+      this.rotateModelTo(degrees);
+      return;
+    }
+    this.companion.model.rotation.y = THREE.MathUtils.degToRad(degrees);
+    this.invalidateModel();
+  }
+
+  getCupRotation(index) {
+    if (index !== 1 || !this.companion) return this.getModelRotation();
+    const degrees = THREE.MathUtils.radToDeg(this.companion.model.rotation.y);
+    return ((degrees % 360) + 360) % 360;
+  }
+
+  // Стаканы сцены с местами: [{ cup, posMm, floorMm }], первый — главный.
+  #placed() {
+    return this.photo?.placed ?? [{ cup: this.modelLoader.cup, posMm: [0, 0], floorMm: 0 }];
+  }
+
+  // Места стаканов в сцене: один — на месте героя; пара — раскладкой, как у
+  // рендера. Подставки встают на свои места, кадр — под них.
+  #layoutCups() {
+    const photo = this.photo;
+    if (!photo) return;
+    const hero = { cup: this.modelLoader.cup, posMm: [0, 0], floorMm: 0 };
+    let placed = [hero];
+    if (this.companion) {
+      const pair = layoutPair(photo, photo.preset, this.modelLoader.cup, this.companion.cup,
+        this.photoSecond?.kind ?? 'pair', ASPECTS[photo.frameId]);
+      if (pair) {
+        placed = pair;
+      } else {
+        this.#toast(MESSAGES.secondNoRoom, 'error');
+        this.#dropCompanion();
+      }
+    }
+    photo.placed = placed;
+    this.photoStand?.position.copy(stagePoint(photo.data, placed[0].posMm, placed[0].floorMm));
+    if (this.companion && placed[1]) {
+      this.companion.stand.position.copy(stagePoint(photo.data, placed[1].posMm, placed[1].floorMm));
+    }
+    this.invalidateModel();
+  }
+
+  // Собирает второй стакан заново: пара — копия главного (тот же материал и
+  // макет), другой объём — своя модель со своим материалом и чистым листом
+  // (макет второго стакана — этап В).
+  async #buildCompanion() {
+    const target = this.photoSecond;
+    const hero = this.modelLoader.currentModel;
+    if (!this.photo || !target || !hero) return;
+    // В сцене на один стакан («Вода», «Подиум», «Кремовые формы») второго нет;
+    // желание остаётся — в другой сцене он вернётся.
+    if ((this.photo.data.maxCups ?? 2) < 2) {
+      this.#dropCompanion();
+      return;
+    }
+    // Угол, выставленный человеком, переживает смену материала или макета, но
+    // не смену стакана или раскладки: там второй встаёт по правилу раскладки.
+    const same = this.companion && this.companion.cup.id === target.model.id && this.companion.kind === target.kind;
+    const keepAngle = same ? this.getCupRotation(1) : null;
+    const sameModel = target.model.id === this.modelLoader.cup?.id;
+    let companion;
+    if (sameModel) {
+      this.#dropCompanion();
+      companion = { model: hero.clone(true), cup: this.modelLoader.cup, clone: true };
+    } else if (this.companion && !this.companion.clone && this.companion.cup.id === target.model.id) {
+      companion = this.companion;
+      companion.loader.applyMaterial(target.material);
+    } else {
+      this.#dropCompanion();
+      const stubControls = { target: new THREE.Vector3(), update() {} };
+      const loader = new ModelLoader({
+        scene: this.scene,
+        camera: new THREE.PerspectiveCamera(),
+        controls: stubControls,
+        config: this.config,
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+      });
+      await loader.load(target.model.file, null, target.model, target.material);
+      if (this.photoSecond !== target) {
+        loader.dispose();
+        return;
+      }
+      const textures = new TextureManager({
+        modelLoader: loader,
+        config: this.config,
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+        maxTextureSize: this.renderer.capabilities.maxTextureSize,
+      });
+      // Чистый лист, а не то, что лежит в файле модели (техническая развёртка).
+      await textures.replaceTexture(blankSheetUrl());
+      companion = { model: loader.currentModel, cup: target.model, loader, textures, clone: false };
+      const height = cupHeight(target.model);
+      if (height) loader.setNaturalHeight(height, [0, 0, 0]);
+      const model = companion.model;
+      if (!model.userData.cavityDone) model.userData.cavityDone = computeCavityOcclusion(model) || 'none';
+      model.traverse((object) => {
+        if (object.isMesh) installCavityShading(object);
+      });
+    }
+    if (!companion.stand) {
+      companion.stand = new THREE.Group();
+      companion.stand.name = 'PhotoStand2';
+      this.scene.add(companion.stand);
+    }
+    companion.stand.quaternion.copy(cupRotation(this.photo.data));
+    companion.stand.add(companion.model);
+    applyEnvironmentIntensity(companion.model, photoEnvIntensity(this.photo.data));
+    companion.kind = target.kind;
+    this.companion = companion;
+    // Пара — второй развёрнут на 150°, чтобы видна была другая сторона
+    // дизайна; другой объём — как главный. Уже повёрнутый человеком — как был.
+    const heroAngle = this.getCupRotation(0);
+    this.rotateCupTo(1, keepAngle ?? (target.kind === 'pair' ? heroAngle + 150 : heroAngle));
+    this.#layoutCups();
+    this.resize();
+  }
+
+  #dropCompanion() {
+    const companion = this.companion;
+    if (!companion) return;
+    this.companion = null;
+    companion.model.removeFromParent();
+    if (companion.loader) {
+      companion.textures?.dispose();
+      companion.loader.dispose();
+    }
+    companion.stand?.removeFromParent();
+    if (this.photo) this.photo.placed = null;
+    this.invalidateModel();
+  }
+
+  // Какой стакан под указателем: 0 — главный (и мимо обоих), 1 — второй.
+  #cupAt(event) {
+    if (!this.companion) return 0;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    const hero = ray.intersectObject(this.modelLoader.currentModel, true)[0];
+    const second = ray.intersectObject(this.companion.model, true)[0];
+    if (second && (!hero || second.distance < hero.distance)) return 1;
+    return 0;
   }
 
   #saveStudioView() {
@@ -821,7 +1023,7 @@ export class Viewer {
       this.container.style.setProperty('--photo-height', `${size.y}px`);
     }
 
-    const fit = frameFor(photo, photo.preset, this.modelLoader.cup, aspectOf(size.x, size.y));
+    const fit = frameFor(photo, photo.preset, this.#placed(), aspectOf(size.x, size.y));
     applyWindow(this.camera, fit.window);
     this.pipeline.setBackdrop({
       texture: photo.backdrop,
@@ -844,6 +1046,8 @@ export class Viewer {
     this.pipeline.setBackdrop(null);
     this.pipeline.setGrain(0);
     this.camera.clearViewOffset();
+    // Второй стакан живёт только в фото-сцене; желание (photoSecond) остаётся.
+    this.#dropCompanion();
     this.controls.enabled = true;
     this.container.classList.remove('has-photo');
     this.container.style.removeProperty('--photo-width');
@@ -936,6 +1140,9 @@ export class Viewer {
         continue;
       }
       this.#shadeCavity();
+      // Второй стакан пары — копия главного: после смены модели, материала или
+      // макета копия снимается заново, иначе пара разойдётся.
+      if (this.photo && this.photoSecond) await this.#buildCompanion();
       return { updated, model: shown.model };
     }
   }

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 // же окном и совпадает с рендером.
 //
 // Пространство здесь — «площадка» (см. photoScene.js): начало — место героя
-// сцены, ось Y — вверх, единица — метр.
+// сцены, ось Y — вверх, единица — как в студии (эталонный стакан — 0,5, photoScene.js).
 
 export const ASPECTS = Object.freeze({ '1:1': 1, '3:4': 0.75, '4:5': 0.8 });
 
@@ -129,4 +129,89 @@ export function applyWindow(camera, win) {
 export function backdropRect(win, area) {
   const [aw, ah] = size(area);
   return [(win[0] - area[0]) / aw, (win[2] - area[2]) / ah, (win[1] - win[0]) / aw, (win[3] - win[2]) / ah];
+}
+
+// ── Площадка: карта из scene.json и проверка места — как group.spot_ok ─────
+//
+// Карта — сетка в мм площадки (x вправо по кадру фона, y вглубь): support —
+// высота опоры под лучом сверху, ceil — нижняя помеха над полом героя. Рендер
+// проверяет место лучами по самой сцене; здесь — та же проверка по карте.
+
+export const GAP_MM = 3;
+
+function decodeLayer(b64, n, grid) {
+  const bin = atob(b64);
+  const values = new Float32Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+    if (v >= 0x8000) v -= 0x10000;
+    values[i] = v === grid.noHit ? NaN : v * grid.scale;
+  }
+  return values;
+}
+
+const decoded = new WeakMap();
+
+function layers(grid) {
+  if (!decoded.has(grid)) {
+    decoded.set(grid, {
+      support: decodeLayer(grid.heights, grid.n, grid),
+      ceil: grid.ceil ? decodeLayer(grid.ceil, grid.n, grid) : null,
+    });
+  }
+  return decoded.get(grid);
+}
+
+function sample(grid, layer, xMm, yMm) {
+  const i = Math.round((xMm + grid.halfMm) / grid.stepMm);
+  const j = Math.round((yMm + grid.halfMm) / grid.stepMm);
+  if (i < 0 || j < 0 || i >= grid.n || j >= grid.n) return undefined;
+  return layers(grid)[layer]?.[j * grid.n + i];
+}
+
+// Годится ли место (мм площадки) стакану { heightMm, rTopMm, rBotMm }: ровная
+// опора под дном, пусто над следом, не в другом стакане. allowStep — можно на
+// ступеньку ниже, не глубже 60 % роста. Возвращает { ok, why, floorMm }.
+export function spotOk(grid, cup, posMm, others = [], allowStep = false, floorMm = 0) {
+  const H = cup.heightMm;
+  const tol = Math.max(0.02 * H, 1.5);
+  const reach = (allowStep ? 0.6 : 0) * H;
+  for (const o of others) {
+    const d = Math.hypot(posMm[0] - o.posMm[0], posMm[1] - o.posMm[1]);
+    if (d < cup.rTopMm + o.rTopMm + GAP_MM) return { ok: false, why: 'стаканы пересекаются', floorMm };
+  }
+  const zs = [];
+  for (let k = 0; k < 9; k++) {
+    const a = (2 * Math.PI * k) / 8;
+    const r = k < 8 ? cup.rBotMm * 0.9 : 0;
+    const z = sample(grid, 'support', posMm[0] + Math.cos(a) * r, posMm[1] + Math.sin(a) * r);
+    if (z === undefined || !(z <= floorMm + tol) || z < floorMm - tol - reach) {
+      return { ok: false, why: 'нет опоры под дном', floorMm };
+    }
+    zs.push(z);
+  }
+  if (Math.max(...zs) - Math.min(...zs) > tol) return { ok: false, why: 'опора неровная', floorMm };
+  const floor = zs.reduce((s, v) => s + v, 0) / zs.length;
+  for (let k = 0; k < 12; k++) {
+    const a = (2 * Math.PI * k) / 12;
+    const z = sample(grid, 'ceil', posMm[0] + Math.cos(a) * cup.rTopMm * 1.05, posMm[1] + Math.sin(a) * cup.rTopMm * 1.05);
+    if (z !== undefined && !Number.isNaN(z) && z < floor + 0.99 * H) {
+      return { ok: false, why: 'мешает декор сцены', floorMm: floor };
+    }
+  }
+  return { ok: true, why: '', floorMm: floor };
+}
+
+// Варианты раскладки пары, мм (вправо, вглубь): [сдвиг главного, место
+// второго] — как group.candidates: в одну линию по центру прежнего места,
+// потом главный на месте и второй сбоку, потом чуть вглубь или вперёд.
+export function candidates(kind, hero, second) {
+  const base = hero.rTopMm + second.rTopMm + GAP_MM;
+  const d = base * (kind === 'pair' ? 1.18 : 1.12);
+  const out = [[[-d / 2, 0], [d / 2, 0]], [[d / 2, 0], [-d / 2, 0]], [[0, 0], [d, 0]], [[0, 0], [-d, 0]]];
+  for (const a of [80, -80, 100, -100, 70, -70]) {
+    const r = THREE.MathUtils.degToRad(a);
+    out.push([[0, 0], [d * Math.sin(r), d * Math.cos(r)]]);
+  }
+  return out;
 }

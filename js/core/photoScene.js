@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { analyzeSun } from './environment.js';
 import { sceneFolder } from '../catalog/catalog.js';
-import { ASPECTS, cupPoints, box, fitInto, projector, single, zoomOf } from './frame.js';
+import {
+  ASPECTS, box, candidates, cupPoints, fitInto, group, projector, single, spotOk, union, zoomOf,
+} from './frame.js';
 
 // Фото-сцена — сцена фотореал-рендера (render/, CupViewer v2): стакан стоит в
 // натуральную величину в настоящей снятой сцене, а кадр совпадает с кадром
@@ -17,9 +19,12 @@ import { ASPECTS, cupPoints, box, fitInto, projector, single, zoomOf } from './f
 //
 // КООРДИНАТЫ. scene.json — в мировых осях Blender (Z вверх, единицы сцены).
 // Здесь всё переводится в «площадку»: начало — место героя сцены (дно
-// стакана), Y вверх, единица — метр. Сдвиг и масштаб не меняют углов, поэтому
-// окна кадра остаются как есть, а свет, тени и затенение работают в тех же
-// метрах в любой сцене (в сцене «Вода» Blender держит стакан в 22 раза крупнее).
+// стакана), Y вверх, а масштаб — как в студии: эталонный стакан (135 мм)
+// высотой в STAGE_UNITS_PER_M · 0,1353 = 0,5 единицы, как модель студии
+// (config.model.targetSize). Тогда свет, тени и затенение из конфига ложатся
+// на стакан в той же мере, что и в студии, в любой сцене (в «Воде» Blender
+// держит стакан в 22 раза крупнее). Сдвиг и масштаб не меняют углов, поэтому
+// окна кадра остаются как есть.
 //
 // КАДР. Камера ракурса неподвижна; стакан другого роста и формат кадра — вырез
 // из кадра фона (js/core/frame.js). Снимок фона режется тем же окном.
@@ -28,6 +33,10 @@ import { ASPECTS, cupPoints, box, fitInto, projector, single, zoomOf } from './f
 const BLENDER_TO_THREE = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
 
 const toThree = (v) => new THREE.Vector3(v[0], v[2], -v[1]);
+
+// Единиц площадки в метре: эталонный стакан 135,3 мм — 0,5 единицы.
+export const STAGE_UNITS_PER_M = 0.5 / 0.1353;
+const mm = (v) => (v / 1000) * STAGE_UNITS_PER_M;
 
 // Загруженные сцены: ключ — id, значение — промис (быстрое переключение не
 // должно грузить одно и то же дважды).
@@ -75,9 +84,9 @@ function lightProbe(url, renderer, onProgress) {
 export function stagePoint(data, posMm = [0, 0], floorMm = 0) {
   const r = toThree(data.stage.right);
   const f = toThree(data.stage.fwd);
-  return r.multiplyScalar(posMm[0] / 1000)
-    .add(f.multiplyScalar(posMm[1] / 1000))
-    .add(new THREE.Vector3(0, floorMm / 1000, 0));
+  return r.multiplyScalar(mm(posMm[0]))
+    .add(f.multiplyScalar(mm(posMm[1])))
+    .add(new THREE.Vector3(0, mm(floorMm), 0));
 }
 
 // Камера ракурса в площадке: позиция, поворот, ближняя и дальняя плоскости.
@@ -87,12 +96,12 @@ function presetCamera(data, preset) {
   const rotation = new THREE.Quaternion();
   m.decompose(position, rotation, new THREE.Vector3());
   const origin = new THREE.Vector3(...data.stage.origin);
-  const s = data.unitsPerM;
+  const k = STAGE_UNITS_PER_M / data.unitsPerM;
   return {
-    position: toThree(position.sub(origin).divideScalar(s).toArray()),
+    position: toThree(position.sub(origin).multiplyScalar(k).toArray()),
     quaternion: BLENDER_TO_THREE.clone().multiply(rotation),
-    near: preset.camera.near / s,
-    far: preset.camera.far / s,
+    near: preset.camera.near * k,
+    far: preset.camera.far * k,
   };
 }
 
@@ -115,6 +124,14 @@ async function fetchScene(id, renderer, onProgress) {
   // Направление главного света — из Blender, если он его отдал: лампы в
   // панораму не попадают, и самое яркое пятно на ней — не всегда источник.
   if (data.key?.direction) light.sun.direction = toThree(data.key.direction).normalize();
+  // Солнце в панораму не попадает — его сила приходит из Blender (W/м² — та же
+  // освещённость в three.js), и ключевой свет ставится ровно на неё. Прочие
+  // лампы видны в самой панораме, ключевой свет у них нужен ради тени.
+  if (data.key?.type === 'SUN' && data.key.irradiance > 0) {
+    light.sun.irradiance = data.key.irradiance;
+    light.sun.color = new THREE.Color(...data.key.color);
+    light.sun.physical = true;
+  }
   const presets = new Map(data.presets.map((p) => [p.id, { ...p, view: presetCamera(data, p) }]));
   return { id, data, presets, envMap: light.envMap, sun: light.sun, backdrops: new Map() };
 }
@@ -153,38 +170,82 @@ export function presetOf(photo, id) {
   return photo.presets.get(id) ?? photo.presets.values().next().value;
 }
 
-// Высота стакана в метрах по каталогу (size.heightMm).
+// Высота стакана в единицах площадки по каталогу (size.heightMm).
 export function cupHeight(cup) {
-  const mm = cup?.size?.heightMm;
-  return mm > 0 ? mm / 1000 : null;
+  const h = cup?.size?.heightMm;
+  return h > 0 ? mm(h) : null;
 }
 
-// Кадр под главный стакан, стоящий на месте героя сцены: окно, влез ли он в
-// снимок фона, во сколько раз крупнее кадра фона. Рендер считает так же
-// (compose.run): стакан занимает ту долю кадра, что эталон, центр — там же.
-export function frameFor(photo, preset, cup, aspect) {
-  const { data } = photo;
-  // aspect — ширина к высоте кадра (ASPECTS[формат] или форма холста экспорта).
+// Габарит стакана для кадра и раскладки — из каталога, в мм.
+export function cupMetrics(cup) {
+  const size = cup?.size ?? {};
+  return {
+    heightMm: size.heightMm ?? 135,
+    rTopMm: (size.topMm ?? 90) / 2,
+    rBotMm: (size.bottomMm ?? 60) / 2,
+  };
+}
+
+function cameraProjector(preset) {
   const view = preset.view;
-  const matrix = new THREE.Matrix4().compose(view.position, view.quaternion, new THREE.Vector3(1, 1, 1));
-  const tan = projector(matrix);
-  const height = cupHeight(cup) ?? data.reference.heightMm / 1000;
-  const centre = tan(new THREE.Vector3(0, height / 2, 0));
-  const zoom = (height * 1000) / data.reference.heightMm;
-  const win = single(preset.baseWindow, centre, zoom, aspect, data.fit.zoomLimits);
+  return projector(new THREE.Matrix4().compose(view.position, view.quaternion, new THREE.Vector3(1, 1, 1)));
+}
+
+function boxOf(tan, base, metrics) {
+  return box(cupPoints(base, mm(metrics.rBotMm), mm(metrics.rTopMm), mm(metrics.heightMm)).map(tan));
+}
+
+// Кадр под стаканы — как compose.run у рендера. placed — [{ cup, posMm,
+// floorMm }], первый — главный. Главный «стоял бы» на месте героя сцены: от
+// него доля высоты кадра и точка кадра; одиночный на месте героя — кадр фона,
+// отмасштабированный вокруг стакана. aspect — ширина к высоте кадра.
+export function frameFor(photo, preset, placed, aspect) {
+  const { data } = photo;
+  const tan = cameraProjector(preset);
+  const hero = cupMetrics(placed[0]?.cup);
+  const height = mm(hero.heightMm);
+  const zoom = hero.heightMm / data.reference.heightMm;
+  const singleWin = single(preset.baseWindow, tan(new THREE.Vector3(0, height / 2, 0)), zoom, aspect,
+    data.fit.zoomLimits);
+  const atOrigin = placed.length === 1 && !placed[0].posMm?.[0] && !placed[0].posMm?.[1] && !placed[0].floorMm;
+  let win = singleWin;
+  if (!atOrigin) {
+    const heroBox = boxOf(tan, new THREE.Vector3(), hero);
+    let g = null;
+    for (const c of placed) {
+      const b = boxOf(tan, stagePoint(data, c.posMm, c.floorMm), cupMetrics(c.cup));
+      g = g ? union(g, b) : b;
+    }
+    win = group(singleWin, heroBox, g, aspect, data.fit.safeW, data.fit.margin);
+  }
   const fitted = fitInto(win, preset.backdropWindow);
   const final = fitted ?? win;
   return { window: final, insideBackdrop: Boolean(fitted), zoom: zoomOf(final, preset.baseWindow) };
 }
 
-// Рамка стакана на кадре (тангенсы) — пригодится раскладке пары.
-export function cupBox(preset, base, cup) {
-  const view = preset.view;
-  const matrix = new THREE.Matrix4().compose(view.position, view.quaternion, new THREE.Vector3(1, 1, 1));
-  const tan = projector(matrix);
-  const top = (cup.size.topMm ?? 0) / 2000;
-  const bottom = (cup.size.bottomMm ?? 0) / 2000;
-  return box(cupPoints(base, bottom, top, cupHeight(cup)).map(tan));
+// Места пары — как compose._second у рендера: в одну линию по центру прежнего
+// места (главный сдвигается на полшага), потом главный на месте и второй
+// сбоку, потом чуть вглубь. Место годится, если есть опора и нет помех (карта
+// площадки), а кадр пары влезает в снимок фона. kind — 'pair' | 'side'.
+// Возвращает [{ cup, posMm, floorMm }, { … }] или null — второму места нет.
+export function layoutPair(photo, preset, heroCup, secondCup, kind, aspect) {
+  const grid = photo.data.stage.grid;
+  const hero = cupMetrics(heroCup);
+  const second = cupMetrics(secondCup);
+  let best = null;
+  for (const allowStep of [false, true]) {
+    for (const [h, s] of candidates(kind, hero, second)) {
+      if ((h[0] || h[1]) && !spotOk(grid, hero, h, [], false).ok) continue;
+      const check = spotOk(grid, second, s, [{ posMm: h, rTopMm: hero.rTopMm }], allowStep);
+      if (!check.ok) continue;
+      const floor = Math.abs(check.floorMm) < 0.05 ? 0 : check.floorMm;
+      const placed = [{ cup: heroCup, posMm: h, floorMm: 0 }, { cup: secondCup, posMm: s, floorMm: floor }];
+      const fit = frameFor(photo, preset, placed, aspect);
+      if (fit.insideBackdrop) return placed;
+      if (!best || fit.zoom < best.zoom) best = { placed, zoom: fit.zoom };
+    }
+  }
+  return best?.placed ?? null;
 }
 
 export { ASPECTS };

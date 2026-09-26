@@ -64,3 +64,4 @@ render/out/preview_check/*
 __pycache__/
 *.pyc
 *.blend1
+tests/photoreal/out/

@@ -93,6 +93,10 @@ def shoot_panorama(scene, origin: Vector, path: str, samples: int) -> None:
 
     Снимается без тонмаппинга: превью получает линейный свет и само проводит
     его через тот же конвейер, что и стакан.
+
+    Лампы на время съёмки видимы камере. Иначе панорама видит только то, что
+    лампы осветили, а не их самих: в «Тёмной студии» прожектор — главный и
+    почти единственный свет, и без него стакан в превью выходил чёрным.
     """
     data = bpy.data.cameras.new("PREVIEW_PANO")
     data.type = "PANO"
@@ -103,6 +107,10 @@ def shoot_panorama(scene, origin: Vector, path: str, samples: int) -> None:
     scene.collection.objects.link(obj)
     keep = (scene.camera, scene.view_settings.view_transform, scene.view_settings.look,
             scene.view_settings.exposure, scene.render.resolution_x, scene.render.resolution_y)
+    lamps = [ob for ob in scene.objects if ob.type == "LIGHT"]
+    was_visible = [ob.visible_camera for ob in lamps]
+    for ob in lamps:
+        ob.visible_camera = True
     scene.camera = obj
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "None"
@@ -110,6 +118,8 @@ def shoot_panorama(scene, origin: Vector, path: str, samples: int) -> None:
     scene.render.resolution_x, scene.render.resolution_y = PANO
     t = render_to(scene, path, "HDR", samples)
     log(f"панорама {PANO[0]}x{PANO[1]} -> {os.path.basename(path)} ({t:.0f} с)")
+    for ob, visible in zip(lamps, was_visible):
+        ob.visible_camera = visible
     (scene.camera, scene.view_settings.view_transform, scene.view_settings.look,
      scene.view_settings.exposure, scene.render.resolution_x, scene.render.resolution_y) = keep
     bpy.data.objects.remove(obj, do_unlink=True)
@@ -117,7 +127,7 @@ def shoot_panorama(scene, origin: Vector, path: str, samples: int) -> None:
 
 
 def key_light(scene, focus: Vector):
-    """Главный источник: панорама его не содержит (лампы в рендер не попадают)."""
+    """Главный источник сцены: направление на него, цвет; у солнца — ещё сила."""
     best = None
     for ob in scene.objects:
         if ob.type != "LIGHT" or not ob.visible_get():
@@ -134,6 +144,12 @@ def key_light(scene, focus: Vector):
         if best is None or power > best["power"]:
             best = {"power": power, "type": light.type, "direction": vec(-direction),
                     "color": [round(c, 4) for c in light.color], "name": ob.name}
+            # Солнце в панораму не попадает (оно «на бесконечности»), поэтому
+            # превью ставит ему источник по его силе: W/м² Blender — это
+            # освещённость, которую three.js примет один в один.
+            if light.type == "SUN":
+                best["irradiance"] = round(light.energy, 4)
+                best["angleDeg"] = round(math.degrees(light.angle), 3)
     if best:
         best.pop("power")
     return best
@@ -299,6 +315,26 @@ def export_set(cfg: dict, name: str, out_root: str, quick: bool, only=None,
     return data
 
 
+def repano(cfg: dict, name: str, out_root: str, quick: bool) -> None:
+    """Переснять только панораму света (без снимков и карты площадки)."""
+    from bk import authored, greybox, place
+
+    shot = cfg["shots"][name]
+    builder = {"greybox": greybox, "blend": place, "authored": authored}[shot.get("source", "blend")]
+    cfg["_camera"] = None
+    cfg["_frame"] = "1:1"
+    cfg["_cups"] = None
+    cfg["cup_key"] = cfg["reference_cup"]
+    info = builder.build(cfg, name, 16, 400)
+    scene = bpy.data.scenes[info["scene"]]
+    for ob in cup_objects(scene):
+        ob.hide_render = True
+    stage = info["compose"]["stage"]
+    href = info.get("scale_reference_mm", 135.3)
+    centre = Vector(stage["origin"]) + Vector((0.0, 0.0, href * 0.001 * stage["units_per_m"] * 0.5))
+    shoot_panorama(scene, centre, os.path.join(out_root, name, "env.hdr"), 64 if quick else PANO_SAMPLES)
+
+
 def regrid(cfg: dict, name: str, out_root: str, quick: bool) -> None:
     """Пересчитать только карту площадки (без снимков и панорамы)."""
     from bk import authored, greybox, place
@@ -335,6 +371,7 @@ def main() -> int:
     ap.add_argument("--out", default=os.path.join(os.path.dirname(PROJECT), "catalog", "scenes"))
     ap.add_argument("--grid-only", action="store_true", help="пересчитать только карту площадки в scene.json")
     ap.add_argument("--index-only", action="store_true", help="переписать только web/scenes/index.json")
+    ap.add_argument("--pano-only", action="store_true", help="переснять только панораму света env.hdr")
     ap.add_argument("--meta-only", action="store_true",
                     help="без рендера: камеры, окна и карта площадки (секунды на фон)")
     ap.add_argument("--missing", action="store_true", help="снять только ракурсы, у которых снимка нет")
@@ -364,6 +401,9 @@ def main() -> int:
         t0 = time.time()
         if args.grid_only:
             regrid(cfg, name, out, args.quick)
+            continue
+        if args.pano_only:
+            repano(cfg, name, out, args.quick)
             continue
         export_set(cfg, name, out, args.quick, args.preset, meta_only=args.meta_only,
                    missing=args.missing, pause=args.pause)

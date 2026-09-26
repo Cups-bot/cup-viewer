@@ -7,14 +7,18 @@ import { catalog } from './fixtures.mjs';
 const quiet = () => {};
 
 // Ожидаемая таблица §37 — независимая копия: порча CAPABILITIES ломает тест.
+// arrangeScene — CupViewer v2, этап Б: раскладку фото-сцены (ракурс, формат,
+// второй стакан) собирает пользователь, клиент по ссылке только смотрит.
 const EXPECTED = {
   design: {
     changeModel: true, changeMaterial: true, uploadDesign: true, publish: true, export: true,
-    changeBackground: true, openScene: true, openUnwrap: true, camera: true, autoRotate: true, fullscreen: true,
+    changeBackground: true, openScene: true, arrangeScene: true, openUnwrap: true, camera: true, autoRotate: true,
+    fullscreen: true,
   },
   client: {
     changeModel: false, changeMaterial: false, uploadDesign: false, publish: false, export: true,
-    changeBackground: true, openScene: true, openUnwrap: true, camera: true, autoRotate: true, fullscreen: true,
+    changeBackground: true, openScene: true, arrangeScene: false, openUnwrap: true, camera: true, autoRotate: true,
+    fullscreen: true,
   },
 };
 
@@ -84,4 +88,11 @@ test('design после lock: всё можно', () => {
   mode.attach(state, cat);
   mode.lock();
   assert.equal(state.set({ modelId: 'PP-500', backgroundId: 'gray', design: { textureUrl: 'x.png' } }), true);
+});
+
+test('client после lock: раскладку фото-сцены не меняет', () => {
+  const state = clientState();
+  const before = state.get();
+  assert.equal(state.set({ photo: { preset: 'high', frame: '4:5' } }), false);
+  assert.equal(state.get(), before);
 });

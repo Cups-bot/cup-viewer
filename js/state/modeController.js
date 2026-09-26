@@ -15,6 +15,7 @@ export const CAPABILITIES = Object.freeze({
     export: 'full',
     changeBackground: 'all',
     openScene: true,
+    arrangeScene: true,
     openUnwrap: true,
     camera: true,
     autoRotate: true,
@@ -28,6 +29,8 @@ export const CAPABILITIES = Object.freeze({
     export: 'limited',
     changeBackground: 'client',
     openScene: true,
+    // Клиент видит сцену такой, какой её собрал пользователь, и только смотрит.
+    arrangeScene: false,
     openUnwrap: true,
     camera: true,
     autoRotate: true,
@@ -48,6 +51,7 @@ const GUARDED_KEYS = Object.freeze({
   modelId: 'changeModel',
   materialId: 'changeMaterial',
   design: 'uploadDesign',
+  photo: 'arrangeScene',
 });
 
 export function createModeController(mode, { warn = console.warn } = {}) {

@@ -20,9 +20,16 @@ export const STATE_KEYS = Object.freeze([
   'autoRotate',
   'view',
   'fullscreen',
+  'photo',
 ]);
 
 export const TABS = Object.freeze(['3d', 'unwrap', 'scene']);
+
+// Фото-сцена (CupViewer v2, этап Б): ракурс сцены, формат кадра и второй
+// стакан. null — как в сцене: первый ракурс, 1:1, один стакан. Стаканы в
+// сцене не двигаются — места выбирает раскладка, как у рендера.
+export const PHOTO_FRAMES = Object.freeze(['1:1', '3:4', '4:5']);
+export const PHOTO_KINDS = Object.freeze(['pair', 'side']);
 
 const DEFAULTS = Object.freeze({
   modelId: null,
@@ -36,6 +43,7 @@ const DEFAULTS = Object.freeze({
   autoRotate: true,
   view: null,
   fullscreen: false,
+  photo: null,
 });
 
 const KNOWN = new Set(STATE_KEYS);
@@ -69,6 +77,20 @@ export function createViewerState({ catalog, initial = {}, dev = false, warn = c
       fail(`фона «${out.backgroundId}» нет в каталоге`);
     }
     if ('tab' in out && !TABS.includes(out.tab)) fail(`вкладка «${out.tab}» — ожидается ${TABS.join(' | ')}`);
+    if ('photo' in out && out.photo !== null) {
+      const p = out.photo;
+      if (typeof p !== 'object') fail('photo — ожидается { preset, frame, second } или null');
+      const frame = p.frame ?? '1:1';
+      if (!PHOTO_FRAMES.includes(frame)) fail(`формат кадра «${frame}» — ожидается ${PHOTO_FRAMES.join(' | ')}`);
+      let second = null;
+      if (p.second) {
+        if (!catalog?.model(p.second.modelId)) fail(`второго стакана «${p.second.modelId}» нет в каталоге`);
+        const kind = p.second.kind ?? 'pair';
+        if (!PHOTO_KINDS.includes(kind)) fail(`раскладка «${kind}» — ожидается ${PHOTO_KINDS.join(' | ')}`);
+        second = Object.freeze({ modelId: p.second.modelId, kind });
+      }
+      out.photo = Object.freeze({ preset: p.preset ?? null, frame, second });
+    }
     if ('design' in out && out.design !== null) {
       if (typeof out.design !== 'object' || typeof out.design.textureUrl !== 'string') {
         fail('design — ожидается { textureUrl, unwrapUrl, width, height } или null');

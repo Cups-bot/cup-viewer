@@ -45,7 +45,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
         await viewer.exitPhotoScene();
         return;
       }
-      const photo = await viewer.enterPhotoScene(s.sceneId);
+      const photo = await viewer.enterPhotoScene(s.sceneId, { preset: s.photo?.preset, frame: s.photo?.frame });
       if (!photo) {
         onSceneFailed?.();
         return;
@@ -55,6 +55,28 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     return sceneJob;
   };
   state.subscribe(['tab', 'sceneId'], syncScene);
+
+  // Ракурс, формат и второй стакан фото-сцены. Второй стакан — в материале
+  // главного, если он ему подходит; иначе в своём материале по умолчанию.
+  let secondKey = null;
+  const syncPhoto = () => {
+    sceneJob = sceneJob.then(async () => {
+      const s = state.get();
+      const p = s.photo ?? {};
+      const model = p.second ? catalog.model(p.second.modelId) : null;
+      const materialId = model && model.materialCompatibility.includes(s.materialId) ? s.materialId : model?.defaultMaterial;
+      const key = model ? `${model.id}|${materialId}|${p.second.kind}` : null;
+      if (key !== secondKey) {
+        secondKey = key;
+        await viewer.setPhotoSecond(model ? { model, material: catalog.material(materialId), kind: p.second.kind } : null);
+      }
+      if (!viewer.photo) return;
+      if (p.preset && viewer.photo.preset.id !== p.preset) await viewer.setPhotoPreset(p.preset);
+      if (p.frame && viewer.photo.frameId !== p.frame) viewer.setPhotoFrame(p.frame);
+    });
+    return sceneJob;
+  };
+  state.subscribe(['photo', 'materialId'], syncPhoto);
 
   viewer.hooks.onFullscreen = (on) => state.set({ fullscreen: on });
 
