@@ -38,3 +38,29 @@ tests/render/out/
 
 # Локальные клиентские ссылки dev-сервера (scripts/snapshotApi.mjs)
 .local-snapshots/
+
+# render/ — движок рендера (бывший 3DCupRender). Тяжёлые файлы Blender, текстуры
+# и тестовые макеты в git не кладутся: их список с размерами и хешами —
+# render/assets.json (python render/engine/tools/assets.py check).
+render/scenes/
+render/art/
+render/cups/**/*.blend
+render/cups/**/*.blend1
+render/cups/**/*.glb
+render/cups/**/*.obj
+render/cups/**/*.mtl
+render/cups/**/*.png
+render/cups/**/*.jpg
+render/cups/**/*.pdf
+render/cups/**/textures/
+render/cups/plastic/library/
+# выгрузки для превью и кадры — пересобираются инструментами
+render/web/scenes/
+render/web/cups/
+render/out/*
+!render/out/preview_check/
+render/out/preview_check/*
+!render/out/preview_check/jobs/
+__pycache__/
+*.pyc
+*.blend1
