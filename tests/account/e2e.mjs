@@ -148,14 +148,81 @@ try {
   await page.screenshot({ path: resolve(OUT, '6-unmarked.png') });
   await page.keyboard.press('Escape');
 
+  // Много кадров: выбрать нужные — архивом, лишние — удалить разом.
+  if (!REAL) {
+    const ids = await page.evaluate(async () => {
+      const job = JSON.stringify(window.cupViewer.viewer.photoJob());
+      const out = [];
+      for (let i = 0; i < 5; i++) {
+        const form = new FormData();
+        form.append('job', job);
+        form.append('size', '1600');
+        const res = await fetch('api/jobs', { method: 'POST', body: form });
+        out.push((await res.json()).id);
+      }
+      return out;
+    });
+    const frame = await page.evaluate(() => new Promise((ok) => {
+      window.cupViewer.viewer.renderStill({ width: 320, height: 400 }).toBlob((b) => b.arrayBuffer().then((a) => ok([...new Uint8Array(a)])), 'image/png');
+    }));
+    for (let i = 0; i < ids.length; i++) {
+      const claim = await (await worker('api/worker/claim', { method: 'POST' })).json();
+      const form = new FormData();
+      form.append('seconds', '9');
+      form.append('image', new Blob([new Uint8Array(frame)], { type: 'image/png' }), 'frame.png');
+      await worker(`api/worker/jobs/${claim.id}/done`, { method: 'POST', body: form });
+    }
+    await page.click('.account__me');
+    await page.click('text=/Мои рендеры/');
+    await page.waitForFunction((n) => document.querySelectorAll('.render--done').length >= n, ids.length + 1);
+    // Одиночное удаление спрашивает; «Не надо» — кадр на месте.
+    await page.click('.render__remove >> nth=0');
+    await page.waitForSelector('.render__confirm');
+    await page.click('.render__confirm >> text=Не надо');
+    await page.waitForFunction(() => !document.querySelector('.render__confirm'));
+    step('удаление кадра переспрашивает, «Не надо» — кадр на месте');
+    await page.click('.renders__select');
+    for (let i = 0; i < 3; i++) await page.click(`.render.is-selecting >> nth=${i}`);
+    await page.screenshot({ path: resolve(OUT, '7-select.png') });
+    const href = await page.getAttribute('.renders__bulk a', 'href');
+    const zip = await page.evaluate(async (u) => {
+      const res = await fetch(u);
+      return { status: res.status, type: res.headers.get('content-type'), size: (await res.arrayBuffer()).byteLength };
+    }, href);
+    if (zip.status !== 200 || !zip.type.includes('zip')) throw new Error(`архив: ${JSON.stringify(zip)}`);
+    step(`выбрано 3 — архив ${Math.round(zip.size / 1024)} КБ (${href.split('?')[1]})`);
+    const before = await page.$$eval('.render', (n) => n.length);
+    await page.click('.renders__bulk >> text=/Удалить · 3/');
+    await page.waitForSelector('.renders__bulk >> text=Да, удалить');
+    await page.click('.renders__bulk >> text=Да, удалить');
+    await page.waitForFunction((n) => document.querySelectorAll('.render').length === n - 3, before);
+    step('«Удалить · 3» → «Да, удалить» — три кадра удалены');
+
+    // «В редактор»: сцена кадра и макет возвращаются в «Фотореал».
+    await page.evaluate(() => window.cupViewer.state.set({ tab: '3d', design: null, photo: null }));
+    // Последний — первый кадр, с макетом (задания выше тест ставил без макета).
+  await page.click('.render--done >> nth=-1 >> text=В редактор');
+    await page.waitForFunction(() => {
+      const s = window.cupViewer.state.get();
+      return s.tab === 'scene' && s.design && s.photo?.angles;
+    }, null, { timeout: 60000 });
+    const restored = await page.evaluate(() => {
+      const s = window.cupViewer.state.get();
+      return `${s.sceneId} · ${s.modelId} + ${s.photo.second?.modelId ?? '—'} · ${s.photo.frame} · углы ${s.photo.angles.join('/')}`;
+    });
+    step(`«В редактор»: ${restored}, макет на месте`);
+    await settle();
+    await page.screenshot({ path: resolve(OUT, '8-reopened.png') });
+  }
+
   const admin = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await admin.context().addCookies(await page.context().cookies());
   await admin.goto(`${BASE}admin.html`);
   await admin.waitForSelector('#users-table tr:nth-child(2)');
-  await admin.screenshot({ path: resolve(OUT, '7-admin.png') });
+  await admin.screenshot({ path: resolve(OUT, '9-admin.png') });
   await admin.click('[data-tab="queue"]');
   await admin.waitForSelector('#queue-table tr:nth-child(2)');
-  await admin.screenshot({ path: resolve(OUT, '8-admin-queue.png') });
+  await admin.screenshot({ path: resolve(OUT, '10-admin-queue.png') });
   step('админка: пользователи и очередь');
 } finally {
   await browser.close();

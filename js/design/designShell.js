@@ -40,9 +40,15 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
 
   const picker = initModelPicker({ state, catalog, actions });
   // Кабинет: вход, токены, рендер, «Мои рендеры» (без сервера CupViewer — скрыт).
-  const account = initAccount({ catalog, feedback });
+  // «В редактор» из «Моих рендеров»: сцена кадра и его макеты — обратно на сайт.
+  let upload = null;
+  const account = initAccount({
+    catalog,
+    feedback,
+    onOpenJob: (spec) => restoreJob(spec, { state, catalog, feedback, upload }),
+  });
   initMaterialSwitch({ state, catalog, actions });
-  initUpload({ state, mode, catalog, viewer, feedback });
+  upload = initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
@@ -532,7 +538,8 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     });
   }
 
-  if (CONFIG.ui.dragAndDrop === false || !overlay) return;
+  const api = { apply };
+  if (CONFIG.ui.dragAndDrop === false || !overlay) return api;
   let depth = 0;
   const hide = () => {
     depth = 0;
@@ -556,4 +563,61 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const side = event.target?.closest?.('[data-side]')?.dataset.side ?? null;
     if (file) apply(file, target, side);
   });
+  return api;
 }
+
+// Сцена кадра из «Моих рендеров» — обратно в «Фотореал»: стаканы, картон,
+// сцена, ракурс, формат, углы; макеты — те растры, что ушли в рендер (сервер
+// хранит их 30 дней). У PET на сервере сведённый лист сторон — разобрать его
+// на А и Б нельзя, такой макет загружается заново.
+async function restoreJob({ job, arts }, { state, catalog, feedback, upload }) {
+  const [hero, second] = job.cups;
+  const heroModel = catalog.model(hero?.id);
+  if (!heroModel) {
+    feedback.onToast('Этого стакана больше нет на сайте', 'error');
+    return;
+  }
+  const secondModel = second ? catalog.model(second.id) : null;
+  const materialId = hero.board && heroModel.materialCompatibility.includes(hero.board) ? hero.board : heroModel.defaultMaterial;
+  state.set({
+    modelId: heroModel.id,
+    materialId,
+    design: null,
+    design2: null,
+    tab: 'scene',
+    sceneId: job.set,
+    photo: {
+      preset: job.camera.preset,
+      frame: job.camera.frame,
+      second: secondModel ? { modelId: secondModel.id, kind: secondModel.id === heroModel.id ? 'pair' : 'side' } : null,
+      angles: job.cups.map((cup) => cup.rotate ?? 0),
+    },
+  });
+  const fetchArt = async (url) => {
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return new File([blob], blob.type.includes('png') ? 'макет.png' : 'макет.jpg', { type: blob.type });
+  };
+  const notes = [];
+  try {
+    const first = arts[0] ? await fetchArt(arts[0]) : null;
+    if (first && heroModel.textureMapping?.sides) notes.push('макет прозрачного стакана загрузите заново');
+    else if (first) await upload?.apply(first, 'hero');
+    // У пары без своего макета на сервере лежит копия главного — свой не нужен.
+    const other = arts[1] ? await fetchArt(arts[1]) : null;
+    const same = Boolean(other && first) && other.size === first.size && secondModel?.id === heroModel.id
+      && sameBytes(new Uint8Array(await first.arrayBuffer()), new Uint8Array(await other.arrayBuffer()));
+    if (other && !same) {
+      if (secondModel?.textureMapping?.sides) notes.push('макет второго (прозрачного) загрузите заново');
+      else await upload?.apply(other, 'second');
+    }
+  } catch (error) {
+    console.warn('Макет кадра не вернулся:', error);
+    notes.push('макет уже не хранится — загрузите заново');
+  }
+  feedback.onToast(notes.length ? `Сцена кадра открыта · ${notes.join(' · ')}` : 'Сцена кадра открыта — поправьте и нажмите «Рендер»',
+    notes.length ? 'warning' : 'success');
+}
+
+const sameBytes = (a, b) => a.length === b.length && a.every((value, index) => value === b[index]);

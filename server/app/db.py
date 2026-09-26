@@ -61,11 +61,17 @@ CREATE TABLE IF NOT EXISTS jobs (
   error TEXT,
   marked INTEGER NOT NULL DEFAULT 0,
   seen INTEGER NOT NULL DEFAULT 0,
+  attempts INTEGER NOT NULL DEFAULT 0,
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs (status, priority, id);
 CREATE INDEX IF NOT EXISTS jobs_user ON jobs (user_id, id);
+-- Исполнители: когда каждый был на связи (claim, пульс).
+CREATE TABLE IF NOT EXISTS workers (
+  name TEXT PRIMARY KEY,
+  seen_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS payments (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -109,8 +115,17 @@ def connect() -> sqlite3.Connection:
     return con
 
 
+# Столбцы, добавленные после первых баз: на старой базе — ALTER TABLE.
+MIGRATIONS = [("jobs", "attempts", "INTEGER NOT NULL DEFAULT 0")]
+
+
 def init() -> None:
-    connect().executescript(SCHEMA)
+    con = connect()
+    con.executescript(SCHEMA)
+    for table, column, kind in MIGRATIONS:
+        have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 class tx:

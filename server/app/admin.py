@@ -110,7 +110,7 @@ def queue(request: Request):
     ).fetchall()
     out = []
     for r in rows:
-        view = jobs.job_view(con, r)
+        view = jobs.job_view(con, r, admin=True)
         view.update({"email": r["email"], "worker": r["worker"], "durationS": r["duration_s"]})
         out.append(view)
     return {"jobs": out}
@@ -124,9 +124,7 @@ def cancel(job_id: int, request: Request):
         job = con.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if job is None or job["status"] not in ("queued", "rendering"):
             raise HTTPException(409, "not_active")
-        con.execute("UPDATE jobs SET status = 'failed', error = 'отменено администратором', finished_at = ?, seen = 0 "
-                    "WHERE id = ?", (db.stamp(), job_id))
-        tokens.add(con, job["user_id"], job["bucket"], job["cost"], "refund", job_id=job_id, note="отмена админом")
+        jobs.fail_job(con, job, "отменено администратором", "отмена админом")
     return {"ok": True}
 
 

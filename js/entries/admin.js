@@ -17,6 +17,8 @@ const el = (tag, attrs = {}, ...children) => {
 };
 const when = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const row = (cells, tag = 'td') => el('tr', {}, ...cells.map((c) => el(tag, {}, c)));
+// Чем оплачен кадр (server/app/tokens.plan).
+const WALLETS = { paid: 'купл.', welcome: 'привет.', mixed: 'купл. + привет.' };
 const STATUS = {
   queued: 'в очереди', rendering: 'считается', done: 'готово', failed: 'сбой', deleted: 'удалено', expired: 'истёк',
   pending: 'ожидает', paid: 'оплачено', cancelled: 'отменён',
@@ -74,8 +76,8 @@ async function queue() {
     });
     const status = `${STATUS[j.status] ?? j.status}${j.status === 'queued' ? ` · ${j.position}-й` : ''}`;
     table.append(row([
-      String(j.id), j.email, el('span', { class: `admin-status admin-status--${j.status}`, text: status, title: j.error ?? '' }),
-      `${j.set} · ${j.cups.join(' + ')}`, j.size, j.bucket === 'paid' ? 'купл.' : 'привет.', when(j.createdAt),
+      String(j.id), j.email, el('span', { class: `admin-status admin-status--${j.status}`, text: status, title: j.errorRaw ?? j.error ?? '' }),
+      `${j.set} · ${j.cups.join(' + ')}`, j.size, WALLETS[j.bucket] ?? j.bucket, when(j.createdAt),
       j.worker ?? '—', j.durationS ? `${Math.round(j.durationS)} с` : '—', cancel,
     ]));
   }

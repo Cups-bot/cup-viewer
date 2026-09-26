@@ -263,7 +263,9 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     const me = account?.me;
     const cost = price();
     const b = me?.balance;
-    const enough = Boolean(b) && (b.paid >= cost || b.welcome >= cost);
+    // Кадр оплачивается суммой (server/app/tokens.plan): купленные, иначе
+    // приветственные, иначе вместе — тогда кадр со знаком.
+    const enough = Boolean(b) && b.paid + b.welcome >= cost;
     // Без сервера (dev) — ручное задание вместо рендера.
     const server = Boolean(account?.available);
     if (jobButton) jobButton.hidden = server;
@@ -273,7 +275,8 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     else if (!me) renderNote.textContent = 'Войдите — 3 кадра бесплатно';
     else if (!enough) renderNote.textContent = `На балансе ${tokensText(b.paid + b.welcome)} — не хватает на кадр`;
     else if (b.paid >= cost) renderNote.textContent = `Кадр без знака · останется ${tokensText(b.paid - cost)}`;
-    else renderNote.textContent = `Приветственный токен: кадр с небольшим знаком · осталось ${b.welcome}`;
+    else if (b.welcome >= cost) renderNote.textContent = `Приветственные токены: кадр с небольшим знаком · останется ${b.welcome - cost}`;
+    else renderNote.textContent = `Купленные и приветственные вместе: кадр с небольшим знаком`;
   };
   for (const button of sizeButtons) {
     button.addEventListener('click', () => {
@@ -288,7 +291,7 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     if (busy || !account?.available) return;
     if (!(await account.requireLogin(renderButton))) return;
     const b = account.me.balance;
-    if (b.paid < price() && b.welcome < price()) {
+    if (b.paid + b.welcome < price()) {
       account.openBuy(renderButton);
       return;
     }
@@ -298,7 +301,10 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
       const job = await submitRender({ viewer, state, catalog }, size);
       if (job) {
         const minutes = Math.max(1, Math.round((job.etaSeconds ?? 60) / 60));
-        feedback?.onToast(`В очереди${job.position > 1 ? ` · ${job.position}-й` : ''} · готово примерно через ${minutes} мин`, 'success');
+        feedback?.onToast(job.workerOnline === false
+          ? 'В очереди · рендер-сервер сейчас не на связи — кадр посчитается, когда он вернётся (отменить можно в «Моих рендерах»)'
+          : `В очереди${job.position > 1 ? ` · ${job.position}-й` : ''} · готово примерно через ${minutes} мин`,
+        job.workerOnline === false ? 'warning' : 'success');
         account.watchJobs();
       } else {
         feedback?.onToast('Кадр ещё собирается — нажмите «Рендер» через пару секунд', 'warning');

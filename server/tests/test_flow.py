@@ -18,6 +18,7 @@ import unittest
 import urllib.error
 import urllib.request
 import uuid
+import zipfile
 from http.cookiejar import CookieJar
 from pathlib import Path
 
@@ -254,6 +255,97 @@ class Flow(unittest.TestCase):
         guest.login("guest@example.ru")
         self.assertEqual(guest.call("GET", "api/me")[1]["balance"]["paid"], 5)
         self.assertEqual(guest.call("GET", "api/admin/users")[0], 403)
+
+
+    def test_5_mixed_repeat_errors_gallery(self):
+        admin = Client(self.server)
+        admin.login(EMAIL)
+        user = Client(self.server)
+        user.login("mix@example.ru")
+        uid = [u for u in admin.call("GET", "api/admin/users")[1]["users"] if u["email"] == "mix@example.ru"][0]["id"]
+        # Приветственный кадр, потом 2 купленных: в шапке 4, кадр за 3 — вместе.
+        status, first = self.submit(user)
+        self.assertEqual((status, first["bucket"]), (200, "welcome"))
+        claim = self.worker.call("POST", "api/worker/claim")[1]
+        self.finish(claim["id"])
+        admin.call("POST", f"api/admin/users/{uid}/grant", {"amount": 2, "note": "тест"})
+        before = user.call("GET", "api/me")[1]["balance"]
+        self.assertEqual((before["paid"], before["welcome"]), (2, 2))
+        status, mixed = self.submit(user, "3000")
+        self.assertEqual((status, mixed["bucket"], mixed["marked"], mixed["workerOnline"]), (200, "mixed", True, True))
+        after = user.call("GET", "api/me")[1]["balance"]
+        self.assertEqual((after["paid"], after["welcome"]), (0, 1))
+        # Сбой: пользователю — понятный текст, админке — как есть; токены — в те же кошельки.
+        claim = self.worker.call("POST", "api/worker/claim")[1]
+        self.worker.call("POST", f"api/worker/jobs/{claim['id']}/fail", {"error": "Blender: код 1. D:\\secret\\path"})
+        failed = [j for j in user.call("GET", "api/jobs")[1]["jobs"] if j["id"] == mixed["id"]][0]
+        self.assertEqual(failed["error"], "Не получилось посчитать кадр")
+        self.assertNotIn("errorRaw", failed)
+        raw = [j for j in admin.call("GET", "api/admin/queue")[1]["jobs"] if j["id"] == mixed["id"]][0]
+        self.assertIn("D:\\secret", raw["errorRaw"])
+        self.assertEqual(user.call("GET", "api/me")[1]["balance"], before)
+        # «Повторить» — только сбой, и с правилом «у бесплатных одно задание».
+        self.assertEqual(user.call("POST", f"api/jobs/{first['id']}/repeat")[1]["error"], "not_failed")
+        status, again = user.call("POST", f"api/jobs/{mixed['id']}/repeat")
+        self.assertEqual((status, again["bucket"]), (200, "mixed"))
+        admin.call("POST", f"api/admin/users/{uid}/grant", {"amount": 2, "note": "тест"})
+        self.assertEqual(user.call("POST", f"api/jobs/{mixed['id']}/repeat")[1]["error"], "one_free_job_at_a_time")
+        # Второй готовый кадр, архив выбранных, сцена для редактора.
+        claim = self.worker.call("POST", "api/worker/claim")[1]
+        self.finish(claim["id"])
+        status, archive = user.call("GET", f"api/jobs/archive?ids={first['id']},{again['id']},999999", raw=True)
+        self.assertEqual(status, 200)
+        with zipfile.ZipFile(io.BytesIO(archive)) as zf:
+            self.assertEqual(sorted(zf.namelist()), sorted([f"cupviewer_living_{first['id']}.png", f"cupviewer_living_{again['id']}.png"]))
+        stranger = Client(self.server)
+        stranger.login("stranger@example.ru")
+        self.assertEqual(stranger.call("GET", f"api/jobs/archive?ids={first['id']}", raw=True)[0], 404)
+        status, spec = user.call("GET", f"api/jobs/{again['id']}/spec")
+        self.assertEqual((status, spec["job"]["set"], spec["job"]["cups"][0]["rotate"]), (200, "living", 0.0))
+        self.assertEqual(user.call("GET", spec["arts"][0], raw=True)[1], tiny_png())
+        # Удалить выбранные: готовые — сразу, стоящее в очереди — с возвратом.
+        admin.call("POST", f"api/admin/users/{uid}/grant", {"amount": 1, "note": "тест"})
+        queued = self.submit(user)[1]
+        paid_before = user.call("GET", "api/me")[1]["balance"]["paid"]
+        status, res = user.call("POST", "api/jobs/delete", {"ids": [first["id"], queued["id"]]})
+        self.assertEqual((status, res["removed"]), (200, 2))
+        self.assertEqual(user.call("GET", "api/me")[1]["balance"]["paid"], paid_before + 1)
+        # Макет больше 16384 px по стороне не принимается (исполнитель упал бы по памяти).
+        body, ctype = multipart({"job": json.dumps(JOB), "size": "1600"},
+                                {"art0": ("art.png", tiny_png(17000, 4), "image/png")})
+        status, err = user.call("POST", "api/jobs", body, ctype)
+        self.assertEqual((status, err["error"]), (413, "too_large"))
+
+
+class Sweep(unittest.TestCase):
+    """Уборка в том же процессе, на своей временной базе."""
+
+    def test_stale_attempts_and_queue_timeout(self):
+        os.environ["CV_DATA"] = tempfile.mkdtemp(prefix="cv-sweep-")
+        from server.app import config, db, jobs, tokens
+        db.init()
+        con = db.connect()
+        con.execute("INSERT INTO users (email, created_at) VALUES ('s@example.ru', ?)", (db.stamp(),))
+        user = con.execute("SELECT * FROM users").fetchone()
+        tokens.add(con, user["id"], "paid", 5, "grant")
+        spec = json.dumps({"set": "living", "camera": {"preset": "front", "frame": "1:1"}, "cups": [{"id": "HB80-280"}]})
+        with db.tx() as tx:
+            hung = jobs.enqueue(tx, user, "1600", spec, "queued", "тест")
+            waiting = jobs.enqueue(tx, user, "1600", spec, "queued", "тест")
+        long_ago = db.stamp(minutes=-60 * (config.QUEUE_TIMEOUT_HOURS + 1))
+        con.execute("UPDATE jobs SET status = 'rendering', attempts = ?, heartbeat_at = ? WHERE id = ?",
+                    (config.STALE_ATTEMPTS, long_ago, hung))
+        con.execute("UPDATE jobs SET created_at = ? WHERE id = ?", (long_ago, waiting))
+        result = jobs.sweep()
+        self.assertEqual((result["requeued"], result["failed"]), (0, 2))
+        states = {r["id"]: (r["status"], r["error"]) for r in con.execute("SELECT id, status, error FROM jobs")}
+        self.assertEqual(states[hung], ("failed", "исполнитель не справился"))
+        self.assertEqual(states[waiting], ("failed", "не дождался исполнителя"))
+        self.assertEqual(tokens.balance(con, user)["paid"], 5)
+        # Исполнитель: ни разу не выходил — не на связи; пришёл — на связи.
+        self.assertFalse(jobs.worker_online(con))
+        jobs.seen_worker(con, "тест")
+        self.assertTrue(jobs.worker_online(con))
 
 
 if __name__ == "__main__":

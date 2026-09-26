@@ -111,7 +111,8 @@ function modal(className, titleText, ...content) {
   };
 }
 
-export function initAccount({ catalog, feedback }) {
+// onOpenJob(spec) — «В редактор» из «Моих рендеров»: вернуть сцену кадра на сайт.
+export function initAccount({ catalog, feedback, onOpenJob = null }) {
   const listeners = new Set();
   let me = null;
   let available = false;
@@ -243,20 +244,37 @@ export function initAccount({ catalog, feedback }) {
   };
 
   // ── «Мои рендеры» ────────────────────────────────────────────────────────
+  // Выбор кадров — чтобы скачать нужные одним архивом или удалить разом. Сетка
+  // пересобирается опросом раз в 5 с, поэтому выбор и вопросы «удалить?» живут
+  // здесь, а не в DOM.
   const grid = el('div', { class: 'renders' });
   const empty = el('p', { class: 'renders__empty', hidden: true,
     text: 'Здесь появятся ваши кадры. Соберите сцену во вкладке «Фотореал» и нажмите «Рендер».' });
   const rendersBalance = el('p', { class: 'renders__balance' });
-  const renders = modal('renders-dialog', 'Мои рендеры', rendersBalance, empty, grid);
+  const selectBtn = el('button', { class: 'btn renders__select', type: 'button', text: 'Выбрать' });
+  const head = el('div', { class: 'renders__head' }, rendersBalance, selectBtn);
+  const bulkCount = el('p', { class: 'renders__count' });
+  const bulkAll = el('button', { class: 'rail__link', type: 'button', text: 'Выбрать все' });
+  const bulkZip = el('a', { class: 'btn btn--accent', download: '', text: 'Скачать архив' });
+  const bulkDelete = el('button', { class: 'btn', type: 'button', text: 'Удалить' });
+  const bulk = el('div', { class: 'renders__bulk', hidden: true }, bulkCount, bulkAll, el('span', { class: 'renders__spacer' }), bulkZip, bulkDelete);
+  const renders = modal('renders-dialog', 'Мои рендеры', head, empty, grid, bulk);
   let poll = null;
+  let jobsNow = [];
+  let shownKey = '';
+  let selecting = false;
+  const selected = new Set();
+  let confirmId = null;
+  let confirmBulk = false;
 
   const statusText = (job) => {
     if (job.status === 'queued') {
+      if (job.workerOnline === false) return 'В очереди · рендер-сервер сейчас не на связи — кадр посчитается, когда он вернётся';
       const minutes = Math.max(1, Math.round((job.etaSeconds ?? 60) / 60));
       return job.position > 1 ? `В очереди · ${job.position}-й · ~${minutes} мин` : `Следующий · ~${minutes} мин`;
     }
     if (job.status === 'rendering') return `Считается · ~${Math.max(1, Math.round((job.etaSeconds ?? 60) / 60))} мин`;
-    if (job.status === 'failed') return 'Не получилось — токены вернулись';
+    if (job.status === 'failed') return `${job.error ?? 'Не получилось'} — токены вернулись`;
     if (job.status === 'expired') return 'Срок хранения истёк';
     const days = Math.max(0, Math.ceil((new Date(job.expiresAt) - Date.now()) / 86400000));
     return `Готово · хранится ещё ${days} ${plural(days, ['день', 'дня', 'дней'])}`;
@@ -269,70 +287,212 @@ export function initAccount({ catalog, feedback }) {
     } catch (error) {
       feedback.onToast(errorText(error), 'error');
     }
-    await Promise.all([loadRenders(), refresh()]);
+    await Promise.all([loadRenders(true), refresh()]);
   };
+
+  const button = (text, onClick, cls = 'btn') => {
+    const b = el('button', { class: cls, type: 'button', text });
+    b.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onClick(b);
+    });
+    return b;
+  };
+
+  // Удаление — только со второго нажатия: кадр удаляется насовсем, а за него
+  // могли заплатить (и за снятие знака тоже).
+  const confirmRow = (job) => el('div', { class: 'render__confirm' },
+    el('p', { class: 'render__confirm-text', text: job.status === 'queued' ? 'Отменить задание? Токены вернутся' : 'Удалить кадр насовсем?' }),
+    button(job.status === 'queued' ? 'Отменить' : 'Удалить', () => {
+      confirmId = null;
+      act(() => api(`api/jobs/${job.id}`, { method: 'DELETE' }), job.status === 'queued' ? 'Отменено, токены вернулись' : 'Кадр удалён');
+    }, 'btn btn--danger'),
+    button('Не надо', () => {
+      confirmId = null;
+      draw();
+    }));
 
   const card = (job) => {
     const scene = catalog.scene(job.set)?.name ?? job.set;
     const art = job.thumbUrl
       ? el('img', { class: 'render__img', src: job.thumbUrl, alt: `${scene}, ${job.size} px`, loading: 'lazy' })
       : el('div', { class: `render__img render__img--${job.status}` }, el('span', { class: 'spinner', 'aria-hidden': 'true' }));
-    const actions = el('div', { class: 'render__actions' });
-    if (job.status === 'done') {
-      actions.append(el('a', { class: 'btn btn--accent', href: `${job.imageUrl}&download=1`, download: '', text: 'Скачать PNG' }));
-      if (job.marked) {
-        const price = me?.unmarkPrice ?? 1;
-        const unmark = el('button', { class: 'btn', type: 'button', text: `Убрать знак · ${price}` });
-        // Только купленными: без них — сразу к пакетам, а не ошибка после клика.
-        unmark.addEventListener('click', () => {
-          if ((me?.balance.paid ?? 0) < price) {
-            feedback.onToast(ERRORS.paid_tokens_required, 'warning');
-            openBuy(unmark);
-            return;
-          }
-          act(() => api(`api/jobs/${job.id}/unmark`, { method: 'POST' }), 'Знак убран');
-        });
-        actions.append(unmark);
+    const pickable = job.status !== 'rendering';
+    const isOn = selected.has(job.id);
+    let actions;
+    if (selecting) {
+      actions = null;
+    } else if (confirmId === job.id) {
+      actions = confirmRow(job);
+    } else {
+      actions = el('div', { class: 'render__actions' });
+      if (job.status === 'done') {
+        actions.append(el('a', { class: 'btn btn--accent', href: `${job.imageUrl}&download=1`, download: '', text: 'Скачать PNG' }));
+        if (job.marked) {
+          const price = me?.unmarkPrice ?? 1;
+          // Только купленными: без них — сразу к пакетам, а не ошибка после клика.
+          actions.append(button(`Убрать знак · ${price}`, (b) => {
+            if ((me?.balance.paid ?? 0) < price) {
+              feedback.onToast(ERRORS.paid_tokens_required, 'warning');
+              openBuy(b);
+              return;
+            }
+            act(() => api(`api/jobs/${job.id}/unmark`, { method: 'POST' }), 'Знак убран');
+          }));
+        }
+      }
+      // Готовый кадр тем же заданием повторять незачем — рендер тот же; для
+      // правок сцена возвращается в редактор. «Повторить» — только после сбоя.
+      if ((job.status === 'done' || job.status === 'failed') && onOpenJob) {
+        actions.append(button('В редактор', () => openJob(job)));
+      }
+      if (job.status === 'failed') {
+        actions.append(button('Повторить', () => act(() => api(`api/jobs/${job.id}/repeat`, { method: 'POST' }), 'Задание снова в очереди')));
+      }
+      if (pickable) {
+        const remove = button('', () => {
+          confirmId = job.id;
+          draw();
+        }, 'icon-btn render__remove');
+        remove.setAttribute('aria-label', job.status === 'queued' ? 'Отменить' : 'Удалить');
+        remove.dataset.tip = job.status === 'queued' ? 'Отменить' : 'Удалить';
+        remove.dataset.tipSide = 'left';
+        remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
+        actions.append(remove);
       }
     }
-    if (job.status === 'done' || job.status === 'failed') {
-      const again = el('button', { class: 'btn', type: 'button', text: 'Повторить' });
-      again.addEventListener('click', () => act(() => api(`api/jobs/${job.id}/repeat`, { method: 'POST' }), 'Задание снова в очереди'));
-      actions.append(again);
+    const check = selecting && pickable
+      ? el('span', { class: `render__check${isOn ? ' is-on' : ''}`, 'aria-hidden': 'true' })
+      : null;
+    const node = el('article', {
+      class: `render render--${job.status}${selecting ? ' is-selecting' : ''}${isOn ? ' is-selected' : ''}`,
+      role: selecting && pickable ? 'checkbox' : false,
+      'aria-checked': selecting && pickable ? String(isOn) : false,
+      tabindex: selecting && pickable ? '0' : false,
+    },
+    el('div', { class: 'render__media' }, art, check),
+    el('div', { class: 'render__body' },
+      el('p', { class: 'render__title', text: `${scene} · ${job.size === '3000' ? 'для печати' : '1600 px'} · ${job.frame}` }),
+      el('p', { class: 'render__status', text: statusText(job) }),
+      job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен. Убрать — купленным токеном' }) : null),
+    actions);
+    if (selecting && pickable) {
+      const toggle = () => {
+        if (selected.has(job.id)) selected.delete(job.id);
+        else selected.add(job.id);
+        confirmBulk = false;
+        draw();
+      };
+      node.addEventListener('click', toggle);
+      node.addEventListener('keydown', (event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          toggle();
+        }
+      });
     }
-    if (job.status !== 'rendering') {
-      const remove = el('button', { class: 'icon-btn render__remove', type: 'button', 'aria-label': 'Удалить', 'data-tip': job.status === 'queued' ? 'Отменить' : 'Удалить', 'data-tip-side': 'left' });
-      remove.innerHTML = '<svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>';
-      remove.addEventListener('click', () => act(() => api(`api/jobs/${job.id}`, { method: 'DELETE' }), job.status === 'queued' ? 'Отменено, токены вернулись' : null));
-      actions.append(remove);
-    }
-    return el('article', { class: `render render--${job.status}` }, art,
-      el('div', { class: 'render__body' },
-        el('p', { class: 'render__title', text: `${scene} · ${job.size === '3000' ? 'для печати' : '1600 px'} · ${job.frame}` }),
-        el('p', { class: 'render__status', text: statusText(job) }),
-        job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен. Убрать — купленным токеном' }) : null,
-        job.error && job.status === 'failed' ? el('p', { class: 'render__error', text: job.error.slice(0, 140) }) : null),
-      actions);
+    return node;
   };
 
-  async function loadRenders() {
+  const doneSelected = () => jobsNow.filter((j) => selected.has(j.id) && j.status === 'done');
+  const draw = () => {
+    for (const id of [...selected]) if (!jobsNow.some((j) => j.id === id && j.status !== 'rendering')) selected.delete(id);
+    const focusedId = document.activeElement?.closest?.('.render')?.dataset.id;
+    grid.replaceChildren(...jobsNow.map((job) => {
+      const node = card(job);
+      node.dataset.id = job.id;
+      return node;
+    }));
+    if (focusedId) grid.querySelector(`.render[data-id="${focusedId}"]`)?.focus();
+    empty.hidden = jobsNow.length > 0;
+    selectBtn.hidden = jobsNow.length === 0;
+    selectBtn.textContent = selecting ? 'Отмена' : 'Выбрать';
+    bulk.hidden = !selecting;
+    const files = doneSelected();
+    bulkCount.textContent = confirmBulk
+      ? `Удалить ${selected.size} ${plural(selected.size, ['кадр', 'кадра', 'кадров'])} насовсем?`
+      : `Выбрано ${selected.size}`;
+    bulkAll.hidden = confirmBulk;
+    bulkZip.hidden = confirmBulk;
+    bulkZip.classList.toggle('is-disabled', files.length === 0);
+    bulkZip.setAttribute('aria-disabled', String(files.length === 0));
+    bulkZip.textContent = files.length > 1 ? `Скачать архив · ${files.length}` : files.length === 1 ? 'Скачать · 1' : 'Скачать архив';
+    if (files.length) bulkZip.href = files.length === 1 ? `${files[0].imageUrl}&download=1` : `api/jobs/archive?ids=${files.map((j) => j.id).join(',')}`;
+    else bulkZip.removeAttribute('href');
+    bulkDelete.disabled = selected.size === 0;
+    bulkDelete.textContent = confirmBulk ? 'Да, удалить' : selected.size ? `Удалить · ${selected.size}` : 'Удалить';
+    bulkDelete.classList.toggle('btn--danger', confirmBulk);
+  };
+
+  selectBtn.addEventListener('click', () => {
+    selecting = !selecting;
+    selected.clear();
+    confirmId = null;
+    confirmBulk = false;
+    draw();
+  });
+  bulkAll.addEventListener('click', () => {
+    for (const job of jobsNow) if (job.status !== 'rendering') selected.add(job.id);
+    draw();
+  });
+  bulkZip.addEventListener('click', (event) => {
+    if (!doneSelected().length) event.preventDefault();
+  });
+  bulkDelete.addEventListener('click', async () => {
+    if (!selected.size) return;
+    if (!confirmBulk) {
+      confirmBulk = true;
+      draw();
+      return;
+    }
+    const ids = [...selected];
+    confirmBulk = false;
+    selected.clear();
+    selecting = false;
+    await act(async () => {
+      const { removed, skipped } = await api('api/jobs/delete', { method: 'POST', json: { ids } });
+      feedback.onToast(`Удалено: ${removed}${skipped ? ` · ${skipped} ещё считаются` : ''}`, 'success');
+    });
+  });
+
+  async function loadRenders(force = false) {
     const { jobs } = await api('api/jobs');
-    grid.replaceChildren(...jobs.map(card));
-    empty.hidden = jobs.length > 0;
+    jobsNow = jobs;
+    const key = JSON.stringify(jobs);
+    if (force || key !== shownKey) {
+      shownKey = key;
+      draw();
+    }
     const unseen = jobs.filter((j) => !j.seen && (j.status === 'done' || j.status === 'failed')).map((j) => j.id);
     if (unseen.length && renders.shown) await api('api/jobs/seen', { method: 'POST', json: { ids: unseen } });
     return jobs;
   }
   const openRenders = async (from) => {
     if (!(await requireLogin(from))) return;
+    selecting = false;
+    selected.clear();
+    confirmId = null;
+    confirmBulk = false;
     renders.open(from, () => {
       clearInterval(poll);
       poll = null;
     });
-    await loadRenders();
+    await loadRenders(true);
     await refresh();
     clearInterval(poll);
     poll = setInterval(() => loadRenders().catch(() => {}), 5000);
+  };
+
+  // «В редактор»: сцена кадра возвращается на сайт (оболочка решает, как —
+  // onOpenJob), окно закрывается.
+  const openJob = async (job) => {
+    try {
+      const spec = await api(`api/jobs/${job.id}/spec`);
+      renders.hide();
+      await onOpenJob(spec);
+    } catch (error) {
+      feedback.onToast(errorText(error, 'Не получилось открыть кадр — попробуйте ещё раз'), 'error');
+    }
   };
 
   // ── уведомление «Кадр готов»: пока есть задания в работе ─────────────────

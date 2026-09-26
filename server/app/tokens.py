@@ -1,9 +1,11 @@
 """Токены: журнал операций, баланс по кошелькам, списание (§3–§5 концепции).
 
 Кошельков два: paid — купленные и начисленные админом, не сгорают; welcome —
-приветственные, 3 на 30 дней. Кадр оплачивается целиком из одного кошелька:
-сначала из купленных (кадр без знака), если их не хватает — из приветственных
-(кадр со знаком; чистый хранится, «Убрать знак» — 1 токен).
+приветственные, 3 на 30 дней. Кадр оплачивается сначала купленными (кадр без
+знака); не хватает — приветственными (кадр со знаком, купленные целы); не
+хватает ни тех, ни других по отдельности — вместе (bucket mixed, кадр со
+знаком): в шапке сумма, и кадр по сумме должен запускаться. «Убрать знак» —
+только купленными (владелец, 2026-09-27).
 """
 
 from typing import Optional
@@ -37,17 +39,30 @@ def add(con, user_id: int, bucket: str, amount: int, kind: str, *, job_id: Optio
     )
 
 
-def pick_bucket(con, user, cost: int) -> str:
-    """Кошелёк под списание: купленные, если хватает, иначе приветственные."""
+def plan(con, user, cost: int) -> dict:
+    """Чем платить за кадр: {bucket, paid, welcome}. bucket — paid | welcome | mixed."""
     b = balance(con, user)
     if b["paid"] >= cost:
-        return "paid"
+        return {"bucket": "paid", "paid": cost, "welcome": 0}
     if b["welcome"] >= cost:
-        return "welcome"
+        return {"bucket": "welcome", "paid": 0, "welcome": cost}
+    if b["paid"] + b["welcome"] >= cost:
+        return {"bucket": "mixed", "paid": b["paid"], "welcome": cost - b["paid"]}
     raise HTTPException(402, "not_enough_tokens")
 
 
-def charge(con, user, cost: int, kind: str, *, job_id: Optional[int] = None, note: Optional[str] = None) -> str:
-    bucket = pick_bucket(con, user, cost)
-    add(con, user["id"], bucket, -cost, kind, job_id=job_id, note=note)
-    return bucket
+def charge_job(con, user_id: int, parts: dict, *, job_id: int, note: str) -> None:
+    for bucket in ("paid", "welcome"):
+        if parts[bucket]:
+            add(con, user_id, bucket, -parts[bucket], "render", job_id=job_id, note=note)
+
+
+def refund_job(con, job, note: str) -> None:
+    """Возврат ровно того, что списали за задание, в те же кошельки."""
+    rows = con.execute(
+        "SELECT bucket, SUM(amount) AS total FROM token_ops WHERE job_id = ? AND kind = 'render' GROUP BY bucket",
+        (job["id"],),
+    ).fetchall()
+    for row in rows:
+        if row["total"] < 0:
+            add(con, job["user_id"], row["bucket"], -row["total"], "refund", job_id=job["id"], note=note)

@@ -1418,6 +1418,133 @@
   color: var(--muted);
 }
 
+/* Шапка галереи: баланс и «Выбрать». */
+.renders__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.renders__select {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.renders__select[hidden],
+.renders__bulk[hidden],
+.renders__bulk [hidden] {
+  display: none;
+}
+
+/* Выбранные кадры: скачать архивом или удалить (в режиме выбора). */
+.renders__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.renders__count {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.renders__spacer {
+  flex: 1;
+}
+
+.renders__bulk .btn {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.renders__bulk .btn.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.render__media {
+  position: relative;
+}
+
+.render.is-selecting {
+  cursor: pointer;
+}
+
+.render.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.render.is-selecting:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Галочка выбора — в углу снимка. */
+.render__check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 24px;
+  height: 24px;
+  background: rgb(255 255 255 / 0.9);
+  border: 2px solid rgb(0 0 0 / 0.25);
+  border-radius: 50%;
+}
+
+.render__check.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.render__check.is-on::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 7px;
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* «Удалить кадр насовсем?» — вместо кнопок карточки. */
+.render__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  margin-top: auto;
+}
+
+.render__confirm-text {
+  flex-basis: 100%;
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.render__confirm .btn {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.btn.btn--danger {
+  color: #fff;
+  background: #d70015;
+}
+
 .renders__empty {
   margin: 40px auto;
   max-width: 360px;
