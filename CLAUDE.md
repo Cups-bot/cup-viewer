@@ -1,6 +1,7 @@
 # Cup Viewer
 
 Концепция: `docs/CONCEPT.md` (v1.0). Ссылки §N — на её разделы. Читай только § из брифа этапа, не весь файл.
+Концепция v2 (публичный сайт, фотореал-рендер за кредиты, этапы А–Ж): `docs/CONCEPT-v2.md` — её разделы заменяют §2–§4 и §33–§35 v1.0.
 Этапы: `docs/briefs/NN-*.md`. Журнал: `.claude/journal.md`. Аудит текущего кода: `docs/audit/00-current.md`.
 
 ## Команды
@@ -9,11 +10,16 @@ build:        npm run build   → dist/design.js, dist/view.js, dist/chunks/*
 unit:         npm run test:unit   (= node --test "tests/unit/*.test.mjs")
 render:check  npm run render:check   · для рефакторингов: npm run render:check -- --strict
 render:baseline  npm run render:baseline — только с «ок» человека
+catalog:      npm run catalog — собрать catalog/models.json из catalog/cups.json (build и check сверяют сами)
+фотореал:     из render/ — blender -b --factory-startup -P engine\run.py -- --list; подробно render/README.md
+тяжёлые файлы рендера: python render/engine/tools/assets.py check (index — переписать список)
 
 ## Устройство
 - Движок: `js/Viewer.js` + `js/core/*` + `js/loaders/*`. Один renderer, одна сцена. Об UI не знает: получает каталог и `hooks`, сцену доводит `present({ model, material, designUrl })`; пресеты камеры `setView()`, кадр для экспорта `renderStill()`.
 - Состояние: `js/state/viewerState.js` (§36), права: `js/state/modeController.js` (§37). Связка state → движок: `js/app/bindEngine.js`; намерения: `js/app/actions.js`; общий старт: `js/app/boot.js`.
 - Данные: `catalog/*.json`, сцены `catalog/scenes/<id>/`; проверка — `js/catalog/validate.js`.
+- Каталог стаканов — `catalog/cups.json`, один на сайт и рендер (общие поля + `web` + `render`); `catalog/models.json` из него собирает `npm run catalog`, руками не править. Стакан с `"web": null` на сайт не выходит.
+- Фотореал-рендер: `render/` — Blender + Python (бывший 3DCupRender), своё README и ТЗ в `render/docs/`. Нагрузка на ноутбук владельца: тяжёлое — по одному процессу, низкий приоритет, черновое качество.
 - Входы: `index.html` → `js/entries/design.js` (+ `js/design/`), `view.html` → `js/entries/view.js` (+ `js/client/`). Экспорт — `js/export/`, по требованию.
 - Материалы печати: `ModelLoader.applyMaterial`; крафт — хук `js/core/printShading.js`, soft-touch — физическая копия материала.
 - Ссылки клиенту: dev — `scripts/snapshotApi.mjs` (контракт этапа 06).
@@ -55,6 +61,7 @@ render:baseline  npm run render:baseline — только с «ок» челов
 - не править CLAUDE.md и docs/CONCEPT.md во время задачи — предложения в отчёт
 - не менять модель и набор MCP/плагинов/skills посреди сессии
 - секреты Supabase (service_role) — только env Edge Functions; не во фронт, не в git, не в логи
+- тяжёлые файлы рендера (.blend, модели и текстуры в render/cups, render/scenes, render/art) — не в git; только список render/assets.json
 
 ## Протокол этапа
 1. Прочитай бриф этапа, указанные § концепции и разделы аудита.
