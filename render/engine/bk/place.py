@@ -388,13 +388,35 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
         printed.update(info)
         return printed
     if entry.get("adapter") == "own" or entry.get("material") == "own":
+        # PET: печать — картинка в материале PET_Print на развёртке UVMap. Лист
+        # из задания (стороны А/Б, сведённые сайтом, js/design/petSides.js, —
+        # как compose_print у сборки) встаёт вместо вшитой при сборке; без
+        # печати — прозрачный лист. Без задания — как собран.
+        art = cfg.get("_art") if cfg["print"].get("enabled", True) else None
+        clean = not cfg["print"].get("enabled", True)
+        for m in cup.data.materials:
+            if not (m and m.name.startswith("PET_Print") and m.node_tree):
+                continue
+            for n in m.node_tree.nodes:
+                if n.bl_idname != "ShaderNodeTexImage":
+                    continue
+                if art:
+                    path = os.path.abspath(art)
+                    if not os.path.isfile(path):
+                        raise ConfigError(f"{path}: макет не найден")
+                    img = bpy.data.images.load(path, check_existing=True)
+                    img.colorspace_settings.name = "sRGB"
+                    img.alpha_mode = "STRAIGHT"
+                    n.image = img
+                elif clean:
+                    img = bpy.data.images.get("CUPS_Clear") or bpy.data.images.new("CUPS_Clear", 4, 4, alpha=True)
+                    img.generated_color = (0, 0, 0, 0)
+                    n.image = img
         images = sorted({n.image.name for m in cup.data.materials if m and m.node_tree
                          for n in m.node_tree.nodes
                          if n.bl_idname == "ShaderNodeTexImage" and n.image})
-        if cfg["print"].get("enabled") and cfg.get("_art_given"):
-            _warn(f"{entry['key']}: свой макет для этого стакана задаётся при его сборке "
-                  f"(cups/pet/build_pet.py --art-a/--art-b); --art пропущен")
-        return {"mode": "own", "images": images, "type": entry.get("type", "own")}
+        mode = "sheet" if art else ("clean" if clean else "own")
+        return {"mode": mode, "images": images, "type": entry.get("type", "own")}
     pp_mat = material.polypropylene(cfg["pp"], height)
     printed = apply_print(cfg, shot, pp_mat, cup, height * 1000.0)
     material.assign(cup, pp_mat)

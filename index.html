@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=15a02211" />
-    <link rel="stylesheet" href="css/design.css?v=889cb974" />
+    <link rel="stylesheet" href="css/design.css?v=6897d040" />
   </head>
   <body>
     <div class="app">
@@ -73,11 +73,35 @@
         </div>
 
         <p class="rail__label">Макет</p>
+        <!-- «Фотореал» с двумя стаканами: чей макет грузим (js/design/designShell.js initUpload). -->
+        <div class="segmented art-target" id="art-target" role="radiogroup" aria-label="Макет для стакана" hidden>
+          <button class="segmented__item" type="button" role="radio" data-cup="hero">Стакан 1</button>
+          <button class="segmented__item" type="button" role="radio" data-cup="second">Стакан 2</button>
+        </div>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
           <span class="upload-zone__title">Загрузить макет</span>
           <span class="upload-zone__hint">PNG, JPG или PDF — можно перетащить файл на страницу</span>
         </button>
+        <!-- PET: печать с одной или двух сторон, А и Б. -->
+        <div class="side-slots" id="side-slots" hidden>
+          <div class="side-slots__row">
+            <button class="side-slot" type="button" data-side="A" aria-label="Сторона А">
+              <span class="side-slot__name">А</span>
+              <span class="side-slot__art" aria-hidden="true"></span>
+              <span class="side-slot__hint">Загрузить</span>
+              <span class="side-slot__remove" role="button" aria-label="Убрать сторону А">×</span>
+            </button>
+            <button class="side-slot" type="button" data-side="B" aria-label="Сторона Б">
+              <span class="side-slot__name">Б</span>
+              <span class="side-slot__art" aria-hidden="true"></span>
+              <span class="side-slot__hint">по желанию</span>
+              <span class="side-slot__remove" role="button" aria-label="Убрать сторону Б">×</span>
+            </button>
+          </div>
+          <p class="side-slots__note">Без стороны Б — печать с одной стороны. Поле стороны — 50 мм по стенке.</p>
+        </div>
+        <button class="rail__link" id="art-clear" type="button" hidden>Вернуть макет первого</button>
         <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
 
         <p class="rail__label">Результат</p>
@@ -208,7 +232,7 @@
               <div class="photo-panel__row">
                 <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" disabled aria-describedby="photo-render-note">Рендер · 1 токен</button>
                 <!-- Задание (JSON) — пока рендер запускают руками (render/README.md). -->
-                <button class="icon-btn photo-panel__job" id="photo-job" type="button" aria-label="Задание для рендера" data-tip="Задание для рендера (JSON)" data-tip-side="left">
+                <button class="icon-btn photo-panel__job" id="photo-job" type="button" aria-label="Задание для рендера" data-tip="Задание для рендера — с макетом" data-tip-side="left">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
                 </button>
               </div>
@@ -309,6 +333,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=fd4bb288"></script>
+    <script type="module" src="dist/design.js?v=b38feb10"></script>
   </body>
 </html>

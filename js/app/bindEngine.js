@@ -66,10 +66,14 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
       const p = s.photo ?? {};
       const model = p.second ? catalog.model(p.second.modelId) : null;
       const materialId = model && model.materialCompatibility.includes(s.materialId) ? s.materialId : model?.defaultMaterial;
-      const key = model ? `${model.id}|${materialId}|${p.second.kind}` : null;
+      // Свой макет второго (design2); без него у пары — макет главного.
+      const designUrl = s.design2?.textureUrl ?? null;
+      const key = model ? `${model.id}|${materialId}|${p.second.kind}|${designUrl ?? ''}` : null;
       if (key !== secondKey) {
         secondKey = key;
-        await viewer.setPhotoSecond(model ? { model, material: catalog.material(materialId), kind: p.second.kind } : null);
+        await viewer.setPhotoSecond(model
+          ? { model, material: catalog.material(materialId), kind: p.second.kind, designUrl }
+          : null);
       }
       if (!viewer.photo) return;
       if (p.preset && viewer.photo.preset.id !== p.preset) await viewer.setPhotoPreset(p.preset);
@@ -78,7 +82,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     });
     return sceneJob;
   };
-  state.subscribe(['photo', 'materialId'], syncPhoto);
+  state.subscribe(['photo', 'materialId', 'design2'], syncPhoto);
 
   viewer.hooks.onFullscreen = (on) => state.set({ fullscreen: on });
 

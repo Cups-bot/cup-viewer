@@ -40,7 +40,50 @@ function download(name, text) {
 // сбоку от главного, как у рендера (run.py --second).
 const secondFor = (modelId, heroId) => ({ modelId, kind: modelId === heroId ? 'pair' : 'side' });
 
-export function initPhotoPanel({ state, viewer, catalog, mode, picker, cupPhoto, describe }) {
+// Задание рендера с макетами. Растр макета — тот же, что лёг на 3D-модель
+// (развёртка в полном размере, design.unwrapUrl), исходник не уходит. Пока
+// сервера нет (этап Г), задание принимает dev-сервер (scripts/renderJobApi.mjs)
+// и кладёт папкой в render/jobs/; без него — JSON скачивается как раньше.
+async function uploadRaster(url) {
+  const blob = await (await fetch(url)).blob();
+  const res = await fetch('api/snapshot-assets', { method: 'POST', body: blob });
+  if (!res.ok) throw new Error(`растр: ${res.status}`);
+  return (await res.json()).assetId;
+}
+
+export async function sendRenderJob({ viewer, state, catalog }) {
+  const job = viewer.photoJob();
+  if (!job) return null;
+  const s = state.get();
+  // Картон бумажного стакана — тот же набор, что у рендера (render/engine/params/boards.json).
+  for (const cup of job.cups) {
+    if (catalog.model(cup.id)?.type === 'paper') cup.board = s.materialId;
+  }
+  // Макеты: у главного — свой; у второго — свой (design2), у пары без своего —
+  // главного. Стакан без макета — чистый: иначе рендер взял бы печать из файла
+  // модели (там тестовый рисунок).
+  const arts = {};
+  const raster = (d) => d?.unwrapUrl ?? d?.textureUrl ?? null;
+  const hero = raster(s.design);
+  if (hero) arts[0] = await uploadRaster(hero);
+  if (job.cups[1]) {
+    const own = raster(s.design2);
+    if (own) arts[1] = await uploadRaster(own);
+    else if (hero && job.cups[1].id === job.cups[0].id) arts[1] = arts[0];
+  }
+  job.cups.forEach((cup, index) => {
+    if (!arts[index]) cup.print = 'none';
+  });
+  const res = await fetch('api/render-job', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job, arts }),
+  });
+  if (!res.ok) throw new Error(`задание: ${res.status}`);
+  return res.json();
+}
+
+export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, cupPhoto, describe }) {
   const panel = document.getElementById('photo-panel');
   const bar = document.getElementById('photo-bar');
   const secondBox = document.getElementById('second-cup');
@@ -175,10 +218,24 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, cupPhoto,
   state.subscribe(['tab', 'sceneId', 'photo', 'modelId'], render);
   render();
 
-  document.getElementById('photo-job')?.addEventListener('click', () => {
-    const job = viewer.photoJob();
-    if (!job) return;
-    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-    download(`job_${job.set}_${stamp}.json`, `${JSON.stringify(job, null, 1)}\n`);
+  const jobButton = document.getElementById('photo-job');
+  jobButton?.addEventListener('click', async () => {
+    jobButton.disabled = true;
+    try {
+      const saved = await sendRenderJob({ viewer, state, catalog });
+      if (saved) {
+        await navigator.clipboard?.writeText(saved.command).catch(() => {});
+        feedback?.onToast(`Задание в ${saved.dir} — команда рендера скопирована`, 'success');
+      }
+    } catch {
+      // Без dev-сервера (статический хостинг) — задание без макета, файлом.
+      const job = viewer.photoJob();
+      if (job) {
+        const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+        download(`job_${job.set}_${stamp}.json`, `${JSON.stringify(job, null, 1)}\n`);
+      }
+    } finally {
+      jobButton.disabled = false;
+    }
   });
 }

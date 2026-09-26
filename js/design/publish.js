@@ -6,6 +6,7 @@
 
 import { encodeCanvas } from '../utils/encode.js';
 import { MESSAGES } from '../ui/messages.js';
+import { hideLayer, showLayer } from '../ui/motion.js';
 
 const API = { asset: 'api/snapshot-assets', publish: 'api/publish-snapshot' };
 const TEXTURE_MAX = 2048;
@@ -72,6 +73,15 @@ export async function publishSnapshot({ state, viewer, brandId, title, onStage }
     textureAsset = await uploadAsset(texture);
     unwrapAsset = s.design.unwrapUrl === s.design.textureUrl && texture.size === unwrap.size ? textureAsset : await uploadAsset(unwrap);
   }
+  // Свой макет второго стакана «Фотореала» — только если второй в кадре.
+  let texture2Asset = null;
+  let unwrap2Asset = null;
+  if (s.design2 && s.photo?.second) {
+    const texture = await textureRaster(s.design2.textureUrl);
+    const unwrap = await (await fetch(s.design2.unwrapUrl)).blob();
+    texture2Asset = await uploadAsset(texture);
+    unwrap2Asset = s.design2.unwrapUrl === s.design2.textureUrl && texture.size === unwrap.size ? texture2Asset : await uploadAsset(unwrap);
+  }
   onStage?.('Создаём ссылку');
   const { token } = await postJson(API.publish, {
     state: {
@@ -85,6 +95,8 @@ export async function publishSnapshot({ state, viewer, brandId, title, onStage }
     },
     textureAsset,
     unwrapAsset,
+    texture2Asset,
+    unwrap2Asset,
   });
   return new URL(`view.html?v=${encodeURIComponent(token)}`, window.location.href).href;
 }

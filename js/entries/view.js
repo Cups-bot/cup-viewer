@@ -67,8 +67,10 @@ async function start() {
       return {
         modelId: s.modelId,
         materialId: s.materialId ?? null,
-        // Дизайнер мог смотреть на студийном фоне — клиенту только клиентские.
-        backgroundId: mode.canUseBackground(background) ? background.id : undefined,
+        // Дизайнер мог смотреть на студийном фоне — клиенту только клиентские:
+        // чужой фон не передаётся вовсе (undefined состояние не принимает), и
+        // клиент получает свой фон по умолчанию.
+        ...(background && mode.canUseBackground(background) ? { backgroundId: background.id } : {}),
         sceneId: catalog.scene(s.sceneId) ? s.sceneId : (catalog.scenes[0]?.id ?? null),
         // Раскладка фото-сцены — как её собрал пользователь; второй стакан,
         // которого больше нет в каталоге, отбрасывается.
@@ -81,6 +83,7 @@ async function start() {
       };
     },
   }).catch((error) => {
+    console.error(error);
     showError(error instanceof SnapshotError ? MESSAGES.snapshotMissing : MESSAGES.modelFailed);
     return null;
   });
@@ -101,6 +104,15 @@ async function start() {
     return;
   }
   if (design) state.set({ design: { ...design, width: null, height: null } });
+  // Свой макет второго стакана «Фотореала» — туда же, до запирания прав.
+  if (snapshot.design2 && state.get().photo?.second) {
+    try {
+      const design2 = await downloadDesign(token, snapshot, null, 'design2');
+      if (design2) state.set({ design2: { ...design2, width: null, height: null } });
+    } catch {
+      // Без макета второго кадр всё равно показываем: второй будет чистым.
+    }
+  }
   mode.lock();
   await viewer.present({ designUrl: design?.textureUrl ?? null });
 

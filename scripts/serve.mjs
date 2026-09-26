@@ -7,7 +7,8 @@
 // обнаруживается сразу, а не после выкладки.
 //
 // Заодно отдаёт локальный API клиентских ссылок (scripts/snapshotApi.mjs) —
-// замену бэкенда, пока этап 06 (Supabase) отложен.
+// замену бэкенда, пока этап 06 (Supabase) отложен, — и заданий рендера
+// (scripts/renderJobApi.mjs) до сервера этапа Г.
 //
 // Запуск: npm run serve   ·   сборка и запуск: npm start
 
@@ -18,10 +19,12 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSnapshotApi } from './snapshotApi.mjs';
+import { createRenderJobApi } from './renderJobApi.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.env.PORT) || 8000;
 const snapshots = createSnapshotApi({ root });
+const renderJobs = createRenderJobApi({ root });
 
 // Кэш (§51): файлы с хешем в имени (чанки сборки) не меняются никогда;
 // HTML и ответы API — всегда свежие; остальное — с проверкой (no-cache).
@@ -86,6 +89,11 @@ const SECURITY_HEADERS = {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  // Задания — раньше клиентских ссылок: те отвечают 404 на любой чужой /api/.
+  if (renderJobs.matches(url)) {
+    await renderJobs.handle(req, res, url);
+    return;
+  }
   if (snapshots.matches(url)) {
     await snapshots.handle(req, res, url);
     return;

@@ -60,8 +60,9 @@ async function download(url, onProgress) {
 
 // Растры дизайна → { textureUrl, unwrapUrl } (blob:). При 400/403 (истёк
 // TTL подписи) — один повторный запрос snapshot за свежими ссылками.
-export async function downloadDesign(token, snapshot, onProgress) {
-  let design = snapshot.design;
+// key — design (главный стакан) или design2 (второй стакан «Фотореала»).
+export async function downloadDesign(token, snapshot, onProgress, key = 'design') {
+  let design = snapshot[key];
   if (!design) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -72,7 +73,7 @@ export async function downloadDesign(token, snapshot, onProgress) {
       return { textureUrl, unwrapUrl: same ? textureUrl : URL.createObjectURL(unwrap) };
     } catch (error) {
       if (attempt === 0 && (error.status === 400 || error.status === 403)) {
-        design = (await fetchSnapshot(token)).design;
+        design = (await fetchSnapshot(token))[key];
         if (design) continue;
       }
       throw new SnapshotError('expired');

@@ -69,6 +69,6 @@ test('настоящие файлы catalog/ проходят проверку',
     brands: read('catalog/brands.json'),
   });
   assert.deepEqual(result.errors, []);
-  // 19 бумажных и PP + 3 PET (CupViewer v2).
-  assert.equal(result.models.length, 22);
+  // 20 бумажных и PP (с EM90-530) + 3 PET (CupViewer v2).
+  assert.equal(result.models.length, 23);
 });

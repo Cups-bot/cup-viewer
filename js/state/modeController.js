@@ -51,6 +51,7 @@ const GUARDED_KEYS = Object.freeze({
   modelId: 'changeModel',
   materialId: 'changeMaterial',
   design: 'uploadDesign',
+  design2: 'uploadDesign',
   photo: 'arrangeScene',
 });
 

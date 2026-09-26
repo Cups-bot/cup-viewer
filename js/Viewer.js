@@ -746,8 +746,9 @@ export class Viewer {
     };
   }
 
-  // Второй стакан фото-сцены: { model, material, kind: 'pair' | 'side' } —
-  // записи каталога и раскладка; null — убрать. Стаканы не двигаются: места
+  // Второй стакан фото-сцены: { model, material, kind: 'pair' | 'side',
+  // designUrl } — записи каталога, раскладка и свой макет (null — у пары макет
+  // главного, у другого стакана чистый лист); null — убрать. Стаканы не двигаются: места
   // выбирает раскладка, человек только поворачивает.
   async setPhotoSecond(target) {
     this.photoSecond = target?.model ? target : null;
@@ -822,7 +823,10 @@ export class Viewer {
     // не смену стакана или раскладки: там второй встаёт по правилу раскладки.
     const same = this.companion && this.companion.cup.id === target.model.id && this.companion.kind === target.kind;
     const keepAngle = same ? this.getCupRotation(1) : null;
-    const sameModel = target.model.id === this.modelLoader.cup?.id;
+    // Копия главного — только для пары без своего макета: у копии материалы
+    // общие с главным, а значит, и макет.
+    const sameModel = target.model.id === this.modelLoader.cup?.id && !target.designUrl;
+    const sheet = target.designUrl ?? blankSheetUrl();
     let companion;
     if (sameModel) {
       this.#dropCompanion();
@@ -830,6 +834,12 @@ export class Viewer {
     } else if (this.companion && !this.companion.clone && this.companion.cup.id === target.model.id) {
       companion = this.companion;
       companion.loader.applyMaterial(target.material);
+      if (companion.sheet !== sheet) {
+        const gen = ++this.#companionGen;
+        await companion.textures.replaceTexture(sheet);
+        if (gen !== this.#companionGen) return;
+        companion.sheet = sheet;
+      }
     } else {
       this.#dropCompanion();
       const gen = ++this.#companionGen;
@@ -852,14 +862,15 @@ export class Viewer {
         maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
         maxTextureSize: this.renderer.capabilities.maxTextureSize,
       });
-      // Чистый лист, а не то, что лежит в файле модели (техническая развёртка).
-      await textures.replaceTexture(blankSheetUrl());
+      // Свой макет или чистый лист, а не то, что лежит в файле модели
+      // (техническая развёртка).
+      await textures.replaceTexture(sheet);
       if (gen !== this.#companionGen) {
         textures.dispose();
         loader.dispose();
         return;
       }
-      companion = { model: loader.currentModel, cup: target.model, loader, textures, clone: false };
+      companion = { model: loader.currentModel, cup: target.model, loader, textures, clone: false, sheet };
       const height = cupHeight(target.model);
       if (height) loader.setNaturalHeight(height, [0, 0, 0]);
       const model = companion.model;

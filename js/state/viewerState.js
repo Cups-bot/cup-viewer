@@ -16,6 +16,9 @@ export const STATE_KEYS = Object.freeze([
   'brandId',
   'title',
   'design',
+  // Макет второго стакана «Фотореала» (CupViewer v2): того же вида, что design.
+  // null — у пары макет главного, у другого стакана — чистый лист.
+  'design2',
   'tab',
   'autoRotate',
   'view',
@@ -39,6 +42,7 @@ const DEFAULTS = Object.freeze({
   brandId: null,
   title: null,
   design: null,
+  design2: null,
   tab: '3d',
   autoRotate: true,
   view: null,
@@ -100,11 +104,13 @@ export function createViewerState({ catalog, initial = {}, dev = false, warn = c
       }
       out.photo = Object.freeze({ preset: p.preset ?? null, frame, second, angles });
     }
-    if ('design' in out && out.design !== null) {
-      if (typeof out.design !== 'object' || typeof out.design.textureUrl !== 'string') {
-        fail('design — ожидается { textureUrl, unwrapUrl, width, height } или null');
+    for (const key of ['design', 'design2']) {
+      if (key in out && out[key] !== null) {
+        if (typeof out[key] !== 'object' || typeof out[key].textureUrl !== 'string') {
+          fail(`${key} — ожидается { textureUrl, unwrapUrl, width, height } или null`);
+        }
+        out[key] = Object.freeze({ ...out[key] });
       }
-      out.design = Object.freeze({ ...out.design });
     }
 
     // Материал обязан подходить модели: несовместимый заменяется материалом

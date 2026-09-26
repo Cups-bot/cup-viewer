@@ -42,20 +42,29 @@ const HUES = [0, 60, 120, 180, 240, 300];
 // Заводской лист стакана, мм: бумага — лист развёртки, PP — поле печати.
 const catalog = JSON.parse(await readFile(resolve(root, 'catalog/cups.json'), 'utf8'));
 const CUPS = new Map((catalog.cups ?? catalog).map((c) => [c.id, c]));
+// PET — поле одной стороны (web.textureMapping.sides): лист грузится в обе, А и Б.
+const sidesOf = (id) => CUPS.get(id)?.web?.textureMapping?.sides ?? null;
 const sheetMm = (id) => {
   const print = CUPS.get(id)?.render?.print ?? {};
-  return print.page_mm ?? print.field_mm ?? null;
+  const sides = sidesOf(id);
+  return print.page_mm ?? print.field_mm ?? (sides ? [sides.widthMm, sides.zMm[1] - sides.zMm[0]] : null);
 };
 
 // Все бумажные и PP стаканы сайта лицом к камере, два — ещё и повёрнутыми
 // (сверка направления поворота). PET — сторонами А/Б, отдельно.
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const CASES = [...CUPS.values()]
-  .filter((c) => c.web && sheetMm(c.id) && (!ONLY.length || ONLY.includes(c.id)))
-  .flatMap((c) => [
-    { name: `${c.id}_0`, cup: c.id, rotate: 0 },
-    ...(['HB80-280', 'BM90-500'].includes(c.id) ? [{ name: `${c.id}_60`, cup: c.id, rotate: 60 }] : []),
-  ]);
+const CASES = [
+  ...[...CUPS.values()]
+    .filter((c) => c.web && sheetMm(c.id) && (!ONLY.length || ONLY.includes(c.id)))
+    .flatMap((c) => [
+      { name: `${c.id}_0`, cup: c.id, rotate: 0 },
+      ...(['HB80-280', 'BM90-500', 'PG95-520'].includes(c.id) ? [{ name: `${c.id}_60`, cup: c.id, rotate: 60 }] : []),
+    ]),
+  // Второй стакан со своим макетом (design2) — через «Стакан 2», как человек.
+  ...(!ONLY.length || ONLY.includes('pair')
+    ? [{ name: 'pair_own_second', cup: 'HB80-280', rotate: 0, second: 'HB90-430', scene: 'living' }]
+    : []),
+];
 
 async function shootSite() {
   await Promise.all([SHEETS, SITE, JOBS].map((d) => mkdir(d, { recursive: true })));
@@ -74,8 +83,9 @@ async function shootSite() {
 
   const sheets = new Map();
   for (const c of CASES) {
-    // Лист в размер развёртки этого стакана на сайте.
-    if (!sheets.has(c.cup)) {
+    // Лист в размер заводского листа этого стакана (и второго, если есть).
+    for (const cup of [c.cup, c.second].filter(Boolean)) {
+    if (!sheets.has(cup)) {
       const png = await page.evaluate(({ sheet, PX_PER_MM, STEP_MM, DOT_MM, HUES }) => {
         const [wMm, hMm] = sheet;
         const canvas = document.createElement('canvas');
@@ -95,10 +105,11 @@ async function shootSite() {
           }
         }
         return canvas.toDataURL('image/png').split(',')[1];
-      }, { sheet: sheetMm(c.cup), PX_PER_MM, STEP_MM, DOT_MM, HUES });
-      const file = resolve(SHEETS, `${c.cup}.png`);
+      }, { sheet: sheetMm(cup), PX_PER_MM, STEP_MM, DOT_MM, HUES });
+      const file = resolve(SHEETS, `${cup}.png`);
       await writeFile(file, Buffer.from(png, 'base64'));
-      sheets.set(c.cup, file);
+      sheets.set(cup, file);
+    }
     }
 
     await page.evaluate(({ cup }) => {
@@ -106,24 +117,56 @@ async function shootSite() {
       state.set({ tab: '3d', modelId: cup, materialId: catalog.model(cup).defaultMaterial, autoRotate: false });
     }, { cup: c.cup });
     await settle();
-    await page.setInputFiles('#texture-input', sheets.get(c.cup));
-    await page.waitForFunction(() => window.cupViewer.state.get().design !== null, null, { timeout: 60000 });
+    if (sidesOf(c.cup)) {
+      // PET: как человек — плиткой стороны А, потом Б.
+      for (const side of ['A', 'B']) {
+        const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click(`#side-slots [data-side="${side}"]`)]);
+        await chooser.setFiles(sheets.get(c.cup));
+        await page.waitForFunction((s) => window.cupViewer.state.get().design?.sides?.[s], side, { timeout: 60000 });
+      }
+    } else {
+      await page.setInputFiles('#texture-input', sheets.get(c.cup));
+      await page.waitForFunction(() => window.cupViewer.state.get().design !== null, null, { timeout: 60000 });
+    }
     await settle();
-    await page.evaluate(() => window.cupViewer.state.set({
-      tab: 'scene', sceneId: 'studio', photo: { preset: 'front', frame: '1:1', second: null },
-    }));
+    await page.evaluate(({ scene, second }) => window.cupViewer.state.set({
+      tab: 'scene', sceneId: scene ?? 'studio',
+      photo: { preset: 'front', frame: '1:1', second: second ? { modelId: second, kind: 'side' } : null },
+    }), { scene: c.scene, second: c.second });
     await settle();
+    if (c.second) {
+      await page.click('#art-target [data-cup="second"]');
+      await page.setInputFiles('#texture-input', sheets.get(c.second));
+      await page.waitForFunction(() => window.cupViewer.state.get().design2 !== null, null, { timeout: 60000 });
+      await page.click('#art-target [data-cup="hero"]');
+      await settle();
+    }
     const result = await page.evaluate(({ rotate, SIZE }) => {
       const { viewer } = window.cupViewer;
       viewer.rotateCupTo(0, rotate);
       const canvas = viewer.renderArt({ width: SIZE, height: SIZE });
       return { job: viewer.photoJob(), png: canvas.toDataURL('image/png').split(',')[1] };
     }, { rotate: c.rotate, SIZE });
-    result.job.cups[0].art = `../sheets/${c.cup}.png`;
+    // Макет в задании — тот, что лёг на модель сайта: у PET — сведённый лист.
+    if (sidesOf(c.cup)) {
+      const sheet = await page.evaluate(async () => {
+        const blob = await (await fetch(window.cupViewer.state.get().design.unwrapUrl)).blob();
+        return new Promise((ok) => {
+          const reader = new FileReader();
+          reader.onload = () => ok(String(reader.result).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+      });
+      await writeFile(resolve(SHEETS, `${c.name}.pet.png`), Buffer.from(sheet ?? '', 'base64'));
+      result.job.cups[0].art = `../sheets/${c.name}.pet.png`;
+    } else {
+      result.job.cups[0].art = `../sheets/${c.cup}.png`;
+    }
+    if (c.second) result.job.cups[1].art = `../sheets/${c.second}.png`;
     await writeFile(resolve(SITE, `${c.name}.png`), Buffer.from(result.png, 'base64'));
     await writeFile(resolve(JOBS, `${c.name}.json`), `${JSON.stringify(result.job, null, 1)}\n`);
     console.log(`сайт  ${c.name}: ${JSON.stringify(result.job.cups)}`);
-    await page.evaluate(() => window.cupViewer.state.set({ design: null }));
+    await page.evaluate(() => window.cupViewer.state.set({ design: null, design2: null, photo: null }));
   }
   await browser.close();
   if (errors.length) throw new Error(errors.join('\n'));

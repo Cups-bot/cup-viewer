@@ -32,8 +32,7 @@ const BLENDER = process.env.BLENDER ?? 'C:\\Program Files\\Blender Foundation\\B
 const LONG_SIDE = 800;
 const LIMIT_PX = 2;
 
-// Все 7 сцен, одиночные и пары, «рядом», три формата, бумага и PP.
-// PET на сайте появится на этапе В — тогда и в сверке.
+// Все 7 сцен, одиночные и пары, «рядом», три формата, бумага, PP и PET.
 const CASES = [
   { name: '01_living_front_120', scene: 'living', preset: 'front', frame: '1:1', hero: 'HB62-120' },
   { name: '02_living_high_pair_4x5', scene: 'living', preset: 'high', frame: '4:5', hero: 'HB80-280', second: 'HB80-280', kind: 'pair' },
@@ -45,6 +44,8 @@ const CASES = [
   { name: '08_podium_left_dw_3x4', scene: 'podium', preset: 'left', frame: '3:4', hero: 'DW90-430' },
   { name: '09_cream_low_em', scene: 'cream', preset: 'low', frame: '1:1', hero: 'EM90-430' },
   { name: '10_living_right_pp_pair', scene: 'living', preset: 'right', frame: '1:1', hero: 'BM90-500', second: 'BM90-500', kind: 'pair' },
+  { name: '11_studio_front_pet', scene: 'studio', preset: 'front', frame: '1:1', hero: 'PG95-520' },
+  { name: '12_window_front_pet_pair', scene: 'window', preset: 'front', frame: '4:5', hero: 'PG95-400', second: 'PG95-400', kind: 'pair' },
 ];
 
 const ASPECT = { '1:1': 1, '3:4': 0.75, '4:5': 0.8 };

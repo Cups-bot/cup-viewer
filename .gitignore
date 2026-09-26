@@ -35,6 +35,8 @@ tests/output/
 # render:check — сборка страницы съёмки и результаты прогона
 tests/render/.build/
 tests/render/out/
+# задания рендера с макетами клиентов (scripts/renderJobApi.mjs) — не в git
+render/jobs/
 
 # Локальные клиентские ссылки dev-сервера (scripts/snapshotApi.mjs)
 .local-snapshots/

@@ -4,8 +4,10 @@
 // переход на Supabase менял только адреса, а не код страниц:
 //
 //   POST /api/snapshot-assets     тело — PNG/JPEG → { assetId }
-//   POST /api/publish-snapshot    { state, textureAsset, unwrapAsset } → { token } (один раз)
-//   GET  /api/get-snapshot?v=…    → { schemaVersion, state, design: { textureUrl, unwrapUrl } | null }
+//   POST /api/publish-snapshot    { state, textureAsset, unwrapAsset, texture2Asset?, unwrap2Asset? } → { token }
+//   GET  /api/get-snapshot?v=…    → { schemaVersion, state, design: { textureUrl, unwrapUrl } | null, design2 }
+//
+// design2 — свой макет второго стакана «Фотореала» (CupViewer v2), необязателен.
 //   GET  /api/asset?a=…&e=…&s=…   подписанная ссылка на растр, TTL 1 ч
 //
 // Токен — 128 случайных бит (base64url); на диске лежит только его SHA-256.
@@ -104,10 +106,34 @@ export function createSnapshotApi({ root, ttlSeconds = Number(process.env.SNAPSH
         state[key] = value;
       }
       if (!state.modelId) return json(res, 400, { error: 'bad_modelId' });
+      // Раскладка «Фотореала» (CupViewer v2): ракурс, формат, второй стакан,
+      // углы. Форму проверяет и страница клиента (viewerState), здесь — чтобы
+      // в хранилище не легло лишнее.
+      const photo = input?.state?.photo;
+      if (photo !== undefined && photo !== null) {
+        const short = (v) => v === null || v === undefined || (typeof v === 'string' && v.length <= 40);
+        const second = photo.second;
+        const ok = typeof photo === 'object'
+          && short(photo.preset) && short(photo.frame)
+          && (second == null || (typeof second === 'object' && short(second.modelId) && short(second.kind)))
+          && (photo.angles == null || (Array.isArray(photo.angles) && photo.angles.length <= 2
+            && photo.angles.every((x) => typeof x === 'number' && Number.isFinite(x))));
+        if (!ok) return json(res, 400, { error: 'bad_photo' });
+        state.photo = {
+          preset: photo.preset ?? null,
+          frame: photo.frame ?? null,
+          second: second ? { modelId: second.modelId, kind: second.kind } : null,
+          angles: photo.angles ?? null,
+        };
+      }
       // Растры должны уже лежать в хранилище: snapshot появляется, только
       // когда загружено всё (бриф 06, п. 3).
       const withDesign = Boolean(input.textureAsset || input.unwrapAsset);
       if (withDesign && (!(await assetPath(input.textureAsset)) || !(await assetPath(input.unwrapAsset)))) {
+        return json(res, 409, { error: 'assets_missing' });
+      }
+      const withDesign2 = Boolean(input.texture2Asset || input.unwrap2Asset);
+      if (withDesign2 && (!(await assetPath(input.texture2Asset)) || !(await assetPath(input.unwrap2Asset)))) {
         return json(res, 409, { error: 'assets_missing' });
       }
       const token = base64url(randomBytes(16));
@@ -119,6 +145,8 @@ export function createSnapshotApi({ root, ttlSeconds = Number(process.env.SNAPSH
           state,
           textureAsset: withDesign ? input.textureAsset : null,
           unwrapAsset: withDesign ? input.unwrapAsset : null,
+          texture2Asset: withDesign2 ? input.texture2Asset : null,
+          unwrap2Asset: withDesign2 ? input.unwrap2Asset : null,
           createdAt: new Date().toISOString(),
         }),
       );
@@ -135,6 +163,9 @@ export function createSnapshotApi({ root, ttlSeconds = Number(process.env.SNAPSH
         state: record.state,
         design: record.textureAsset
           ? { textureUrl: signedUrl(record.textureAsset), unwrapUrl: signedUrl(record.unwrapAsset) }
+          : null,
+        design2: record.texture2Asset
+          ? { textureUrl: signedUrl(record.texture2Asset), unwrapUrl: signedUrl(record.unwrap2Asset) }
           : null,
       });
     }
