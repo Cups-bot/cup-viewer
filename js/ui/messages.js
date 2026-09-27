@@ -13,4 +13,6 @@ export const MESSAGES = Object.freeze({
   exportFailed: 'Не удалось сохранить файл. Попробуйте ещё раз.',
   firstPageUsed: 'Использована первая страница',
   aspectMismatch: 'Пропорции макета не совпадают с развёрткой модели',
+  artLayerUsed: 'Взят слой conus',
+  artLayerMissing: 'В файле нет слоя conus — на стакане весь лист',
 });

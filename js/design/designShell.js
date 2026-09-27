@@ -11,6 +11,7 @@ import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
 import { initPhotoPanel } from './photoPanel.js';
 import { initAccount } from '../account/account.js';
+import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -66,7 +67,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   state.subscribe(['modelId'], renderNeeds);
   renderNeeds(state.get());
 
-  // Сессия (§11): модель, материал и фон. Сам макет не сохраняется.
+  // Сессия (§11): модель, материал и фон; макет главного — designStore.js.
   state.subscribe(['modelId', 'materialId', 'backgroundId'], (s) => saveSession(s));
   return actions;
 }
@@ -114,7 +115,7 @@ function initModelPicker({ state, catalog, actions }) {
     picker?.setActive(modelId);
     const model = catalog.model(modelId);
     if (name) name.textContent = model ? `${model.volumeMl} мл` : 'Выбрать стакан';
-    if (meta) meta.textContent = model ? `${model.name} · ${kindOf(model)}` : 'Однослойные, двухслойные, эмбо, BM';
+    if (meta) meta.textContent = model ? `${model.name} · ${kindOf(model)}` : 'Бумажные, пластиковые BM и PET';
     if (art) art.replaceChildren(...(model ? railPhoto(model) : []));
     if (barName) barName.textContent = model ? `${model.volumeMl} мл` : 'Стакан';
     button.classList.toggle('is-empty', !model);
@@ -291,7 +292,12 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   const clearButton = document.getElementById('art-clear');
   const title = button?.querySelector('.upload-zone__title');
   const hint = button?.querySelector('.upload-zone__hint');
+  const anim = button?.querySelector('.upload-zone__anim');
   const defaults = { title: title?.textContent, hint: hint?.textContent };
+  // Загруженный макет виден в самой зоне: миниатюра и имя файла, а не снова
+  // «Загрузить макет», будто ничего не произошло.
+  const thumb = Object.assign(document.createElement('img'), { className: 'upload-zone__thumb', alt: '', hidden: true });
+  anim?.after(thumb);
   let generation = 0;
   let controller = null;
 
@@ -354,7 +360,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
 
   // Макет в состояние: у PET — лист из сторон (petSides.js), у остальных —
   // растр как есть. Главный стакан ещё и проверяется: лёг ли макет на модель.
-  const commit = async (slot, design, notes) => {
+  const commit = async (slot, design, notes, done = 'Макет на модели') => {
     const key = slotKey(slot);
     const previous = state.get()[key];
     state.set({ [key]: design });
@@ -363,11 +369,23 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       if (!(updated > 0)) {
         state.set({ design: previous });
         fail(new DesignError('broken', 'макет не лёг на модель'));
-        return;
+        return false;
       }
     }
-    feedback.onToast(notes.length ? notes.join(' · ') : 'Макет на модели', notes.length ? 'warning' : 'success');
+    feedback.onToast(notes.length ? [done, ...notes].join(' · ') : done, notes.length ? 'warning' : 'success');
+    return true;
   };
+
+  // Исходник макета главного стакана: им макет переносится на другой стакан и
+  // возвращается после перезагрузки (designStore). { kind: 'file', file } или
+  // у PET { kind: 'sides', sides: { A, B } }.
+  let source = null;
+  const remember = (next) => {
+    source = next;
+    if (next) saveDesignSource(next);
+    else clearDesignSource();
+  };
+  const DONE = { user: 'Макет на модели', switch: 'Макет перенесён на этот стакан', restore: 'Макет с прошлого раза' };
 
   const composePet = async (model, parts) => {
     const { composePetDesign } = await import('./petSides.js');
@@ -376,7 +394,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     return { textureUrl: sheet.textureUrl, unwrapUrl: sheet.unwrapUrl, width: sheet.width, height: sheet.height, sides: parts };
   };
 
-  const apply = async (file, slot = target, side = null) => {
+  const apply = async (file, slot = target, side = null, { origin = 'user' } = {}) => {
     if (!mode.check('uploadDesign', 'загрузить макет')) return;
     const model = slotModel(slot);
     if (!model) return;
@@ -408,12 +426,14 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     own([prepared.textureUrl, prepared.unwrapUrl], prepared.release);
 
     let design;
+    let placed = null;
     try {
       const spec = model.textureMapping.sides;
       if (spec) {
         const current = state.get()[slotKey(slot)]?.sides ?? {};
         const free = Object.keys(spec.deg).find((s) => !current[s]);
-        const parts = { ...current, [side ?? free ?? 'A']: { url: prepared.unwrapUrl, width: prepared.width, height: prepared.height } };
+        placed = side ?? free ?? 'A';
+        const parts = { ...current, [placed]: { url: prepared.unwrapUrl, width: prepared.width, height: prepared.height } };
         design = await composePet(model, parts);
       } else {
         design = { textureUrl: prepared.textureUrl, unwrapUrl: prepared.unwrapUrl, width: prepared.width, height: prepared.height };
@@ -429,11 +449,43 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     // Неблокирующие предупреждения: макет стоит, но стоит проверить.
     const notes = [];
     if (prepared.pages > 1) notes.push(MESSAGES.firstPageUsed);
-    if (aspectMismatch([prepared.width, prepared.height], model.textureMapping.unwrapMm) > 0.02) {
+    // Шаблон Формации со слоями: взят только слой рисунка (conus). Слои есть,
+    // а его нет — на стакан ушёл весь лист с контурами и пометками.
+    if (prepared.layers?.used) notes.push(MESSAGES.artLayerUsed);
+    else if (prepared.layers?.names.length) notes.push(MESSAGES.artLayerMissing);
+    if (!placed && aspectMismatch([prepared.width, prepared.height], model.textureMapping.unwrapMm) > 0.02) {
       notes.push(MESSAGES.aspectMismatch);
     }
-    await commit(slot, design, notes);
+    const ok = await commit(slot, design, notes.filter((note) => note !== MESSAGES.artLayerUsed), `${DONE[origin]}${prepared.layers?.used ? ' · взят слой conus' : ''}`);
+    if (ok && slot === 'hero') {
+      const sides = source?.kind === 'sides' ? source.sides : {};
+      remember(placed ? { kind: 'sides', sides: { ...sides, [placed]: file } } : { kind: 'file', file });
+      // Имя файла в зоне — из исходника, а он запомнен после показа макета.
+      render();
+    }
   };
+
+  // Сменили стакан — макет переносится на новый (там же предупреждение, если
+  // пропорции развёртки другие). Между печатью сторонами (PET) и развёрткой
+  // целиком не переносится: у них разный смысл макета.
+  const carry = async (origin) => {
+    const model = catalog.model(state.get().modelId);
+    if (!model || !source) return;
+    const pet = Boolean(model.textureMapping.sides);
+    if (pet && source.kind === 'sides') {
+      for (const [side, file] of Object.entries(source.sides)) if (file) await apply(file, 'hero', side, { origin });
+    } else if (!pet && source.kind === 'file') {
+      await apply(source.file, 'hero', null, { origin });
+    } else if (origin === 'switch') {
+      feedback.onToast('Макет не перенесён: у этого стакана печать другого вида — загрузите макет для него', 'warning');
+    }
+  };
+  let heroId = state.get().modelId;
+  state.subscribe(['modelId'], (s) => {
+    if (s.modelId === heroId) return;
+    heroId = s.modelId;
+    if (source && !s.design) carry('switch');
+  });
 
   // Убрать сторону PET: лист пересобирается из оставшейся; без сторон — нет макета.
   const removeSide = async (side) => {
@@ -441,6 +493,10 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const key = slotKey(target);
     const current = { ...(state.get()[key]?.sides ?? {}) };
     delete current[side];
+    if (target === 'hero' && source?.kind === 'sides') {
+      const sides = { ...source.sides, [side]: null };
+      remember(Object.values(sides).some(Boolean) ? { kind: 'sides', sides } : null);
+    }
     if (!Object.values(current).some(Boolean)) {
       state.set({ [key]: null });
       return;
@@ -484,12 +540,21 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
         art.replaceChildren();
       }
     }
-    // Надписи зоны: у второго — чей макет на нём сейчас.
+    // Надписи зоны: у главного — загружен ли макет и какой; у второго — чей
+    // макет на нём сейчас.
     const pair = target === 'second' && second?.id === s.modelId;
+    const shown = Boolean(design) && !pet;
+    thumb.hidden = !shown;
+    if (anim) anim.hidden = shown;
+    if (shown && thumb.dataset.src !== design.textureUrl) {
+      thumb.src = design.textureUrl;
+      thumb.dataset.src = design.textureUrl;
+    }
     if (title && hint) {
       if (target !== 'second') {
-        title.textContent = defaults.title;
-        hint.textContent = defaults.hint;
+        const name = source?.kind === 'file' ? source.file.name : null;
+        title.textContent = design ? 'Макет на стакане' : defaults.title;
+        hint.textContent = design ? `${name ? `${name} · ` : ''}нажмите, чтобы заменить` : defaults.hint;
       } else if (design) {
         title.textContent = 'Свой макет';
         hint.textContent = 'Нажмите, чтобы заменить';
@@ -502,7 +567,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       }
     }
     if (clearButton) {
-      clearButton.hidden = !(target === 'second' && s.design2);
+      clearButton.hidden = target === 'second' ? !s.design2 : !(s.design && !pet);
       clearButton.textContent = pair ? 'Вернуть макет первого' : 'Убрать макет';
     }
   };
@@ -524,7 +589,14 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       pick(b.dataset.side);
     });
   }
-  clearButton?.addEventListener('click', () => state.set({ design2: null }));
+  clearButton?.addEventListener('click', () => {
+    if (target === 'second') {
+      state.set({ design2: null });
+      return;
+    }
+    remember(null);
+    state.set({ design: null });
+  });
 
   if (button && input) {
     button.hidden = button.hidden || CONFIG.ui.uploadButton === false;
@@ -537,6 +609,15 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       input.value = '';
     });
   }
+
+  // Макет с прошлого раза: кладётся, как только стакан выбран (сессия его
+  // уже выбрала — сразу).
+  loadDesignSource().then((saved) => {
+    if (!saved || source || state.get().design) return;
+    source = saved;
+    if (state.get().modelId) carry('restore');
+    render();
+  });
 
   const api = { apply };
   if (CONFIG.ui.dragAndDrop === false || !overlay) return api;

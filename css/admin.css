@@ -77,6 +77,14 @@
   margin-bottom: 16px;
 }
 
+/* Бегунка сегментов (initSegments) в админке нет — выбранная вкладка своим фоном. */
+.admin-tabs .segmented__item.is-active {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--segment-on);
+  box-shadow: var(--segment-shadow);
+}
+
 .admin-search {
   max-width: 320px;
   margin-bottom: 12px;

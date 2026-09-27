@@ -142,8 +142,11 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
     el('p', { class: 'login-lead', text: 'Пароль не нужен: пришлём на почту код из 6 цифр. После первого входа — 3 фотореал-кадра бесплатно.' }),
     el('p', { class: 'field-label', text: 'Почта' }), email, sendBtn);
   const sentTo = el('b');
+  // Пока письма не уходят (до этапа Ж), сервер печатает код в своей консоли —
+  // и говорит об этом в ответе (console: true); с почтой подсказки не будет.
+  const consoleNote = el('span', { text: ' Пока письма не уходят, код печатается в консоли сервера.', hidden: true });
   const stepCode = el('div', { class: 'login-step', hidden: true },
-    el('p', { class: 'login-lead' }, 'Код отправлен на ', sentTo, '. Пока сервер работает на этом компьютере, код печатается в его консоли.'),
+    el('p', { class: 'login-lead' }, 'Код отправлен на ', sentTo, '.', consoleNote),
     el('p', { class: 'field-label', text: 'Код' }), code, enterBtn, el('div', { class: 'login-links' }, backBtn, againBtn));
   const login = modal('login-dialog', 'Вход', stepEmail, stepCode, status);
   let pending = null;
@@ -154,18 +157,36 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
     status.textContent = '';
     (codeStep ? code : email).focus();
   };
+  // «Прислать ещё раз» — не чаще раза в минуту: письмо может идти не сразу,
+  // а кодов в час на почту — пять (server/app/config.py).
+  let cooldown = null;
+  const holdResend = (seconds = 60) => {
+    clearInterval(cooldown);
+    let left = seconds;
+    const tick = () => {
+      againBtn.disabled = left > 0;
+      againBtn.textContent = left > 0 ? `Прислать ещё раз · ${left} с` : 'Прислать ещё раз';
+      left -= 1;
+      if (left < -1) clearInterval(cooldown);
+    };
+    tick();
+    cooldown = setInterval(tick, 1000);
+  };
   const send = async () => {
     sendBtn.disabled = againBtn.disabled = true;
     status.textContent = '';
     try {
-      await api('api/auth/request', { method: 'POST', json: { email: email.value } });
+      const sent = await api('api/auth/request', { method: 'POST', json: { email: email.value } });
       sentTo.textContent = email.value.trim();
+      consoleNote.hidden = !sent?.console;
       code.value = '';
       setStep(true);
+      holdResend();
     } catch (error) {
       status.textContent = errorText(error);
+      againBtn.disabled = false;
     } finally {
-      sendBtn.disabled = againBtn.disabled = false;
+      sendBtn.disabled = false;
     }
   };
   const enter = async () => {
@@ -223,7 +244,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
       const button = el('button', { class: 'pack', type: 'button' },
         el('span', { class: 'pack__tokens', text: tokensText(p.tokens) }),
         el('span', { class: 'pack__price', text: `${p.priceRub.toLocaleString('ru-RU')} ₽` }),
-        el('span', { class: 'pack__each', text: `${Math.round(p.priceRub / p.tokens)} ₽ за кадр` }));
+        el('span', { class: 'pack__each', text: `${Math.round(p.priceRub / p.tokens)} ₽ за токен` }));
       button.addEventListener('click', async () => {
         button.disabled = true;
         try {
@@ -559,6 +580,8 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
     meBtn.replaceChildren(...[
       el('span', { class: 'account__avatar', text: m.email[0].toUpperCase(), 'aria-hidden': 'true' }),
       el('span', { class: 'pill-btn__text', text: tokensText(total) }),
+      // Кадр в очереди или считается — видно из шапки, не открывая «Мои рендеры».
+      m.activeJobs ? el('span', { class: 'spinner account__busy', role: 'img', 'aria-label': 'Кадр считается', title: 'Кадр считается' }) : null,
       m.unseenJobs ? el('span', { class: 'account__dot', 'aria-label': 'Есть готовые кадры' }) : null,
     ].filter(Boolean));
     const welcomeLeft = m.balance.welcome

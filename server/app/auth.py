@@ -73,7 +73,8 @@ def request_code(body: CodeRequest, request: Request):
     # Письма — на этапе Ж; пока код виден в консоли сервера.
     log.warning("КОД ВХОДА для %s: %s", email, code)
     print(f"\n=== Код входа для {email}: {code} ===\n", flush=True)
-    return {"sent": True, "ttlMinutes": config.CODE_TTL_MIN}
+    # console — код в консоли, а не в письме (до этапа Ж): страница так и скажет.
+    return {"sent": True, "ttlMinutes": config.CODE_TTL_MIN, "console": True}
 
 
 @router.post("/api/auth/verify")

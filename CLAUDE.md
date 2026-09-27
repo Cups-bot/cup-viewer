@@ -6,7 +6,7 @@
 
 ## Команды
 dev:          npm run watch  (+ npm run serve в соседнем терминале, :8000)
-build:        npm run build   → dist/design.js, dist/view.js, dist/chunks/*
+build:        npm run build   → dist/design.js, dist/admin.js, dist/chunks/*
 unit:         npm run test:unit   (= node --test "tests/unit/*.test.mjs")
 render:check  npm run render:check   · для рефакторингов: npm run render:check -- --strict
 render:baseline  npm run render:baseline — только с «ок» человека

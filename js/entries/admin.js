@@ -19,6 +19,11 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 
 const row = (cells, tag = 'td') => el('tr', {}, ...cells.map((c) => el(tag, {}, c)));
 // Чем оплачен кадр (server/app/tokens.plan).
 const WALLETS = { paid: 'купл.', welcome: 'привет.', mixed: 'купл. + привет.' };
+// Операции журнала токенов (server/app/tokens.py) — по-русски.
+const KINDS = {
+  welcome: 'приветственные', render: 'кадр', refund: 'возврат', purchase: 'покупка', unmark: 'убрать знак',
+  grant: 'начисление', revoke: 'списание',
+};
 const STATUS = {
   queued: 'в очереди', rendering: 'считается', done: 'готово', failed: 'сбой', deleted: 'удалено', expired: 'истёк',
   pending: 'ожидает', paid: 'оплачено', cancelled: 'отменён',
@@ -49,7 +54,7 @@ async function users() {
       }
       const { ops: items } = await api(`api/admin/users/${u.id}/ops`);
       opsRow.firstChild.replaceChildren(el('ul', { class: 'admin-ops__list' },
-        ...items.map((o) => el('li', { text: `${when(o.created_at)} · ${o.amount > 0 ? '+' : ''}${o.amount} ${o.bucket === 'paid' ? 'купл.' : 'привет.'} · ${o.kind}${o.job_id ? ` · кадр ${o.job_id}` : ''}${o.note ? ` · ${o.note}` : ''}` }))));
+        ...items.map((o) => el('li', { text: `${when(o.created_at)} · ${o.amount > 0 ? '+' : ''}${o.amount} ${o.bucket === 'paid' ? 'купл.' : 'привет.'} · ${KINDS[o.kind] ?? o.kind}${o.job_id ? ` · кадр ${o.job_id}` : ''}${o.note ? ` · ${o.note}` : ''}` }))));
       opsRow.hidden = false;
     });
     table.append(

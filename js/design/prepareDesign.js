@@ -75,15 +75,17 @@ export async function prepareDesign(file, model, { signal, onStage } = {}) {
       onStage?.('pdf');
       const { rasterizePdf, mmToPx } = await import('./pdfRaster.js');
       throwIfAborted(signal);
-      const { canvas, pages } = await rasterizePdf(file, {
+      const { canvas, pages, layers } = await rasterizePdf(file, {
         targetWidthPx: mmToPx(model.textureMapping.unwrapMm[0]),
         fit: (w, h) => fitWithin(w, h, UNWRAP_LIMITS),
         signal,
+        // Бумага под рисунком белая сама; у пластика вне рисунка — пластик.
+        transparent: model.type !== 'paper',
       });
       try {
         throwIfAborted(signal);
         const url = track(await toBlob(canvas, 'image/png'));
-        return { textureUrl: url, unwrapUrl: url, width: canvas.width, height: canvas.height, pages, type, release };
+        return { textureUrl: url, unwrapUrl: url, width: canvas.width, height: canvas.height, pages, type, layers, release };
       } finally {
         canvas.width = 0;
       }
@@ -105,7 +107,7 @@ export async function prepareDesign(file, model, { signal, onStage } = {}) {
     const [w, h] = fitWithin(width, height, UNWRAP_LIMITS);
     const unwrapUrl = w === width && h === height ? textureUrl : track(await downscaleImage(file, type, [w, h]));
     throwIfAborted(signal);
-    return { textureUrl, unwrapUrl, width: w, height: h, pages: 1, type, release };
+    return { textureUrl, unwrapUrl, width: w, height: h, pages: 1, type, layers: null, release };
   } catch (error) {
     release();
     throw error;

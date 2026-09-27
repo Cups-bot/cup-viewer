@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=620151d8" />
-    <link rel="stylesheet" href="css/design.css?v=cf18fff3" />
+    <link rel="stylesheet" href="css/design.css?v=97b6a11b" />
   </head>
   <body>
     <div class="app">
@@ -48,7 +48,7 @@
           <span class="cup-current__art" id="cup-art" aria-hidden="true"></span>
           <span class="cup-current__text">
             <span class="cup-current__name" id="cup-name">Выбрать стакан</span>
-            <span class="cup-current__meta" id="cup-meta">Бумажные и пластиковые BM</span>
+            <span class="cup-current__meta" id="cup-meta">Бумажные, пластиковые BM и PET</span>
           </span>
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
@@ -83,7 +83,7 @@
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
           <span class="upload-zone__title">Загрузить макет</span>
-          <span class="upload-zone__hint">PNG, JPG или PDF — можно перетащить файл на страницу</span>
+          <span class="upload-zone__hint">PNG, JPG, PDF или AI — можно перетащить файл на страницу</span>
         </button>
         <!-- PET: печать с одной или двух сторон, А и Б. -->
         <div class="side-slots" id="side-slots" hidden>
@@ -183,7 +183,7 @@
             <div class="empty-state" id="empty-state" hidden>
               <span class="empty-state__art" data-lottie="pick" data-lottie-palette="light" aria-hidden="true"></span>
               <p class="empty-state__title">Начните со стакана</p>
-              <p class="empty-state__text">Однослойные, двухслойные, эмбо и пластиковые BM. Потом загрузите макет — он ляжет на развёртку сам.</p>
+              <p class="empty-state__text">Однослойные, двухслойные, эмбо, пластиковые BM и прозрачные PET. Потом загрузите макет — он ляжет на развёртку сам.</p>
               <button class="btn btn--accent" id="empty-pick" type="button">Выбрать стакан</button>
             </div>
 
@@ -310,12 +310,13 @@
       </div>
       <ol class="help-steps">
         <li><b>Выберите стакан</b> — по объёму и типу стенки; материал — вверху страницы.</li>
-        <li><b>Загрузите макет</b> — PNG, JPG или PDF; можно просто перетащить файл.</li>
-        <li><b>Проверьте</b> в 3D, на развёртке и в интерьере.</li>
-        <li><b>Скачайте</b> фото или видео либо отправьте клиенту ссылку.</li>
+        <li><b>Загрузите макет</b> — PNG, JPG, PDF или AI; можно просто перетащить файл. В шаблоне Формации со слоями берётся только слой рисунка <i>conus</i>.</li>
+        <li><b>Проверьте</b> в 3D и на развёртке, скачайте фото или видео оборота — бесплатно.</li>
+        <li><b>«Фотореал»</b> — стакан в настоящей сцене: фон, ракурс, формат, второй стакан. «Рендер» делает фотореалистичный кадр за токены; после входа по почте — 3 кадра бесплатно.</li>
+        <li><b>Мои рендеры</b> — в меню под балансом: скачать, убрать знак, выбрать несколько и скачать архивом, вернуть сцену в редактор.</li>
       </ol>
       <ul class="help-list">
-        <li><b>Перетаскивание</b><span>облёт камерой; в интерьере — поворот стакана</span></li>
+        <li><b>Перетаскивание</b><span>облёт камерой; в «Фотореале» — поворот стакана</span></li>
         <li><b>Колесо, щипок</b><span>приблизить и отдалить</span></li>
         <li><b>Двойной клик</b><span>исходный вид</span></li>
         <li><b>Поворотный круг</b><span>вращает сам стакан — свет и тени на месте</span></li>
@@ -332,6 +333,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=31a7c1e8"></script>
+    <script type="module" src="dist/design.js?v=b2263fe9"></script>
   </body>
 </html>

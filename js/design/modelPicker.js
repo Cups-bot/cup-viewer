@@ -109,7 +109,9 @@ export class CupPicker {
   #build() {
     const scale = artScale(this.models);
     this.list.replaceChildren();
-    this.filters?.replaceChildren();
+    // Кнопки фильтров — заново, а бегунок подсветки (initSegments) остаётся:
+    // без него у контейнера has-thumb выбранная кнопка прозрачна и не видна.
+    this.filters?.querySelectorAll(':scope > .cup-filter').forEach((button) => button.remove());
 
     const groups = modelGroups(this.models);
     if (this.filters) {
@@ -212,7 +214,12 @@ export class CupPicker {
       this.search?.focus();
     });
     this.backdrop?.addEventListener('click', () => this.close());
-    this.search?.addEventListener('input', () => this.#filter(this.search.value));
+    // Поиск — по всем стаканам: внутри выбранного раздела «250» в PET давало
+    // «Ничего не нашлось», хотя стакан на 250 мл есть.
+    this.search?.addEventListener('input', () => {
+      if (this.search.value.trim() && this.group !== '') this.#setGroup('');
+      else this.#filter(this.search.value);
+    });
 
     // Enter в поиске выбирает единственный оставшийся стакан — обычный способ
     // добраться до модели, не снимая рук с клавиатуры. Стрелка вниз из поиска

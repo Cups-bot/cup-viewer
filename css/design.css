@@ -242,6 +242,20 @@
   margin: -6px 0 -4px;
 }
 
+/* Миниатюра загруженного макета — на месте анимации зоны. */
+.upload-zone__thumb {
+  display: block;
+  max-width: 100%;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.upload-zone__thumb[hidden],
+.upload-zone__anim[hidden] {
+  display: none;
+}
+
 .upload-zone__title {
   font-size: 14px;
   font-weight: 600;
@@ -1406,6 +1420,14 @@
   }
 }
 
+/* «Кадр считается» в шапке — маленький спиннер рядом с балансом. */
+.account__busy {
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  border-width: 2px;
+}
+
 .renders-dialog {
   width: min(980px, calc(100vw - 32px));
   height: min(780px, calc(100dvh - 48px));
@@ -1659,10 +1681,17 @@
   }
 }
 
-/* Узкий экран прячет подписи кнопок шапки, но «Войти» без подписи — пустой кружок. */
-@media (max-width: 1023px) {
-  .site-header .account__login .pill-btn__text {
+/* Узкий экран (≤ 1180 px) прячет подписи кнопок шапки, но «Войти» без подписи —
+   пустой кружок, а без числа токенов баланс не виден. Им подписи остаются. */
+@media (max-width: 1180px) {
+  .site-header .account__login .pill-btn__text,
+  .site-header .account__me .pill-btn__text {
     display: inline;
+  }
+
+  .site-header .account__me {
+    width: auto;
+    padding: 0 12px 0 4px;
   }
 
   .site-header .account__login {
