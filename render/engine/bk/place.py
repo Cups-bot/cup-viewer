@@ -969,8 +969,8 @@ def build(cfg: dict, shot_name: str, samples: Optional[int] = None,
                           f"(есть: {', '.join(sorted(cfg['shots']))})")
     shot = cfg["shots"][shot_name]
 
-    # Свой файл у фона ("blend" в sets/<фон>.json, 2026-09-27: парк собран
-    # tools/build_park.py) — иначе общий файл сцен BlenderKit.
+    # Свой файл у фона ("blend" в sets/<фон>.json — сцена, собранная своим
+    # скриптом) — иначе общий файл сцен BlenderKit.
     source = _abs(shot.get("blend") or cfg["source_blend"])
     if not os.path.isfile(source):
         raise ConfigError(f"{source}: файл сцены не найден")

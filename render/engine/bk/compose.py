@@ -344,8 +344,7 @@ def _focus(cam, cups, placed, s, st, preset, pair) -> Optional[dict]:
         pull = st.get("focus_pull", 0.0)
         if pull:
             # Сцена в фокусе ближе стакана (сам он резкий склейкой фокуса,
-            # bk/stack.py): передний план резкий, дальний — в боке, как в
-            # референсе парка (передний лист резкий, капли на спинке — кружки).
+            # bk/stack.py): передний план резкий, дальний — в боке.
             d.dof.focus_distance = max(0.05, dist - pull)
             return {"focus_m": round(d.dof.focus_distance, 4), "fstop": round(d.dof.aperture_fstop, 2),
                     "pull_m": pull}
