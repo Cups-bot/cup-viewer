@@ -57,6 +57,8 @@ const MATERIAL_RULES = [
   ['params', (v) => v && typeof v === 'object' && !Array.isArray(v), 'объект параметров'],
   ['params.roughness', isUnit, 'число 0…1'],
   ['swatch', (v) => v === undefined || (typeof v === 'string' && HEX.test(v)), 'цвет образца #rrggbb'],
+  // Профиль картона для «Имитации картона» — файл catalog/proof/<proof>.cube.gz.
+  ['proof', (v) => v === undefined || (isString(v) && /^[a-z-]+$/.test(v)), 'ключ профиля картона (catalog/proof)'],
 ];
 
 function modelRules(materialIds) {

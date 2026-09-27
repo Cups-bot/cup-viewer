@@ -69,30 +69,20 @@ run.onclick = async () => {
   results.length = 0;
   report.textContent = '';
   if (viewer.autoRotate) viewer.toggleAutoRotate();
-  if (!viewer.turntable.pinned) viewer.turntable.togglePinned();
-  // Wait until the real ring fade is fully visible before the capture.
-  await new Promise((resolve) => setTimeout(resolve, 500));
   const render = viewer.pipeline.render.bind(viewer.pipeline);
   let capturedFrames = 0;
-  let ringLeaks = 0;
   viewer.pipeline.render = (...args) => {
-    if (viewer.exporting || viewer.screenshotting) {
-      capturedFrames++;
-      if (viewer.turntable.group.visible) ringLeaks++;
-    }
+    if (viewer.exporting || viewer.screenshotting) capturedFrames++;
     return render(...args);
   };
   try {
-    write(`Ring visible before: ${viewer.turntable.group.visible}`);
     const angle = viewer.getModelRotation();
     await viewer.takeScreenshot();
-    write(`Ring restored after PNG: ${viewer.turntable.group.visible}`);
     await viewer.exportTurn();
-    write(`Ring restored after video: ${viewer.turntable.group.visible}`);
     write(`Angle restored: ${Math.abs(viewer.getModelRotation() - angle) < 0.01}`);
-    write(`Capture renders: ${capturedFrames}; ring leaks: ${ringLeaks}`);
+    write(`Capture renders: ${capturedFrames}`);
     await Promise.all(results);
-    write(ringLeaks === 0 && capturedFrames > 2 ? 'PASS' : 'FAIL');
+    write(capturedFrames > 2 ? 'PASS' : 'FAIL');
   } catch (error) {
     write(`FAIL: ${error.stack}`);
   } finally {

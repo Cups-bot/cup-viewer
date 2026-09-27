@@ -8,8 +8,8 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
-    <link rel="stylesheet" href="css/viewer.css?v=620151d8" />
-    <link rel="stylesheet" href="css/design.css?v=4fa55dae" />
+    <link rel="stylesheet" href="css/viewer.css?v=9ccd642f" />
+    <link rel="stylesheet" href="css/design.css?v=42254cba" />
   </head>
   <body>
     <div class="app">
@@ -125,6 +125,12 @@
         <div class="page-head">
           <h1 class="page-head__title" id="page-title">Выберите стакан</h1>
           <p class="page-head__sub" id="page-sub">Затем загрузите макет — он ляжет на развёртку сам.</p>
+          <!-- «Имитация картона» (js/design/proof.js): цвет печати по профилю картона. -->
+          <button class="proof-toggle" id="proof-toggle" type="button" aria-pressed="false" hidden
+            data-tip="Цвет печати по профилю типографии" data-tip-side="left">
+            <span class="switch" aria-hidden="true"></span>
+            <span>Имитация картона</span>
+          </button>
         </div>
 
         <!-- Карточка сцены: сверху вкладки и фон, снизу ракурсы. -->
@@ -200,9 +206,6 @@
               </button>
               <button class="icon-btn" id="autorotate-btn" type="button" aria-label="Автоповорот" aria-pressed="true" data-tip="Автоповорот · A" data-tip-side="left">
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
-              </button>
-              <button class="icon-btn" id="turntable-btn" type="button" aria-label="Поворотный круг" aria-pressed="false" data-tip="Поворотный круг" data-tip-side="left">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#turntable" /></svg>
               </button>
               <span class="toolbar__sep" aria-hidden="true"></span>
               <button class="icon-btn" id="screenshot-btn" type="button" aria-label="Снимок экрана" data-tip="Снимок · S" data-tip-side="left">
@@ -317,15 +320,15 @@
       <ol class="help-steps">
         <li><b>Выберите стакан</b> — по объёму и типу стенки; материал — вверху страницы.</li>
         <li><b>Загрузите макет</b> — PNG, JPG, PDF или AI; можно просто перетащить файл. В шаблоне Формации со слоями берётся только слой рисунка <i>conus</i>.</li>
-        <li><b>Проверьте</b> в 3D и на развёртке, скачайте фото или видео оборота — бесплатно.</li>
+        <li><b>Проверьте</b> в 3D и на развёртке; «Имитация картона» у названия стакана покажет, каким цвет выйдет на картоне. Фото или видео оборота — бесплатно.</li>
         <li><b>«Фотореал»</b> — стакан в настоящей сцене: фон, ракурс, формат, второй стакан. «Рендер» делает фотореалистичный кадр за токены; после входа по почте — 3 кадра бесплатно.</li>
         <li><b>Мои рендеры</b> — в меню под балансом: скачать, убрать знак, выбрать несколько и скачать архивом, вернуть сцену в редактор.</li>
       </ol>
       <ul class="help-list">
-        <li><b>Перетаскивание</b><span>облёт камерой; в «Фотореале» — поворот стакана</span></li>
+        <li><b>Тянуть стакан</b><span>поворот стакана — свет и тени на месте</span></li>
+        <li><b>Тянуть фон</b><span>облёт камерой; в «Фотореале» — поворот стакана</span></li>
         <li><b>Колесо, щипок</b><span>приблизить и отдалить</span></li>
         <li><b>Двойной клик</b><span>исходный вид</span></li>
-        <li><b>Поворотный круг</b><span>вращает сам стакан — свет и тени на месте</span></li>
         <li><b><span class="kbd">A</span></b><span>автоповорот</span></li>
         <li><b><span class="kbd">S</span></b><span>снимок экрана</span></li>
         <li><b><span class="kbd">F</span></b><span>во весь экран</span></li>
@@ -339,6 +342,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=1d9e875f"></script>
+    <script type="module" src="dist/design.js?v=3caceed0"></script>
   </body>
 </html>

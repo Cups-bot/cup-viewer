@@ -162,7 +162,7 @@ class AmbientContactShadow {
     scene.background = null;
     scene.overrideMaterial = this.depthMaterial;
 
-    // Элементы интерфейса внутри сцены (поворотный круг) тень отбрасывать не
+    // Элементы интерфейса внутри сцены тень отбрасывать не
     // должны — прячем их только на время depth-прохода.
     const hidden = [];
     scene.traverse((node) => {

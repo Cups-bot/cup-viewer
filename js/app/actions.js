@@ -73,7 +73,11 @@ export function createActions({ state, mode, catalog, viewer }) {
         viewer.hooks.onToast?.('Не удалось сохранить файл. Попробуйте ещё раз.', 'error');
         return;
       }
-      const name = `${state.get().modelId ?? 'cup'}_unwrap.png`;
+      // С «Имитацией картона» на экране — лист в печати: это не файл для
+      // типографии, и имя об этом говорит.
+      const s = state.get();
+      const proofed = s.proof && catalog.material(s.materialId)?.proof;
+      const name = `${s.modelId ?? 'cup'}_unwrap${proofed ? '_proof' : ''}.png`;
       await viewer.deliverFile(blob, name, 'image/png');
     },
 

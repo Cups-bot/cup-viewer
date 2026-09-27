@@ -15,6 +15,9 @@ export const STATE_KEYS = Object.freeze([
   'materialId',
   // Вид печати пластика (js/catalog/printModes.js): 'silk' | 'pad' | null.
   'printMode',
+  // «Имитация картона» (js/design/proof.js): печать бумаги — через профиль
+  // картона материала. Выключена — цвет как в файле (§15).
+  'proof',
   'backgroundId',
   'sceneId',
   'design',
@@ -40,6 +43,7 @@ const DEFAULTS = Object.freeze({
   modelId: null,
   materialId: null,
   printMode: null,
+  proof: false,
   backgroundId: null,
   sceneId: null,
   design: null,
@@ -81,6 +85,7 @@ export function createViewerState({ catalog, initial = {}, dev = false, warn = c
     if ('backgroundId' in out && out.backgroundId !== null && !catalog?.background?.(out.backgroundId)) {
       fail(`фона «${out.backgroundId}» нет в каталоге`);
     }
+    if ('proof' in out && typeof out.proof !== 'boolean') fail('proof — ожидается true | false');
     if ('tab' in out && !TABS.includes(out.tab)) fail(`вкладка «${out.tab}» — ожидается ${TABS.join(' | ')}`);
     if ('photo' in out && out.photo !== null) {
       const p = out.photo;

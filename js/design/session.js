@@ -23,13 +23,14 @@ export function loadSession(catalog) {
     // Вид печати пластика — к макету с прошлого раза (designStore) он и нужен.
     if (saved.printMode) session.printMode = saved.printMode;
   }
+  if (saved.proof === true) session.proof = true;
   if (catalog.background(saved.backgroundId)) session.backgroundId = saved.backgroundId;
   return session;
 }
 
-export function saveSession({ modelId, materialId, backgroundId, printMode }) {
+export function saveSession({ modelId, materialId, backgroundId, printMode, proof }) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ modelId, materialId, backgroundId, printMode }));
+    localStorage.setItem(KEY, JSON.stringify({ modelId, materialId, backgroundId, printMode, proof }));
   } catch {
     // Сохранить не вышло — в следующий раз откроется пустая сцена.
   }

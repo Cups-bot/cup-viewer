@@ -61,6 +61,8 @@ export function buildJob({ viewer, state, catalog }) {
   for (const cup of job.cups) {
     const model = catalog.model(cup.id);
     if (model?.type === 'paper') cup.board = s.materialId;
+    // «Имитация картона»: печать через профиль картона — у рендера тот же куб (bk/proof.py).
+    if (model?.type === 'paper' && s.proof && catalog.material(cup.board)?.proof) cup.proof = true;
     if (model?.textureMapping?.pad && s.printMode === 'pad') cup.print = 'pad';
   }
   const raster = (d) => d?.unwrapUrl ?? d?.textureUrl ?? null;

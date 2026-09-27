@@ -7,7 +7,6 @@ import { createLighting, aimKeyLight } from './core/lighting.js';
 import { createControls } from './core/controls.js';
 import { createShadowCatcher } from './core/shadowCatcher.js';
 import { createAmbientContactShadow } from './core/ambientContactShadow.js';
-import { createTurntable } from './core/turntable.js';
 import { computeCavityOcclusion, installCavityShading, setCavityStrength } from './core/cavityOcclusion.js';
 import { loadEnvironment, applyEnvironmentIntensity } from './core/environment.js';
 import { loadStudioEnvironment } from './core/studioEnvironment.js';
@@ -74,9 +73,9 @@ export class Viewer {
 
     this.frameId = null;
     this.autoRotate = config.autoRotate.enabled;
-    // Пока пользователь вручную крутит слайдером — автоповорот на паузе.
+    // Пока человек крутит стакан рукой — автоповорот на паузе.
     this.manualRotate = false;
-    // Скорость докручивания стакана после жеста в фото-сцене, °/с.
+    // Скорость докручивания стакана после жеста, °/с.
     this.spin = 0;
     // Идёт выгрузка оборота: углом модели и отрисовкой распоряжается она, а не
     // обычный цикл (см. exportTurn).
@@ -117,6 +116,12 @@ export class Viewer {
       const original = this[name].bind(this);
       this[name] = (...args) => this.#track(original(...args));
     }
+  }
+
+  // Чужая загрузка, которую тоже надо дождаться (лист «Имитации картона»
+  // считается до present). Возвращает тот же промис.
+  hold(promise) {
+    return this.#track(promise);
   }
 
   // Разрешается, когда все начатые загрузки (модель, дизайн, окружение,
@@ -174,47 +179,68 @@ export class Viewer {
     // затенения складок внутри конвейера — только предмет (см. core/layers.js).
     this.camera.layers.enable(HELPER_LAYER);
 
-    if (this.config.turntable.enabled) {
-      this.turntable = createTurntable({
-        scene: this.scene,
-        camera: this.camera,
-        controls: this.controls,
-        domElement: this.renderer.domElement,
-        config: this.config,
-        onRotate: (degrees) => this.rotateModelTo(degrees),
-        onDragStart: () => this.setManualRotate(true),
-        onDragEnd: () => this.setManualRotate(false),
-      });
-    }
     this.#bindSceneSpin();
   }
 
-  // В фото-сцене облёт камерой выключен (фон плоский, см. #placePhotoCamera),
-  // поэтому перетаскивание по кадру вращает сам стакан — как поворотный круг,
-  // только без круга. После отпускания стакан докатывается по инерции.
+  // Жест по кадру (владелец, 2026-09-27; поворотного круга больше нет).
+  // Взялись за стакан — крутится он сам, вокруг своей оси, и после отпускания
+  // докатывается по инерции: свет и тени остаются на месте. Взялись за фон —
+  // в 3D облетает камера (OrbitControls); в фото-сцене камера стоит в
+  // съёмочной точке (фон плоский, см. #placePhotoCamera), и фон крутит главный
+  // стакан.
+  //
+  // Слушаем контейнер на погружении: решение «стакан или камера» нужно раньше,
+  // чем жест увидит OrbitControls на самом холсте.
   #bindSceneSpin() {
     const el = this.renderer.domElement;
+    const host = this.container;
     // Полная ширина холста — пол-оборота: так мелкий доворот делается
     // коротким движением, а весь оборот — двумя.
     const degreesPerWidth = 180;
     let drag = null;
 
-    el.addEventListener('pointerdown', (event) => {
-      // Бегунок поворотного круга обрабатывает жест сам (turntable.js).
-      if (!this.photo || event.defaultPrevented || !event.isPrimary) return;
+    const finish = (event, { roll }) => {
+      const lastMove = drag.time;
+      const id = drag.id;
+      drag = null;
+      if (el.hasPointerCapture?.(id)) el.releasePointerCapture(id);
+      el.style.cursor = '';
+      this.controls.enableRotate = true;
+      // Палец остановился перед отпусканием — значит, катить не нужно.
+      if (!roll || event.timeStamp - lastMove > 80) this.spin = 0;
+      if (this.spin === 0) this.setManualRotate(false);
+    };
+
+    host.addEventListener('pointerdown', (event) => {
+      if (event.target !== el) return;
+      // Второй палец — щипок и сдвиг камеры, стакан отпускаем.
+      if (drag) {
+        if (event.pointerId !== drag.id) finish(event, { roll: false });
+        return;
+      }
+      if (!event.isPrimary || event.button !== 0 || this.exporting) return;
       if (!this.modelLoader.currentModel) return;
+      const cup = this.#cupAt(event);
+      if (!this.photo && cup === null) return;
       drag = { id: event.pointerId, x: event.clientX, time: event.timeStamp };
       // Со вторым стаканом крутится тот, по которому начали тянуть; мимо
       // обоих — главный.
-      this.spinCup = this.#cupAt(event);
+      this.spinCup = cup ?? 0;
       this.spin = 0;
       this.cameraTween = null;
       this.setManualRotate(true);
+      // OrbitControls жест всё равно получит, но облёта не начнёт.
+      this.controls.enableRotate = false;
       el.setPointerCapture?.(event.pointerId);
       el.style.cursor = 'grabbing';
-    });
+    }, { capture: true });
+
     el.addEventListener('pointermove', (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
+      if (!drag) {
+        if (event.pointerType === 'mouse' && event.buttons === 0) this.#hoverCup(event);
+        return;
+      }
+      if (event.pointerId !== drag.id) return;
       const width = el.clientWidth || 1;
       const degrees = ((event.clientX - drag.x) / width) * degreesPerWidth;
       const seconds = Math.max((event.timeStamp - drag.time) / 1000, 1 / 240);
@@ -226,20 +252,32 @@ export class Viewer {
       drag.time = event.timeStamp;
     });
     const end = (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
-      const lastMove = drag.time;
-      drag = null;
-      el.releasePointerCapture?.(event.pointerId);
-      el.style.cursor = '';
-      // Палец остановился перед отпусканием — значит, катить не нужно.
-      if (event.timeStamp - lastMove > 80) this.spin = 0;
-      if (this.spin === 0) this.setManualRotate(false);
+      if (drag && event.pointerId === drag.id) finish(event, { roll: true });
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
+    el.addEventListener('pointerleave', () => {
+      if (!drag) el.style.cursor = '';
+    });
   }
 
-  // Инерция после жеста в фото-сцене: скорость гаснет экспонентой.
+  // Рука над стаканом: видно, что его можно взять. Луч — не чаще раза за
+  // кадр: у модели десятки тысяч треугольников. В фото-сцене берётся весь кадр.
+  #hoverCup(event) {
+    if (this.photo) {
+      this.renderer.domElement.style.cursor = 'grab';
+      return;
+    }
+    this.hoverAt = { clientX: event.clientX, clientY: event.clientY };
+    if (this.hoverFrame) return;
+    this.hoverFrame = requestAnimationFrame(() => {
+      this.hoverFrame = null;
+      if (!this.hoverAt || !this.modelLoader.currentModel) return;
+      this.renderer.domElement.style.cursor = this.#cupAt(this.hoverAt) === null ? '' : 'grab';
+    });
+  }
+
+  // Инерция после жеста по стакану: скорость гаснет экспонентой.
   #stepSpin(delta) {
     if (!this.spin) return;
     const cup = this.spinCup ?? 0;
@@ -373,13 +411,11 @@ export class Viewer {
         if (this.cameraTween.step()) this.cameraTween = null;
       }
 
-      // Обе возвращают true, пока продолжают что-то двигать: controls —
-      // затухающую орбиту, turntable — появление круга и доворот до засечки.
-      // В фото-сцене камера — точная камера Blender: controls.update развернул
-      // бы её на цель (lookAt) и потерял бы крен, поэтому орбиту не трогаем.
+      // controls.update возвращает true, пока орбита затухает. В фото-сцене
+      // камера — точная камера Blender: controls.update развернул бы её на
+      // цель (lookAt) и потерял бы крен, поэтому орбиту не трогаем.
       const cameraMoving = this.photo ? false : this.controls.update(delta);
-      const turntableMoving = this.turntable?.update(this.getModelRotation(), delta);
-      if (cameraMoving || turntableMoving) this.invalidate();
+      if (cameraMoving) this.invalidate();
 
       if (!this.needsRender) return;
 
@@ -571,7 +607,6 @@ export class Viewer {
           this.config.lighting.environmentIntensity,
         );
         this.#placeGround();
-        this.#measureTurntable();
       }
       this.invalidateModel();
     } catch (error) {
@@ -963,20 +998,20 @@ export class Viewer {
     this.invalidateModel();
   }
 
-  // Какой стакан под указателем: 0 — главный (и мимо обоих), 1 — второй.
+  // Какой стакан под указателем: 0 — главный, 1 — второй, null — мимо.
   #cupAt(event) {
-    if (!this.companion) return 0;
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(ndc, this.camera);
-    const hero = ray.intersectObject(this.modelLoader.currentModel, true)[0];
-    const second = ray.intersectObject(this.companion.model, true)[0];
+    this.raycaster ??= new THREE.Raycaster();
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const model = this.modelLoader.currentModel;
+    const hero = model ? this.raycaster.intersectObject(model, true)[0] : null;
+    const second = this.companion ? this.raycaster.intersectObject(this.companion.model, true)[0] : null;
     if (second && (!hero || second.distance < hero.distance)) return 1;
-    return 0;
+    return hero ? 0 : null;
   }
 
   #saveStudioView() {
@@ -1037,7 +1072,6 @@ export class Viewer {
       this.#fitAmbientOcclusion(1);
     }
     this.#placeGround();
-    this.#measureTurntable();
   }
 
   // Фото-сцены используют исходный профиль тени и затенения; настройки
@@ -1146,7 +1180,6 @@ export class Viewer {
     this.modelLoader.normalize();
     this.#fitAmbientOcclusion(1);
     this.#placeGround();
-    this.#measureTurntable();
 
     // Сначала холст и угол студии — во весь контейнер, — и только потом кадр.
     // Раньше модель кадрировалась ещё с узким углом фото-сцены, а угол
@@ -1292,9 +1325,6 @@ export class Viewer {
     const stage = this.container.closest('.stage') ?? this.container;
     stage.style.background = this.photo ? '' : backdropCss(this.backdrop);
 
-    // Поворотный круг перекрашивается под фон: на тёмном тёмный контур пропал бы.
-    this.turntable?.setBackground(new THREE.Color(value));
-
     // И, главное, пересобирается окружение: подложка светит в сам предмет.
     this.#refreshStudio();
     this.invalidateModel();
@@ -1326,7 +1356,7 @@ export class Viewer {
     this.invalidate();
   }
 
-  // Пока человек крутит модель кругом под ней — автоповорот на паузе.
+  // Пока человек крутит стакан рукой — автоповорот на паузе.
   setManualRotate(active) {
     this.manualRotate = active;
   }
@@ -1416,35 +1446,6 @@ export class Viewer {
     this.invalidateModel();
   }
 
-  // Меряет след модели для поворотного круга — один раз на загрузку. Замер
-  // делается при нулевом угле: axis-aligned box вращающейся модели меняет
-  // размер, и круг, посчитанный покадрово, пульсировал бы.
-  #measureTurntable() {
-    if (!this.turntable) return;
-    const model = this.modelLoader.currentModel;
-    if (!model) {
-      this.turntable.setMetrics(null);
-      return;
-    }
-
-    const rotation = model.rotation.y;
-    model.rotation.y = 0;
-    model.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(model);
-    model.rotation.y = rotation;
-    model.updateMatrixWorld(true);
-
-    if (box.isEmpty()) {
-      this.turntable.setMetrics(null);
-      return;
-    }
-
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const radius = (Math.max(size.x, size.z) / 2) * this.config.turntable.radiusScale;
-    this.turntable.setMetrics({ center, baseY: box.min.y, radius });
-  }
-
   // Силуэт стаканов фото-сцены: белое на чёрном, тем же окном кадра, без фона,
   // теней, света и постобработки. Для сверки с маской рендера Blender
   // (tests/photoreal/check.mjs): совпадают ли места стаканов и кадр.
@@ -1515,7 +1516,6 @@ export class Viewer {
         }
       }
     }
-    this.turntable?.setHiddenForCapture(true);
     for (const object of hidden) object.visible = false;
     scene.background = new THREE.Color(0x000000);
     scene.environment = null;
@@ -1535,7 +1535,6 @@ export class Viewer {
       return canvas;
     } finally {
       for (const object of hidden) object.visible = true;
-      this.turntable?.setHiddenForCapture(false);
       scene.background = saved.background;
       scene.environment = saved.environment;
       scene.overrideMaterial = saved.override;
@@ -1570,7 +1569,6 @@ export class Viewer {
       rotation: model?.rotation.y ?? 0,
     };
     this.cameraTween = null;
-    this.turntable?.setHiddenForCapture(true);
     try {
       const goal = view ? this.viewCamera(view) : null;
       if (goal) {
@@ -1619,7 +1617,6 @@ export class Viewer {
         camera.lookAt(saved.target);
       }
       renderer.setPixelRatio(saved.ratio);
-      this.turntable?.setHiddenForCapture(false);
       // Размеры холста и конвейера — обратно под контейнер.
       this.resize();
       this.invalidateModel();
@@ -1673,7 +1670,6 @@ export class Viewer {
     // параллельный захват, который мог бы вернуть интерфейс в середине ролика.
     if (this.exporting || this.screenshotting) return;
     this.screenshotting = true;
-    this.turntable?.setHiddenForCapture(true);
     // Через конвейер, а не напрямую: иначе снимок уйдёт без затенения складок и
     // без тонмаппинга — то есть заметно хуже того, что клиент видит на экране.
     const name = this.config.ui.screenshotName;
@@ -1683,7 +1679,6 @@ export class Viewer {
       this.pipeline.render();
       blob = await this.#canvasBlob();
     } finally {
-      this.turntable?.setHiddenForCapture(false);
       this.screenshotting = false;
       this.invalidate();
     }
@@ -1823,7 +1818,6 @@ export class Viewer {
     this.#stopRenderLoop();
     // Круг под стаканом — элемент управления, а не часть предмета: в кадре ему
     // делать нечего.
-    this.turntable?.setHiddenForCapture(true);
 
     try {
       const result = await captureTurn({
@@ -1856,7 +1850,6 @@ export class Viewer {
       // Стакан возвращается туда, где стоял: выгрузка не должна менять кадр,
       // который клиент только что рассматривал.
       model.rotation.y = THREE.MathUtils.degToRad(startAngle);
-      this.turntable?.setHiddenForCapture(false);
       this.exporting = false;
       this.#emit('onExportBusy', false);
       this.#emit('onLoaded');
@@ -1966,7 +1959,6 @@ export class Viewer {
     this.textureManager.dispose();
     this.backdropScreen?.dispose();
     this.ambientShadow?.dispose();
-    this.turntable?.dispose();
     this.scene.environment?.dispose();
     this.controls.dispose();
     this.renderer.dispose();

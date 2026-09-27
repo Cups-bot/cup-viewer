@@ -1,4 +1,4 @@
-// Сцена вокруг холста: вкладки, выбор фото-сцены, развёртка, поворотный круг,
+// Сцена вокруг холста: вкладки, выбор фото-сцены, развёртка,
 // сброс вида и подсказка. Источник истины — ViewerState: DOM только
 // показывает state и передаёт намерения в actions.
 
@@ -9,7 +9,6 @@ export function initStage({ state, viewer, catalog, actions }) {
   initTabs(state, actions);
   initScenes(state, catalog, actions);
   const unwrap = initUnwrap(actions);
-  initTurntable(viewer);
   initHelp();
   document.getElementById('stage')?.addEventListener('dblclick', () => actions.resetView());
   return { unwrap };
@@ -123,22 +122,6 @@ function initUnwrap(actions) {
   root.querySelector('.unwrap-bar')?.addEventListener('pointerdown', (event) => event.stopPropagation());
   root.querySelector('.unwrap-bar')?.addEventListener('dblclick', (event) => event.stopPropagation());
   return view;
-}
-
-// Круг показывается ТОЛЬКО кнопкой — по наведению на сцену он не появляется.
-// Совсем выключить его можно флагом turntable.enabled в js/config.js.
-function initTurntable(viewer) {
-  const button = document.getElementById('turntable-btn');
-  const turntable = viewer.turntable;
-  if (!button) return;
-  if (!turntable) {
-    button.hidden = true;
-    return;
-  }
-  button.addEventListener('click', () => {
-    const pinned = turntable.togglePinned();
-    button.setAttribute('aria-pressed', String(pinned));
-  });
 }
 
 // Подсказка «как управлять» — модальное окно: Escape и щелчок по затемнению

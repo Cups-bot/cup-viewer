@@ -54,6 +54,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   upload = initUpload({ state, mode, catalog, viewer, feedback });
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
+  initProofToggle({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
   initActionBar({ exportCenter });
@@ -70,7 +71,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   renderNeeds(state.get());
 
   // Сессия (§11): модель, материал и фон; макет главного — designStore.js.
-  state.subscribe(['modelId', 'materialId', 'backgroundId', 'printMode'], (s) => saveSession(s));
+  state.subscribe(['modelId', 'materialId', 'backgroundId', 'printMode', 'proof'], (s) => saveSession(s));
   return actions;
 }
 
@@ -247,6 +248,20 @@ function initPageHead({ state, catalog }) {
     swapText(sub, [kindOf(model), material, size].filter(Boolean).join(' · '));
   };
   state.subscribe(['modelId', 'materialId'], render);
+  render(state.get());
+}
+
+// «Имитация картона» (js/design/proof.js): только у материала с профилем
+// картона (proof в catalog/materials.json) — у крафта и пластика его нет.
+function initProofToggle({ state, catalog }) {
+  const button = document.getElementById('proof-toggle');
+  if (!button) return;
+  button.addEventListener('click', () => state.set({ proof: !state.get().proof }));
+  const render = ({ modelId, materialId, proof }) => {
+    button.hidden = !modelId || !catalog.material(materialId)?.proof;
+    button.setAttribute('aria-pressed', String(proof));
+  };
+  state.subscribe(['modelId', 'materialId', 'proof'], render);
   render(state.get());
 }
 
@@ -785,6 +800,8 @@ async function restoreJob({ job, arts }, { state, catalog, feedback, upload }) {
   state.set({
     modelId: heroModel.id,
     materialId,
+    // Кадр снимали с имитацией картона — в редакторе она тоже включена.
+    proof: Boolean(hero.proof),
     design: null,
     design2: null,
     tab: 'scene',
