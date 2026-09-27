@@ -1,0 +1,39 @@
+{
+  "format": "proof-cube/1",
+  "side": 33,
+  "layout": "rgb8, r-major",
+  "source": {
+    "project": "ColorPalette",
+    "lut": "831c645",
+    "bakedAt": "2026-08-06T08:30:21.000Z"
+  },
+  "papers": [
+    {
+      "key": "coated",
+      "file": "coated.cube.gz",
+      "paperWhite": [
+        241,
+        236,
+        230
+      ]
+    },
+    {
+      "key": "varnish",
+      "file": "varnish.cube.gz",
+      "paperWhite": [
+        242,
+        238,
+        232
+      ]
+    },
+    {
+      "key": "uncoated",
+      "file": "uncoated.cube.gz",
+      "paperWhite": [
+        242,
+        239,
+        227
+      ]
+    }
+  ]
+}

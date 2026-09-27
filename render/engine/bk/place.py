@@ -374,18 +374,22 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
     """
     entry = resolve_cup(cfg)
     if entry.get("adapter") == "paper":
-        from bk import board, paper_cup
-        try:
-            printed = paper_cup.dress_paper(PROJECT, entry, cup, cfg.get("_art"),
-                                            clean=not cfg["print"].get("enabled", True),
-                                            page=cfg.get("_art_page", 1))
-        except paper_cup.PaperError as exc:
-            raise ConfigError(str(exc))
+        from bk import board, paper_cup, proof
         boards = board.load_boards()
         board_id = cfg.get("_board") or entry.get("board_default") or boards["default"]
         if entry.get("boards") and board_id not in entry["boards"]:
             raise ConfigError(f"{entry['key']}: картон {board_id!r} для этой модели не бывает; "
                               f"есть {', '.join(entry['boards'])}")
+        # «Имитация картона» (--proof, proof в задании): профиль — по картону.
+        proof_key = proof.key_for(board_id) if cfg.get("_proof") else None
+        if cfg.get("_proof") and not proof_key:
+            raise ConfigError(f"{entry['key']}: для картона {board_id!r} профиля нет — имитировать нечем")
+        try:
+            printed = paper_cup.dress_paper(PROJECT, entry, cup, cfg.get("_art"),
+                                            clean=not cfg["print"].get("enabled", True),
+                                            page=cfg.get("_art_page", 1), proof=proof_key)
+        except (paper_cup.PaperError, proof.ProofError) as exc:
+            raise ConfigError(str(exc))
         info = board.apply(cup, board_id, entry.get("group", "single"), boards)
         if printed is None:
             printed = {"mode": "clean", "type": "paper"}

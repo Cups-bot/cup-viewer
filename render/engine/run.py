@@ -93,6 +93,7 @@ def load_job(path: str, cfg: dict, place) -> dict:
     if hero.get("print") == "none":
         cfg["print"]["enabled"] = False
     cfg["_print_variant"] = "pad" if hero.get("print") == "pad" else None
+    cfg["_proof"] = bool(hero.get("proof"))
     cfg["_cups"] = cups
     cfg["_layout"] = job.get("layout") or ("pair" if len(cups) > 1 and cups[1]["id"] == hero["id"] else "side")
     cam = job.get("camera") or {}
@@ -229,6 +230,8 @@ def main(argv=None) -> int:
     ap.add_argument("--print", dest="print_mode", choices=("none", "rect", "cone"),
                     default=None, help="режим печати только для этого запуска; none — чистый стакан")
     ap.add_argument("--art", default=None, help="свой макет: PP — поле печати, бумага — полный лист PDF/JPG/PNG")
+    ap.add_argument("--proof", action="store_true",
+                    help="«Имитация картона»: печать бумаги через профиль картона (catalog/proof, bk/proof.py)")
     ap.add_argument("--page", type=int, default=1, help="страница PDF макета бумаги")
     ap.add_argument("--legacy-color", action="store_true",
                     help="служебное: прежний цветовой конвейер сцены (для калибровки экспозиции)")
@@ -287,6 +290,7 @@ def main(argv=None) -> int:
     cfg["cup_variant"] = args.variant
     cfg["_rotate_deg"] = args.rotate
     cfg["_board"] = args.board
+    cfg["_proof"] = args.proof
     cfg["_legacy_color"] = args.legacy_color
     cfg["_camera"] = args.camera
     cfg["_frame"] = args.frame
@@ -322,7 +326,7 @@ def main(argv=None) -> int:
     elif args.second:
         hero = {"id": cfg["cup_key"], "variant": args.variant, "board": args.board,
                 "art": cfg.get("_art"), "page": args.page, "rotate": args.rotate,
-                "print": None if cfg["print"].get("enabled", True) else "none"}
+                "print": None if cfg["print"].get("enabled", True) else "none", "proof": args.proof}
         if args.second in ("bigger", "smaller"):
             # «Два объёма»: соседний объём той же серии (тип и стенка — как у главного)
             me = place.resolve_cup(cfg)
@@ -348,7 +352,7 @@ def main(argv=None) -> int:
                   "page": args.page,
                   "rotate": args.second_rotate if args.second_rotate is not None
                   else (args.rotate + 150.0 if same else args.rotate),
-                  "print": hero["print"]}
+                  "print": hero["print"], "proof": args.proof}
         if args.second_pos:
             second["pos_mm"] = [float(v) for v in args.second_pos.split(",")]
         cfg["_cups"] = [hero, second]

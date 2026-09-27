@@ -336,6 +336,24 @@ class Flow(unittest.TestCase):
             status, err = user.call("POST", "api/jobs", body, ctype)
             self.assertEqual((status, err["error"]), (400, "bad_print"), cup)
 
+    def test_7_proof(self):
+        # «Имитация картона» доходит до исполнителя; у крафта и пластика профиля нет.
+        user = Client(self.server)
+        user.login("pad@example.ru")  # тот же аккаунт: лимит новых аккаунтов с адреса — 5 в день
+        job = {"set": "studio", "camera": {"preset": "front", "frame": "1:1"},
+               "cups": [{"id": "HB80-280", "rotate": 0, "board": "soft-touch", "proof": True}]}
+        body, ctype = multipart({"job": json.dumps(job), "size": "1600"}, {"art0": ("art.png", tiny_png(), "image/png")})
+        status, made = user.call("POST", "api/jobs", body, ctype)
+        self.assertEqual(status, 200, made)
+        claim = self.worker.call("POST", "api/worker/claim")[1]
+        self.assertEqual((claim["id"], claim["job"]["cups"][0].get("proof")), (made["id"], True))
+        self.finish(claim["id"])
+        for cup in ({"id": "HB80-280", "board": "kraft", "proof": True}, {"id": "BM90-500", "proof": True}):
+            bad = dict(job, cups=[cup])
+            body, ctype = multipart({"job": json.dumps(bad), "size": "1600"}, {})
+            status, err = user.call("POST", "api/jobs", body, ctype)
+            self.assertEqual((status, err["error"]), (400, "bad_proof"), cup)
+
 
 class Sweep(unittest.TestCase):
     """Уборка в том же процессе, на своей временной базе."""

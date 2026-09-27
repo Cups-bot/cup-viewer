@@ -19,7 +19,9 @@ def load() -> dict:
     scenes = {}
     for s in scenes_index["scenes"]:
         scenes[s["id"]] = {"presets": {p["id"] for p in s.get("presets", [])}, "maxCups": s.get("maxCups", 2)}
+    materials = json.loads((config.REPO / "catalog" / "materials.json").read_text(encoding="utf-8"))["materials"]
     return {
+        "materials": {m["id"]: m for m in materials},
         "cups": {c["id"]: c for c in cups if c.get("web") and c.get("render")},
         "scenes": scenes,
     }
@@ -61,6 +63,13 @@ def check_job(job: dict) -> dict:
             if entry["type"] != "paper" or board not in entry.get("materialCompatibility", []):
                 raise HTTPException(400, "bad_board")
             out["board"] = board
+        if cup.get("proof") is True:
+            # «Имитация картона»: только бумага и только картон с профилем
+            # (catalog/materials.json → proof; у крафта профиля нет).
+            material = cat["materials"].get(board or entry.get("defaultMaterial"))
+            if entry["type"] != "paper" or not (material or {}).get("proof"):
+                raise HTTPException(400, "bad_proof")
+            out["proof"] = True
         if cup.get("print") == "none":
             out["print"] = "none"
         elif cup.get("print") == "pad":

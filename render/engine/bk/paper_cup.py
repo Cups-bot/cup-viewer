@@ -140,11 +140,19 @@ def _flatten(im):
 
 
 def dress_paper(project: str, entry: dict, cup, art: Optional[str], clean: bool,
-                page: int = 1) -> Optional[dict]:
-    """Макет на стакан. clean — чистый картон; art — свой лист; иначе — из файла модели."""
+                page: int = 1, proof: Optional[str] = None) -> Optional[dict]:
+    """Макет на стакан. clean — чистый картон; art — свой лист; иначе — из файла модели.
+
+    proof — ключ профиля картона («Имитация картона», bk/proof.py): лист
+    печатается через куб, у чистого картона — белый лист тоже, как на сайте.
+    """
     node = _art_node(cup)
     if clean:
         node.image = _blank()
+        if proof:
+            from bk import proof as proofing
+            node.image = proofing.image(node.image, proof)
+            return {"mode": "clean", "type": "paper", "proof": proof}
         return None
     if art:
         src = os.path.abspath(art)
@@ -164,8 +172,11 @@ def dress_paper(project: str, entry: dict, cup, art: Optional[str], clean: bool,
         if not im.packed_file:
             im.pack()
         node.image = im
+    if proof and node.image:
+        from bk import proof as proofing
+        node.image = proofing.image(node.image, proof)
     img = node.image
     return {"mode": "sheet", "type": "paper", "image": img.name if img else None,
             "size_px": list(img.size) if img else None, "page_mm": entry["print"]["page_mm"],
             "source": os.path.basename(art) if art else "из файла модели",
-            "variant": entry.get("variant")}
+            "variant": entry.get("variant"), "proof": proof}
