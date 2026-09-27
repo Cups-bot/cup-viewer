@@ -236,8 +236,14 @@ def describe_key_light(scene, focus):
             power = light.energy / (distance * distance)
             direction = (to_focus / distance)
 
-        if best is None or power > best["power"]:
+        # Свет, собранный кодом (greybox: KEY_, FILL_, RIM_), знает свою роль:
+        # рисующий и есть главный. По одной освещённости у стакана побеждал
+        # контровой сверху-сзади (та же мощность, ближе) — и тень на сайте
+        # падала вперёд, к камере, а в рендере она уходит назад-вправо.
+        role = 1 if ob.name.upper().startswith("BK_KEY") else 0
+        if best is None or (role, power) > (best["role"], best["power"]):
             best = {
+                "role": role,
                 "power": power,
                 "type": light.type,
                 # Направление, откуда светит, — как его ждёт просмотрщик.
@@ -251,6 +257,7 @@ def describe_key_light(scene, focus):
     if best is None:
         return None
     best.pop("power")
+    best.pop("role")
     return best
 
 

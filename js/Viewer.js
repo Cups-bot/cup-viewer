@@ -1042,8 +1042,12 @@ export class Viewer {
   // студийного 3D на них не переносятся.
   #applyShadingProfile() {
     const studio = this.photo ? null : this.config.studioShading;
-    this.shadowCatcher?.setOpacity(studio?.shadowOpacity ?? this.config.shadowCatcher.opacity);
-    this.shadowCatcher?.setPenumbra(studio?.shadowPenumbra);
+    // Фото-сцена может задать тень сама (scene.json → shadow): у «Серого
+    // фотобокса» свет — огромные софтбоксы, и в рендере тень мягкая и светлая.
+    // Сцена без этого блока — с исходным профилем, как раньше.
+    const scene = this.photo?.data.shadow ?? null;
+    this.shadowCatcher?.setOpacity(studio?.shadowOpacity ?? scene?.opacity ?? this.config.shadowCatcher.opacity);
+    this.shadowCatcher?.setPenumbra(studio?.shadowPenumbra ?? scene?.penumbra);
     const falloff = studio?.shadowFalloff;
     this.shadowCatcher?.setFalloff(
       falloff?.start ?? this.config.shadowCatcher.falloffStart,
@@ -1052,9 +1056,9 @@ export class Viewer {
     this.ambientShadow?.setAppearance(studio?.contact ?? {});
     const light = this.lightingRig.getObjectByName('KeyLight');
     if (light) {
-      light.shadow.radius = studio?.shadowRadius ?? this.config.lighting.shadow.radius;
+      light.shadow.radius = studio?.shadowRadius ?? scene?.radius ?? this.config.lighting.shadow.radius;
       light.shadow.normalBias =
-        studio?.shadowNormalBias ?? this.config.lighting.shadow.normalBias;
+        studio?.shadowNormalBias ?? scene?.normalBias ?? this.config.lighting.shadow.normalBias;
     }
     this.#fitAmbientOcclusion(1);
   }

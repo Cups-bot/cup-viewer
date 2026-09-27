@@ -49,16 +49,25 @@
  "key": {
   "type": "AREA",
   "direction": [
-   -0.0,
-   0.518978,
-   0.854788
+   -0.559453,
+   -0.586094,
+   0.586094
   ],
   "color": [
    1.0,
    1.0,
    1.0
   ],
-  "name": "BK_RIM_Overhead"
+  "name": "BK_KEY_Left_Softbox"
+ },
+ "shadow": {
+  "opacity": 0.26,
+  "penumbra": {
+   "near": 6.0,
+   "far": 80.0
+  },
+  "radius": 9.0,
+  "normalBias": 0.012
  },
  "color": {
   "transform": "Khronos PBR Neutral",
