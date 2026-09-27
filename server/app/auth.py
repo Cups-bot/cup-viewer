@@ -51,6 +51,7 @@ def me_payload(con, user) -> dict:
         "activeJobs": active,
         "unseenJobs": unseen,
         "prices": config.PRICES,
+        "tiers": config.TIERS,
         "unmarkPrice": config.UNMARK_PRICE,
     }
 

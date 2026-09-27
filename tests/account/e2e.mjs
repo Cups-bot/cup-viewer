@@ -25,7 +25,9 @@ const ART = process.env.CV_ART ?? 'D:/Cups_Soft/3D_Cups/Mockups/HB80-280/design_
 await mkdir(OUT, { recursive: true });
 const data = await mkdtemp(join(tmpdir(), 'cv-e2e-'));
 const server = spawn(PYTHON, [resolve(root, 'server/run.py')], {
-  env: { ...process.env, CV_PORT: String(PORT), CV_DATA: data, CV_ADMINS: EMAIL, PYTHONIOENCODING: 'utf-8' },
+  // Сценарий ниже — на экономике «кадр Standard за 1 токен, приветственных 3».
+  env: { ...process.env, CV_PORT: String(PORT), CV_DATA: data, CV_ADMINS: EMAIL, PYTHONIOENCODING: 'utf-8',
+    CV_PRICE_STANDARD: '1', CV_PRICE_ULTRA: '3' },
 });
 let log = '';
 server.stdout.on('data', (d) => (log += d));

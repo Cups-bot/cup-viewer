@@ -57,7 +57,9 @@ class Server:
     def __init__(self):
         self.data = tempfile.mkdtemp(prefix="cv-test-")
         self.port = free_port()
-        env = dict(os.environ, CV_DATA=self.data, CV_PORT=str(self.port), CV_ADMINS=EMAIL, PYTHONIOENCODING="utf-8")
+        # Экономика сценариев ниже — кадр Standard за 1 токен, приветственных 3.
+        env = dict(os.environ, CV_DATA=self.data, CV_PORT=str(self.port), CV_ADMINS=EMAIL, PYTHONIOENCODING="utf-8",
+                   CV_PRICE_STANDARD="1", CV_PRICE_ULTRA="3")
         self.proc = subprocess.Popen([sys.executable, "-m", "server"], cwd=REPO, env=env,
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
         self.lines = []
@@ -134,7 +136,7 @@ class Flow(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.stop()
 
-    def submit(self, user, size="1600", art=True):
+    def submit(self, user, size="standard", art=True):
         fields = {"job": json.dumps(JOB), "size": size}
         files = {"art0": ("art.png", tiny_png(), "image/png")} if art else {}
         body, ctype = multipart(fields, files)
@@ -311,7 +313,7 @@ class Flow(unittest.TestCase):
         self.assertEqual((status, res["removed"]), (200, 2))
         self.assertEqual(user.call("GET", "api/me")[1]["balance"]["paid"], paid_before + 1)
         # Макет больше 16384 px по стороне не принимается (исполнитель упал бы по памяти).
-        body, ctype = multipart({"job": json.dumps(JOB), "size": "1600"},
+        body, ctype = multipart({"job": json.dumps(JOB), "size": "standard"},
                                 {"art0": ("art.png", tiny_png(17000, 4), "image/png")})
         status, err = user.call("POST", "api/jobs", body, ctype)
         self.assertEqual((status, err["error"]), (413, "too_large"))
@@ -324,7 +326,7 @@ class Flow(unittest.TestCase):
         user.login("pad@example.ru")
         job = {"set": "studio", "camera": {"preset": "front", "frame": "1:1"},
                "cups": [{"id": "BM90-410", "rotate": 0, "print": "pad"}]}
-        body, ctype = multipart({"job": json.dumps(job), "size": "1600"}, {"art0": ("art.png", tiny_png(), "image/png")})
+        body, ctype = multipart({"job": json.dumps(job), "size": "standard"}, {"art0": ("art.png", tiny_png(), "image/png")})
         status, made = user.call("POST", "api/jobs", body, ctype)
         self.assertEqual(status, 200, made)
         claim = self.worker.call("POST", "api/worker/claim")[1]
@@ -332,7 +334,7 @@ class Flow(unittest.TestCase):
         self.finish(claim["id"])
         for cup in ({"id": "PG95-400", "print": "pad"}, {"id": "HB80-280", "print": "pad"}):
             bad = dict(job, cups=[cup])
-            body, ctype = multipart({"job": json.dumps(bad), "size": "1600"}, {})
+            body, ctype = multipart({"job": json.dumps(bad), "size": "standard"}, {})
             status, err = user.call("POST", "api/jobs", body, ctype)
             self.assertEqual((status, err["error"]), (400, "bad_print"), cup)
 
@@ -342,7 +344,7 @@ class Flow(unittest.TestCase):
         user.login("pad@example.ru")  # тот же аккаунт: лимит новых аккаунтов с адреса — 5 в день
         job = {"set": "studio", "camera": {"preset": "front", "frame": "1:1"},
                "cups": [{"id": "HB80-280", "rotate": 0, "board": "soft-touch", "proof": True}]}
-        body, ctype = multipart({"job": json.dumps(job), "size": "1600"}, {"art0": ("art.png", tiny_png(), "image/png")})
+        body, ctype = multipart({"job": json.dumps(job), "size": "standard"}, {"art0": ("art.png", tiny_png(), "image/png")})
         status, made = user.call("POST", "api/jobs", body, ctype)
         self.assertEqual(status, 200, made)
         claim = self.worker.call("POST", "api/worker/claim")[1]
@@ -350,7 +352,7 @@ class Flow(unittest.TestCase):
         self.finish(claim["id"])
         for cup in ({"id": "HB80-280", "board": "kraft", "proof": True}, {"id": "BM90-500", "proof": True}):
             bad = dict(job, cups=[cup])
-            body, ctype = multipart({"job": json.dumps(bad), "size": "1600"}, {})
+            body, ctype = multipart({"job": json.dumps(bad), "size": "standard"}, {})
             status, err = user.call("POST", "api/jobs", body, ctype)
             self.assertEqual((status, err["error"]), (400, "bad_proof"), cup)
 
@@ -368,8 +370,8 @@ class Sweep(unittest.TestCase):
         tokens.add(con, user["id"], "paid", 5, "grant")
         spec = json.dumps({"set": "living", "camera": {"preset": "front", "frame": "1:1"}, "cups": [{"id": "HB80-280"}]})
         with db.tx() as tx:
-            hung = jobs.enqueue(tx, user, "1600", spec, "queued", "тест")
-            waiting = jobs.enqueue(tx, user, "1600", spec, "queued", "тест")
+            hung = jobs.enqueue(tx, user, "standard", spec, "queued", "тест")
+            waiting = jobs.enqueue(tx, user, "standard", spec, "queued", "тест")
         long_ago = db.stamp(minutes=-60 * (config.QUEUE_TIMEOUT_HOURS + 1))
         con.execute("UPDATE jobs SET status = 'rendering', attempts = ?, heartbeat_at = ? WHERE id = ?",
                     (config.STALE_ATTEMPTS, long_ago, hung))
@@ -384,6 +386,15 @@ class Sweep(unittest.TestCase):
         self.assertFalse(jobs.worker_online(con))
         jobs.seen_worker(con, "тест")
         self.assertTrue(jobs.worker_online(con))
+
+    def test_tiers(self):
+        # Уровни (владелец, 2026-09-27): Standard 2 токена, Ultra 5; старые кадры
+        # по пикселям — те же уровни.
+        from server.app import config
+        self.assertEqual({t: (v["label"], v["price"]) for t, v in config.TIERS.items()},
+                         {"standard": ("Standard", 2), "ultra": ("Ultra", 5)})
+        self.assertEqual((config.tier_of("1600"), config.tier_of("3000"), config.tier_of("ultra")),
+                         ("standard", "ultra", "ultra"))
 
 
 if __name__ == "__main__":

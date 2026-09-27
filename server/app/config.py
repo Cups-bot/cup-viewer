@@ -19,8 +19,24 @@ PORT = int(os.environ.get("CV_PORT", "8000"))
 # Администраторы — по почте (владелец, 2026-09-26).
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("CV_ADMINS", "danilkakhudia@gmail.com").split(",") if e.strip()}
 
-# Токены (§3–§4 концепции): цена кадра по размеру, «Убрать знак», приветственные.
-PRICES = {"1600": 1, "3000": 3}
+# Уровни рендера (владелец, 2026-09-27): Standard и Ultra. px — длинная сторона
+# кадра, её же берёт исполнитель; сэмплы — по его железу (server/worker.py).
+TIERS = {
+    "standard": {"label": "Standard", "px": int(os.environ.get("CV_PX_STANDARD", "2000")),
+                 "price": int(os.environ.get("CV_PRICE_STANDARD", "2"))},
+    "ultra": {"label": "Ultra", "px": int(os.environ.get("CV_PX_ULTRA", "4000")),
+              "price": int(os.environ.get("CV_PRICE_ULTRA", "5"))},
+}
+# Токены (§3–§4 концепции): цена кадра по уровню, «Убрать знак», приветственные.
+PRICES = {tier: t["price"] for tier, t in TIERS.items()}
+# Кадры до уровней заказывали по пикселям: 1600 — нынешний Standard, 3000 — Ultra.
+LEGACY_SIZES = {"1600": "standard", "3000": "ultra"}
+
+
+def tier_of(size: str) -> str:
+    return LEGACY_SIZES.get(size, size)
+
+
 UNMARK_PRICE = 1
 WELCOME_TOKENS = 3
 WELCOME_DAYS = 30

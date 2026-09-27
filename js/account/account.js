@@ -52,6 +52,9 @@ export function plural(n, [one, few, many]) {
   if (b >= 2 && b <= 4) return few;
   return many;
 }
+// Уровень кадра: Standard или Ultra (server/app/config.py TIERS).
+const TIER_LABELS = { standard: 'Standard', ultra: 'Ultra' };
+export const tierLabel = (size) => TIER_LABELS[size] ?? size;
 export const tokensText = (n) => `${n} ${plural(n, ['токен', 'токена', 'токенов'])}`;
 
 const el = (tag, attrs = {}, ...children) => {
@@ -336,7 +339,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
   const card = (job) => {
     const scene = catalog.scene(job.set)?.name ?? job.set;
     const art = job.thumbUrl
-      ? el('img', { class: 'render__img', src: job.thumbUrl, alt: `${scene}, ${job.size} px`, loading: 'lazy' })
+      ? el('img', { class: 'render__img', src: job.thumbUrl, alt: `${scene}, ${tierLabel(job.size)}`, loading: 'lazy' })
       : el('div', { class: `render__img render__img--${job.status}` }, el('span', { class: 'spinner', 'aria-hidden': 'true' }));
     const pickable = job.status !== 'rendering';
     const isOn = selected.has(job.id);
@@ -393,7 +396,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
     },
     el('div', { class: 'render__media' }, art, check),
     el('div', { class: 'render__body' },
-      el('p', { class: 'render__title', text: `${scene} · ${job.size === '3000' ? 'для печати' : '1600 px'} · ${job.frame}` }),
+      el('p', { class: 'render__title', text: `${scene} · ${tierLabel(job.size)} · ${job.frame}` }),
       el('p', { class: 'render__status', text: statusText(job) }),
       job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен. Убрать — купленным токеном' }) : null),
     actions);

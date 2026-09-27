@@ -236,10 +236,10 @@
               <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон"></div>
             </div>
             <div class="photo-panel__actions">
-              <!-- Размер кадра: цену считает сервер (server/app/config.py PRICES), здесь — подсказка. -->
-              <div class="segmented render-size" id="render-size" role="radiogroup" aria-label="Размер кадра">
-                <button class="segmented__item" type="button" role="radio" data-size="1600">1600 px</button>
-                <button class="segmented__item" type="button" role="radio" data-size="3000">Для печати · 3000</button>
+              <!-- Уровень кадра: размер и цену задаёт сервер (server/app/config.py TIERS), здесь — подсказка. -->
+              <div class="segmented render-size" id="render-size" role="radiogroup" aria-label="Качество кадра">
+                <button class="segmented__item" type="button" role="radio" data-size="standard" title="Соцсети, сайт, маркетплейсы">Standard · 2000 px</button>
+                <button class="segmented__item" type="button" role="radio" data-size="ultra" title="Максимум деталей: печать, баннеры, каталог">Ultra · 4000 px</button>
               </div>
               <div class="photo-panel__row">
                 <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" aria-describedby="photo-render-note">Рендер · 1 токен</button>
@@ -321,7 +321,7 @@
         <li><b>Выберите стакан</b> — по объёму и типу стенки; материал — вверху страницы.</li>
         <li><b>Загрузите макет</b> — PNG, JPG, PDF или AI; можно просто перетащить файл. В шаблоне Формации со слоями берётся только слой рисунка <i>conus</i>.</li>
         <li><b>Проверьте</b> в 3D и на развёртке; «Имитация картона» у названия стакана покажет, каким цвет выйдет на картоне. Фото или видео оборота — бесплатно.</li>
-        <li><b>«Фотореал»</b> — стакан в настоящей сцене: фон, ракурс, формат, второй стакан. «Рендер» делает фотореалистичный кадр за токены; после входа по почте — 3 кадра бесплатно.</li>
+        <li><b>«Фотореал»</b> — стакан в настоящей сцене: фон, ракурс, формат, второй стакан. «Рендер» делает фотореалистичный кадр за токены: Standard — для соцсетей и сайта, Ultra — максимум деталей для печати. После входа по почте — 3 токена в подарок.</li>
         <li><b>Мои рендеры</b> — в меню под балансом: скачать, убрать знак, выбрать несколько и скачать архивом, вернуть сцену в редактор.</li>
       </ol>
       <ul class="help-list">
@@ -342,6 +342,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=3caceed0"></script>
+    <script type="module" src="dist/design.js?v=19d19ef1"></script>
   </body>
 </html>

@@ -64,14 +64,19 @@ async def save_upload(upload: UploadFile, folder: Path, stem: str, limit: int) -
 
 # ── очередь: место, ожидаемое время, исполнитель на связи ────────────────────
 
+# Без истории — оценка ноутбука владельца (GTX 1650 Ti); дальше учится на своих кадрах.
+FIRST_GUESS_S = {"standard": 360.0, "ultra": 1320.0}
+
+
 def average_seconds(con, size: str) -> float:
+    tier = config.tier_of(size)
+    # Старые черновые кадры (1600, 3000) о нынешнем времени ничего не говорят.
     rows = con.execute(
         "SELECT duration_s FROM jobs WHERE status = 'done' AND size = ? AND duration_s IS NOT NULL ORDER BY id DESC LIMIT 20",
-        (size,),
+        (tier,),
     ).fetchall()
     times = [r[0] for r in rows]
-    # Без истории — оценка черновика на ноутбуке; дальше учится на своих кадрах.
-    return sum(times) / len(times) if times else (60.0 if size == "1600" else 180.0)
+    return sum(times) / len(times) if times else FIRST_GUESS_S.get(tier, 600.0)
 
 
 def worker_online(con) -> bool:
@@ -113,7 +118,7 @@ def job_view(con, job, *, admin: bool = False) -> dict:
     out = {
         "id": job["id"],
         "status": job["status"],
-        "size": job["size"],
+        "size": config.tier_of(job["size"]),
         "cost": job["cost"],
         "bucket": job["bucket"],
         "marked": bool(job["marked"]),
@@ -176,10 +181,11 @@ def fail_job(con, job, error: str, note: str) -> None:
 # ── пользователь ─────────────────────────────────────────────────────────────
 
 @router.post("/api/jobs")
-async def create_job(request: Request, job: str = Form(...), size: str = Form("1600"),
+async def create_job(request: Request, job: str = Form(...), size: str = Form("standard"),
                      art0: Optional[UploadFile] = File(None), art1: Optional[UploadFile] = File(None)):
     same_origin(request)
     user = require_user(request)
+    size = config.tier_of(size)
     if size not in config.PRICES:
         raise HTTPException(400, "bad_size")
     try:
@@ -188,7 +194,7 @@ async def create_job(request: Request, job: str = Form(...), size: str = Form("1
         raise HTTPException(400, "bad_job")
     arts = [art0, art1]
     with db.tx() as con:
-        job_id = enqueue(con, user, size, json.dumps(spec, ensure_ascii=False), "new", f"кадр {size}")
+        job_id = enqueue(con, user, size, json.dumps(spec, ensure_ascii=False), "new", f"кадр {config.TIERS[size]['label']}")
     # Макеты — после резерва: задание без файлов не уходит в очередь.
     try:
         folder = job_dir(job_id)
@@ -349,7 +355,7 @@ def repeat(job_id: int, request: Request):
         spec = json.loads(job["job_json"])
         if any(c.get("art") and not (src / c["art"]).exists() for c in spec["cups"]):
             raise HTTPException(409, "arts_missing")
-        new_id = enqueue(con, user, job["size"], job["job_json"], "queued", f"повтор кадра {job_id}")
+        new_id = enqueue(con, user, config.tier_of(job["size"]), job["job_json"], "queued", f"повтор кадра {job_id}")
         dst = job_dir(new_id)
         dst.mkdir(parents=True, exist_ok=True)
         for art in src.glob("art-*"):
@@ -417,7 +423,8 @@ def claim(request: Request, response: Response):
             (worker, db.stamp(), db.stamp(), job["id"]),
         )
     spec = json.loads(job["job_json"])
-    return {"id": job["id"], "size": job["size"], "job": spec,
+    tier = config.tier_of(job["size"])
+    return {"id": job["id"], "size": tier, "px": config.TIERS[tier]["px"], "job": spec,
             "arts": [c["art"] for c in spec["cups"] if c.get("art")]}
 
 

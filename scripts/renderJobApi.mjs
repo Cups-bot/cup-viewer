@@ -116,7 +116,7 @@ export function createRenderJobApi({ root }) {
       return json(res, 201, {
         dir: rel,
         // Черновик в лёгком режиме: ноутбук владельца (CLAUDE.md, render/README.md).
-        command: `blender -b --factory-startup -t 4 -P render/engine/run.py -- --job ${rel}/job.json --render --samples 64 --resolution 800`,
+        command: `blender -b --factory-startup -t 4 -P render/engine/run.py -- --job ${rel}/job.json --render --finish --samples 64 --resolution 800`,
       });
     },
   };

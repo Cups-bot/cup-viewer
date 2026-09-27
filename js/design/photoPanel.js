@@ -120,6 +120,9 @@ export async function sendRenderJob({ viewer, state, catalog }) {
   return res.json();
 }
 
+// Цены уровней до ответа сервера (server/app/config.py TIERS).
+const FALLBACK_PRICES = { standard: 2, ultra: 5 };
+
 export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto, describe }) {
   const panel = document.getElementById('photo-panel');
   const bar = document.getElementById('photo-bar');
@@ -260,11 +263,17 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
   const renderNote = document.getElementById('photo-render-note');
   const sizeButtons = [...document.querySelectorAll('#render-size [data-size]')];
   const jobButton = document.getElementById('photo-job');
-  let size = '1600';
+  let size = 'standard';
   let busy = false;
-  const price = () => account?.me?.prices?.[size] ?? (size === '3000' ? 3 : 1);
+  const price = () => account?.me?.prices?.[size] ?? FALLBACK_PRICES[size];
   const showRender = () => {
-    for (const button of sizeButtons) radio(button, button.dataset.size === size);
+    // Подписи уровней — от сервера: размер кадра меняется вместе с железом.
+    const tiers = account?.me?.tiers;
+    for (const button of sizeButtons) {
+      radio(button, button.dataset.size === size);
+      const tier = tiers?.[button.dataset.size];
+      if (tier) button.textContent = `${tier.label} · ${tier.px} px`;
+    }
     const me = account?.me;
     const cost = price();
     const b = me?.balance;
@@ -277,7 +286,7 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     renderButton.disabled = busy || !server;
     renderButton.textContent = me && !enough ? 'Пополнить токены' : `Рендер · ${tokensText(cost)}`;
     if (!server) renderNote.textContent = 'Рендер — с сервером CupViewer (python -m server)';
-    else if (!me) renderNote.textContent = 'Войдите — 3 кадра бесплатно';
+    else if (!me) renderNote.textContent = 'Войдите — 3 токена в подарок';
     else if (!enough) renderNote.textContent = `На балансе ${tokensText(b.paid + b.welcome)} — не хватает на кадр`;
     else if (b.paid >= cost) renderNote.textContent = `Кадр без знака · останется ${tokensText(b.paid - cost)}`;
     else if (b.welcome >= cost) renderNote.textContent = `Приветственные токены: кадр с небольшим знаком · останется ${b.welcome - cost}`;
