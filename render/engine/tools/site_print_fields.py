@@ -53,7 +53,26 @@ def main() -> int:
         tm["field"] = {"u": [round(v, 6) for v in fit["u"]], "v": [round(v, 6) for v in fit["v"]]}
         tm["unwrapMm"] = [round(v, 1) for v in fit["field_mm"]]
         changed += 1
-        log(f"{cup['id']}: поле {tm['unwrapMm']} мм, u {tm['field']['u']}, v {tm['field']['v']}")
+        band = fit["band"]
+        log(f"{cup['id']}: шелкотрафарет {tm['unwrapMm']} мм, u {tm['field']['u']}, v {tm['field']['v']}, "
+            f"сверху {band['top_margin_mm']} мм, z {band['z_range_mm']}")
+        # Тампопечать: полоса зоны сторон на всю печатную ширину. Сайт кладёт
+        # на неё стороны А и Б в четверти окружности от середины полосы — так
+        # стоят центральные линии в шаблонах Формации.
+        pad = cup["render"]["print"].get("pad")
+        if pad:
+            cfg["_print_variant"] = "pad"
+            fit = place.rect_fit(cfg, place.print_spec(cfg, {}), height_mm)
+            cfg["_print_variant"] = None
+            band = fit["band"]
+            tm["pad"] = {
+                "field": {"u": [round(v, 6) for v in fit["u"]], "v": [round(v, 6) for v in fit["v"]]},
+                "fieldMm": [round(v, 1) for v in fit["field_mm"]],
+                "circumferenceMm": band["circumference_mid_mm"],
+                "zoneMm": pad["zone_mm"],
+            }
+            log(f"{cup['id']}: тампопечать поле {tm['pad']['fieldMm']} мм, окружность {band['circumference_mid_mm']} мм, "
+                f"z {band['z_range_mm']}, u {tm['pad']['field']['u']}, v {tm['pad']['field']['v']}")
     with io.open(CATALOG, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n")
     log(f"каталог: {changed} стакан(ов) PP")

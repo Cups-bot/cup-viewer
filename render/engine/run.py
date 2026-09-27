@@ -92,6 +92,7 @@ def load_job(path: str, cfg: dict, place) -> dict:
     cfg["_rotate_deg"] = hero.get("rotate", 0.0)
     if hero.get("print") == "none":
         cfg["print"]["enabled"] = False
+    cfg["_print_variant"] = "pad" if hero.get("print") == "pad" else None
     cfg["_cups"] = cups
     cfg["_layout"] = job.get("layout") or ("pair" if len(cups) > 1 and cups[1]["id"] == hero["id"] else "side")
     cam = job.get("camera") or {}
@@ -182,9 +183,14 @@ def report(name: str, info: dict) -> None:
         print(f"###   бумага{var}, картон: {pr.get('label')}")
     if pr and pr["mode"] == "clean":
         print("###   печать выключена, чистый картон")
-    elif pr and pr["mode"] == "sheet":
+    elif pr and pr["mode"] == "sheet" and "page_mm" in pr:
         print(f"###   лист {pr['page_mm'][0]:g}×{pr['page_mm'][1]:g} мм, "
               f"макет {pr['source']} ({pr['image']}, {pr['size_px'][0]}×{pr['size_px'][1]})")
+    elif pr and pr["mode"] == "sheet":
+        # PET: лист сторон от сайта вместо печати из файла (place.dress_cup) —
+        # страницы у него нет; прежде отчёт падал на page_mm, и кадр PET с
+        # макетом из задания не считался вовсе.
+        print(f"###   лист сторон из задания ({pr.get('type')}): {', '.join(pr.get('images', []))}")
     elif pr and pr["mode"] == "own":
         print(f"###   материал и печать из файла стакана ({pr.get('type')}): "
               f"{', '.join(pr['images']) or 'без печати'}")

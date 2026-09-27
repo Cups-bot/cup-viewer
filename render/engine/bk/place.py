@@ -83,6 +83,10 @@ def load_catalog(cfg: dict) -> None:
         pr = e.get("print") or {}
         if pr.get("mode") == "pp":
             e["field_mm"], e["band"] = pr["field_mm"], pr["band"]
+            # Тампопечать (владелец, 2026-09-27): своя полоса по высоте зоны
+            # сторон, на всю печатную ширину; стороны сводит сайт.
+            if pr.get("pad"):
+                e["pad"] = pr["pad"]
         cups[e["id"]] = e
         for alias in e.get("aliases", []):
             cups[str(alias)] = e
@@ -498,7 +502,15 @@ def place_band(band: dict, spec: dict, cup_height_mm: float,
     # Верхний край поля: либо от видимого края стенки, либо от кромки.
     # Отступ задан по образующей, как меряют сам макет.
     top = None
-    if "top_margin_from_visible_mm" in spec:
+    if "z_range_mm" in spec:
+        # Зона задана по высоте от дна (тампопечать: зона стороны в шаблоне
+        # Формации меряется по вертикали на виде спереди).
+        zb, zt = (float(v) for v in spec["z_range_mm"])
+        spec = {k: v for k, v in spec.items() if k not in ("height_mm", "top_margin_from_visible_mm", "top_margin_mm")}
+        spec["height_mm"] = (zt - zb) * gen_per_z
+        spec["bottom_margin_mm"] = zb
+        bottom = zb
+    elif "top_margin_from_visible_mm" in spec:
         if not visible:
             raise ConfigError("print.band.top_margin_from_visible_mm: в отчёте "
                               "стакана нет видимой части стенки (uv_bands.visible)")
@@ -666,16 +678,22 @@ def rect_fit(cfg: dict, spec: dict, cup_height_mm: float) -> dict:
     """
     # Полоса печати задаётся общая, а объём может её переопределить: у 410,
     # 500 и 650 разные высоты поля при одной и той же длине макета.
+    cup = resolve_cup(cfg)
+    pad = cup.get("pad") if cfg.get("_print_variant") == "pad" else None
     band_spec = dict(spec.get("band") or {})
-    band_spec.update(resolve_cup(cfg).get("band") or {})
+    band_spec.update((pad or cup).get("band") or {})
     geo = place_band(print_band(cfg), band_spec, cup_height_mm, visible_band(cfg))
     # Формат макета по умолчанию равен реальной области печати этого
     # стакана: тогда рисунок ложится один в один. Явный формат нужен
     # только там, где принята своя договорённость — например 220 x 110
-    # у 500 мл, ради которой мирятся со сжатием.
-    field = (resolve_cup(cfg).get("field_mm") or spec.get("field_mm")
-             or [geo["printed_width_mid_mm"], geo["height_gen_mm"]])
-    fit = fit_field(geo, field, spec.get("width_ref", "band"))
+    # у 500 мл, ради которой мирятся со сжатием. Тампопечать — лист на всю
+    # печатную ширину полосы зоны: стороны на нём расставил сайт.
+    if pad:
+        field = [geo["printed_width_mid_mm"], geo["height_gen_mm"]]
+        fit = fit_field(geo, field, "band")
+    else:
+        field = cup.get("field_mm") or spec.get("field_mm") or [geo["printed_width_mid_mm"], geo["height_gen_mm"]]
+        fit = fit_field(geo, field, spec.get("width_ref", "band"))
     fit["band"] = geo
     fit["field_mm"] = [float(field[0]), float(field[1])]
     wf = fit["width_frac"]

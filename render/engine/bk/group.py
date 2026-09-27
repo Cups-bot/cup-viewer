@@ -46,7 +46,7 @@ def specs(cfg: dict) -> List[dict]:
              "print": None if cfg["print"].get("enabled", True) else "none"}]
 
 
-_KEYS = ("cup_key", "cup_variant", "_board", "_art", "_art_page", "_rotate_deg", "_art_given")
+_KEYS = ("cup_key", "cup_variant", "_board", "_art", "_art_page", "_rotate_deg", "_art_given", "_print_variant")
 
 
 @contextmanager
@@ -68,6 +68,8 @@ def use(cfg: dict, spec: dict):
         cfg["_art_given"] = True
     if spec.get("print") == "none":
         cfg["print"]["enabled"] = False
+    # Тампопечать PP: лист сторон от сайта ложится на полосу зоны (place.rect_fit).
+    cfg["_print_variant"] = "pad" if spec.get("print") == "pad" else None
     try:
         yield
     finally:
