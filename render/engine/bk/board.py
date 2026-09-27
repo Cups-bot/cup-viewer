@@ -95,6 +95,111 @@ def _surface(mat, p: dict, fibre=None) -> None:
     bump = _fibre_bump(mat)
     if bump is not None and fibre is not None:
         bump.inputs["Strength"].default_value = fibre
+    _paper(mat, p, bump)
+
+
+def _noise(nt, scale: float, detail: float, rough: float, stretch=(1.0, 1.0, 1.0)):
+    """Шум по координатам объекта (метры сетки стакана): scale — штук на метр."""
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    mp = nt.nodes.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = stretch
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = detail
+    noise.inputs["Roughness"].default_value = rough
+    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
+    nt.links.new(mp.outputs["Vector"], noise.inputs["Vector"])
+    return noise.outputs["Fac"]
+
+
+def _math(nt, op: str, a, b):
+    m = nt.nodes.new("ShaderNodeMath")
+    m.operation = op
+    for i, v in enumerate((a, b)):
+        if isinstance(v, (int, float)):
+            m.inputs[i].default_value = v
+        else:
+            nt.links.new(v, m.inputs[i])
+    return m.outputs[0]
+
+
+def _paper(mat, p: dict, fibre_bump) -> None:
+    """Картон, каким его видит камера (2026-09-27, «как фото на проф камеру»).
+
+    До этого у печати было одно волокно в 0,15 мм — на кадре мельче пикселя,
+    и стакан выходил гладким, как пластик. Здесь три масштаба, как на
+    эталонных фото бумажных стаканов:
+
+    - облачность картона (mottle) — неровность отлива в 3–5 мм: печать на
+      плашках чуть пятнистая, ±несколько процентов яркости;
+    - видимое волокно (fibre_visible) — рельеф ~0,7 мм, читается в скользящем
+      свете и на крупном плане;
+    - волна стенки (wave) — стенка стакана не идеальный конус: блик вдоль
+      образующей чуть гуляет;
+    - блеск краски (ink_gloss) — где краски много, поверхность глаже бумаги:
+      на тёмных плашках свой, более собранный блик, как у оттиска.
+
+    Цвет макета меняется только облачностью (доли процента в среднем), знак
+    и надписи не трогаются.
+    """
+    nt = mat.node_tree
+    b = _bsdf(mat)
+    mottle = p.get("mottle", 0.0)
+    ink_gloss = p.get("ink_gloss", 0.0)
+    visible = p.get("fibre_visible", 0.0)
+    wave = p.get("wave", 0.0)
+    formation = _noise(nt, 260.0, 6.0, 0.55) if (mottle or ink_gloss) else None
+
+    base = b.inputs["Base Color"]
+    if mottle and base.is_linked:
+        src = base.links[0].from_socket
+        rng = nt.nodes.new("ShaderNodeMapRange")
+        rng.inputs["From Min"].default_value = 0.3
+        rng.inputs["From Max"].default_value = 0.7
+        rng.inputs["To Min"].default_value = 1.0 - mottle
+        rng.inputs["To Max"].default_value = 1.0 + mottle
+        nt.links.new(formation, rng.inputs["Value"])
+        mix, out = _mix_multiply(nt)
+        nt.links.new(src, _sock(mix, "A", "RGBA"))
+        nt.links.new(rng.outputs["Result"], _sock(mix, "B", "RGBA"))
+        nt.links.new(out, base)
+
+    if ink_gloss and base.is_linked:
+        # Сколько краски: тёмное и насыщенное в макете — плотная плашка.
+        art = nt.nodes.get(ART_NODE)
+        src = art.outputs["Color"] if art is not None else base.links[0].from_socket
+        bw = nt.nodes.new("ShaderNodeRGBToBW")
+        nt.links.new(src, bw.inputs["Color"])
+        ink = _math(nt, "SUBTRACT", 1.0, bw.outputs["Val"])
+        wobble = _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", formation, 0.5), 0.08)
+        rough = _math(nt, "ADD", _math(nt, "SUBTRACT", p["roughness"], _math(nt, "MULTIPLY", ink, ink_gloss)), wobble)
+        clamp = nt.nodes.new("ShaderNodeClamp")
+        nt.links.new(rough, clamp.inputs["Value"])
+        nt.links.new(clamp.outputs["Result"], b.inputs["Roughness"])
+
+    if fibre_bump is None or not (visible or wave):
+        return
+    # Цепочка рельефа: конгрев (карта нормалей) → волна → волокно → мелкое волокно.
+    feed = fibre_bump.inputs["Normal"]
+    upstream = feed.links[0].from_socket if feed.is_linked else None
+    for layer, strength, scale, detail, distance, stretch in (
+            ("wave", wave, 14.0, 2.0, 0.0015, (1.0, 1.0, 0.35)),
+            ("fibre", visible, 1400.0, 3.0, 0.00012, (1.0, 1.0, 2.5))):
+        if not strength:
+            continue
+        bump = nt.nodes.new("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = strength
+        bump.inputs["Distance"].default_value = distance
+        nt.links.new(_noise(nt, scale, detail, 0.6, stretch), bump.inputs["Height"])
+        if upstream is not None:
+            nt.links.new(upstream, bump.inputs["Normal"])
+        upstream = bump.outputs["Normal"]
+        if layer == "wave":
+            # Лак меловки лежит по волне стенки, но не по волокну — оно под ним.
+            coat_normal = b.inputs.get("Coat Normal")
+            if coat_normal is not None and p.get("coat", 0.0) > 0:
+                nt.links.new(upstream, coat_normal)
+    nt.links.new(upstream, feed)
 
 
 def _tint(mat, color, speckle: float, roughness: Optional[float] = None) -> None:

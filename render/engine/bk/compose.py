@@ -27,6 +27,20 @@ from bk import frame, group, place
 UP = Vector((0.0, 0.0, 1.0))
 AWAY = Vector((0.0, 0.0, -1000.0))
 
+# Глубина резкости предметной съёмки (владелец, 2026-09-27: «как фото на проф
+# камеру»). Авторские камеры сцен снимали флакон и колонку на f/2.8–3.5: при
+# 120 мм с метра резко 1–2 см — меньше стакана, край венчика и бока плыли, и
+# кадр читался как макет. Закрыть диафрагму на весь кадр нельзя: резким стал бы
+# и фон, а это тоже выдаёт 3D. Предметник снимает стакан со склейкой фокуса —
+# здесь так же (bk/stack.py): фон с авторской диафрагмой, стакан — с этой.
+# Резкость стакана — от передней стенки до оси (SHARP_DEPTH радиусов верха),
+# фокус — посередине.
+SHARP_DEPTH = 1.1
+REF_TOP_RADIUS = 44.5 / 135.3      # BM90-500: радиус верха в долях роста
+COC_36 = 0.00003                  # кружок нерезкости на 36-мм кадре, м
+MAX_FSTOP = 16.0
+FOCUS_INTO = 0.5                  # фокус — на эту долю радиуса вглубь от стенки
+
 
 def fit_mode(cfg: dict) -> str:
     """crop — кадр вырезом (по умолчанию, совпадает с превью); dolly — прежний
@@ -82,6 +96,7 @@ def run(scene, cam, cups: List[dict], cfg: dict, shot: dict, name: str, st: dict
         _update(scene)
 
     base = frame.window_of(scene, cam)
+    aperture = product_aperture(cam, origin + UP * href * s * 0.5, href * s, shot)
     area = frame.backdrop_window(base)
     frame_id = cfg.get("_frame") or "1:1"
     aspect = frame.aspect_of(frame_id)
@@ -150,6 +165,7 @@ def run(scene, cam, cups: List[dict], cfg: dict, shot: dict, name: str, st: dict
     _update(scene)
 
     focus = _focus(cam, cups, placed, s, st, preset, pair)
+    stack = _stack_plan(cam, placed, s, final, tan_box, aperture)
     for w in warns:
         place._warn(w)
     return {
@@ -168,6 +184,55 @@ def run(scene, cam, cups: List[dict], cfg: dict, shot: dict, name: str, st: dict
                        "floor_mm": round((b.z - origin.z) / mm, 1)} for c, b in placed],
         "group": pair,
         "focus": focus,
+        "stack": stack,
+    }
+
+
+def product_aperture(cam, centre: Vector, href: float, shot: dict) -> Optional[dict]:
+    """Диафрагма «весь стакан резкий» — по эталону и камере ракурса, до
+    кадрирования (зрачок потом держит frame.set_window). Камеру не трогает:
+    выгрузка превью (tools/export_preview.py) идёт тем же путём, и снимок фона
+    остаётся с авторской диафрагмой. Фон с "product_dof": false — как у автора."""
+    d = cam.data
+    if not d.dof.use_dof or not shot.get("product_dof", True):
+        return None
+    dist = (cam.matrix_world.translation - centre).length
+    depth = SHARP_DEPTH * REF_TOP_RADIUS * href
+    f = d.lens / 1000.0
+    coc = COC_36 * d.sensor_width / 36.0
+    need = depth * f * f / (2 * coc * dist * dist) if dist > 0 else 0.0
+    return {"scene": d.dof.aperture_fstop, "product": min(MAX_FSTOP, max(d.dof.aperture_fstop, need)), "lens": d.lens}
+
+
+def _stack_plan(cam, placed, s, win, tan_box, aperture) -> Optional[dict]:
+    """Что нужно склейке фокуса (bk/stack.py): стаканы, их рамка в кадре,
+    диафрагма и фокус стакана. Камеру оставляет как была."""
+    if aperture is None:
+        return None
+    d = cam.data
+    # Кадрирование держало зрачок: диафрагмы — под нынешнее фокусное.
+    zoom = d.lens / aperture["lens"]
+    hero, hb = placed[0]
+    saved = (d.dof.focus_object, d.dof.focus_distance)
+    wall = place.focus_on_cup(cam, hero["obj"], hb.z + hero["height"] * s * 0.45)
+    d.dof.focus_object, d.dof.focus_distance = saved
+    box = None
+    for c, b in placed:
+        bb = tan_box(b, c)
+        box = bb if box is None else frame.union(box, bb)
+    x0, x1, y0, y1 = win
+    pad = 0.03
+    border = [max(0.0, (box[0] - x0) / (x1 - x0) - pad), max(0.0, (box[2] - y0) / (y1 - y0) - pad),
+              min(1.0, (box[1] - x0) / (x1 - x0) + pad), min(1.0, (box[3] - y0) / (y1 - y0) + pad)]
+    return {
+        "cups": [c["obj"].name for c, _b in placed],
+        # Склейка — только у непрозрачных: сквозь PET и PP фон во втором проходе
+        # вышел бы резким, а в жизни он размыт объективом и сквозь стенку.
+        "opaque": all(c["entry"].get("type") == "paper" for c, _b in placed),
+        "fstop_scene": round(aperture["scene"] * zoom, 3),
+        "fstop_product": round(aperture["product"] * zoom, 3),
+        "focus_product": round(wall + FOCUS_INTO * hero["r_top"] * s, 4),
+        "border": [round(v, 4) for v in border],
     }
 
 

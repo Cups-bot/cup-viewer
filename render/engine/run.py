@@ -257,6 +257,10 @@ def main(argv=None) -> int:
                          "или dolly (прежний подъезд камеры)")
     ap.add_argument("--remember", action="store_true",
                     help="запомнить --cup и --print в конфиге")
+    ap.add_argument("--crop", default=None,
+                    help="вырез кадра «x0,y0,x1,y1» в долях (0…1, y снизу): проверка качества в итоговой плотности без всего кадра")
+    ap.add_argument("--finish", action="store_true",
+                    help="«камера»: кривая, ореол бликов, виньетка, резкость, зерно (bk/finish.py) — у кадров сайта всегда")
     ap.add_argument("--samples", type=int, default=None)
     ap.add_argument("--resolution", type=int, default=None)
     ap.add_argument("--render", action="store_true")
@@ -423,8 +427,32 @@ def main(argv=None) -> int:
         if not args.no_save:
             info["files"]["blend"] = place.save(out, stem)
             print("###   blend: " + info["files"]["blend"])
+        if args.crop:
+            import bpy
+            x0, y0, x1, y1 = (float(v) for v in args.crop.split(","))
+            r = bpy.data.scenes[info["scene"]].render
+            r.use_border, r.use_crop_to_border = True, True
+            r.border_min_x, r.border_min_y, r.border_max_x, r.border_max_y = x0, y0, x1, y1
+            stem += "_crop"
         if args.render:
-            info["files"]["image"] = place.render(info["scene"], out, stem)
+            import bpy
+            from bk import finish, stack
+            plan = comp.get("stack") if comp else None
+            post = args.finish or bool(plan and plan["opaque"])
+            if post:
+                # 16 бит до склейки и «камеры»: на 8 битах кривая дала бы ступеньки.
+                bpy.data.scenes[info["scene"]].render.image_settings.color_depth = "16"
+            shot = stack.render(info["scene"], out, stem, plan)
+            info["files"]["image"] = shot["image"]
+            info["focus_stack"] = dict(plan or {}, mode=shot["mode"])
+            if post:
+                t1 = time.time()
+                finish.apply_file(shot["image"], seed=sum(map(ord, stem)), over=shot["over"], camera=args.finish)
+                if shot["over"]:
+                    os.remove(shot["over"])
+                if args.finish:
+                    info["finish"] = dict(finish.PARAMS)
+                print(f"###   склейка и камера: {time.time() - t1:.1f} с, съёмка {shot['mode']}")
             print("###   кадр: " + info["files"]["image"])
         with io.open(os.path.join(out, stem + ".json"), "w", encoding="utf-8") as fh:
             fh.write(json.dumps(info, ensure_ascii=False, indent=2) + "\n")
