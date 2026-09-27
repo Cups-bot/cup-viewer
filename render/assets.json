@@ -2,7 +2,7 @@
  "schema": 1,
  "_about": "Тяжёлые файлы render/ вне git: путь от render/, размер, SHA-256. Переписывает engine/tools/assets.py index, проверяет — check.",
  "indexed": "2026-09-27",
- "totalBytes": 745723975,
+ "totalBytes": 751857042,
  "files": [
   {
    "path": "art/410_cosmic_200x85.png",
@@ -738,6 +738,96 @@
    "path": "scenes/assets/concrete_floor_02/concrete_floor_02_rough_2k.jpg",
    "bytes": 1417673,
    "sha256": "cb539b0f8fdc8c63241683e01c923eb040fa701ec4c60cff27b674294746ae67"
+  },
+  {
+   "path": "scenes/assets/park/_tools/art-grey.png",
+   "bytes": 31233,
+   "sha256": "78bbab5fbca364eb7d005ffce98c4e31ffe38412883ca64fd66900cc40e95139"
+  },
+  {
+   "path": "scenes/assets/park/_tools/camfit2.py",
+   "bytes": 7506,
+   "sha256": "0d7eec3c3f852fbe534a872f6f3ecef3838ea91c437fe670f8b4f02260a7eee5"
+  },
+  {
+   "path": "scenes/assets/park/_tools/camfit3.py",
+   "bytes": 8339,
+   "sha256": "f2694b2320aeb9d33fef7ee83cc213b7fb52ef2d65eae4dae5f51fe812912b02"
+  },
+  {
+   "path": "scenes/assets/park/_tools/cmp.py",
+   "bytes": 1260,
+   "sha256": "0eb7f2574401ce1183288359c79669bfa3ee3548c8259b1ef08daf872ad7bdc7"
+  },
+  {
+   "path": "scenes/assets/park/_tools/diag_sun.py",
+   "bytes": 1226,
+   "sha256": "a09a3842dad84343bb754aa6a6542ff7e270c5ebf3b9ae90a4efd6f1cd0cc0b0"
+  },
+  {
+   "path": "scenes/assets/park/_tools/diag_sunsweep.py",
+   "bytes": 1788,
+   "sha256": "c50de9bbb384777a58468f95fc8054827857a07fb99c62e87eb600e4f4bc2e75"
+  },
+  {
+   "path": "scenes/assets/park/_tools/diag_toggle.py",
+   "bytes": 2697,
+   "sha256": "16df1574c8dff3c9aca732666f3cbea9ba70c93a459de7923d14ae60b7b1388d"
+  },
+  {
+   "path": "scenes/assets/park/_tools/fit_final_a.json",
+   "bytes": 1051,
+   "sha256": "d8b6c50063f7b565c4719957a9e445099cfc72f52aded792bd9e7070950b669e"
+  },
+  {
+   "path": "scenes/assets/park/_tools/fit_hi2_L70.json",
+   "bytes": 1004,
+   "sha256": "cd4b1918168d8e0f679428458d42e02b3b1deb703b789b4e6c621a41a1c0b56a"
+  },
+  {
+   "path": "scenes/assets/park/_tools/fit_hi_L70.json",
+   "bytes": 982,
+   "sha256": "7e62bf7f8a2ca57e9280bbeced1b405c789568bcbb1e7b75a55b91e1bac63f29"
+  },
+  {
+   "path": "scenes/assets/park/_tools/inspect_drops.py",
+   "bytes": 1193,
+   "sha256": "9185b35721bdbb03f6c4fac5a558e81f26087afee4d79c067ae9d26041c6d07a"
+  },
+  {
+   "path": "scenes/assets/park/_tools/inspect_leaves.py",
+   "bytes": 695,
+   "sha256": "f74f4d4ae4fd93d39bdd3d5ee6d0eb44544ce55de310227ba9db58a30dd586a4"
+  },
+  {
+   "path": "scenes/assets/park/_tools/job-park-grey.json",
+   "bytes": 149,
+   "sha256": "9a03e7e5bf088906c2497d04781b59737662aa491f3ad1be8b5fc01c1bd056f7"
+  },
+  {
+   "path": "scenes/assets/park/_tools/job-park.json",
+   "bytes": 147,
+   "sha256": "d2d82856278ed8e8012aa23bb9765b404783579da6964e4c3640cb73c1fecbb0"
+  },
+  {
+   "path": "scenes/assets/park/_tools/last_render_v4_standard.png",
+   "bytes": 6069578,
+   "sha256": "a2d525774805c4c749e925bd883bb60e6fa89787fb3757da0e482fdc6b0c4894"
+  },
+  {
+   "path": "scenes/assets/park/_tools/overlay.py",
+   "bytes": 1307,
+   "sha256": "38452c0c27502d1c08e8e2ff990fe79af785484347c22cc9f93193ebeb880917"
+  },
+  {
+   "path": "scenes/assets/park/_tools/proj_lines.py",
+   "bytes": 1449,
+   "sha256": "ec234699e5eb76abf582605bf375b4e346b2c555a566230a44433f3844437981"
+  },
+  {
+   "path": "scenes/assets/park/_tools/run.ps1",
+   "bytes": 1463,
+   "sha256": "e497f66a4faf2a6505e6b2888a5ee9543b84132a8a0e8ced46d33e03432172d8"
   },
   {
    "path": "scenes/assets/park/ground/leaves_forest_ground_diff_2k.jpg",
