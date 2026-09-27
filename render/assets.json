@@ -2,7 +2,7 @@
  "schema": 1,
  "_about": "Тяжёлые файлы render/ вне git: путь от render/, размер, SHA-256. Переписывает engine/tools/assets.py index, проверяет — check.",
  "indexed": "2026-09-27",
- "totalBytes": 741299707,
+ "totalBytes": 745723975,
  "files": [
   {
    "path": "art/410_cosmic_200x85.png",
@@ -941,8 +941,13 @@
   },
   {
    "path": "scenes/assets/park/user/leaf_atlas_boxes.json",
-   "bytes": 1568,
-   "sha256": "d98d98b0147fcac5749963a17c05040867155fd101a431ad08f3c7f138e09b6d"
+   "bytes": 4048,
+   "sha256": "0e70ae6f3aafe599d625ba3418a963b680a4754f995d2ba6a9adc311868247dd"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_color.png",
+   "bytes": 2978737,
+   "sha256": "04ce7e356b9a4ecae0ee2e55a1d2c391bc9cda33bc207143d2cb7ba5f964dd24"
   },
   {
    "path": "scenes/assets/park/user/leaf_atlas_ids.png",
@@ -1056,8 +1061,8 @@
   },
   {
    "path": "scenes/park.blend",
-   "bytes": 609550,
-   "sha256": "91ce5820b77508923462a290a2c6644d8bb2f2b499fc1a52051c89c7a38278e6"
+   "bytes": 2052601,
+   "sha256": "f92f92733e16488c47d869f29137d1aaff21605a3a55ed4e3e4131d122dc3f70"
   }
  ]
 }

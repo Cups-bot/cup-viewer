@@ -14,6 +14,9 @@
   cups_plate_tan    полуширина снимка — тангенс угла от оси камеры
   cups_plate_shift  центр снимка (tx, ty) в тех же тангенсах
   cups_plate_gain   яркость (как Strength фона в мире), по умолчанию 1
+  cups_plate_sat, cups_plate_contrast, cups_plate_knee — спокойнее фон
+                    (насыщенность, контраст, с какой яркости прижимать пятна
+                    боке); по умолчанию 1 — снимок как есть
 """
 
 from typing import Optional
@@ -31,7 +34,24 @@ def config(scene) -> Optional[dict]:
 
     return {"image": bpy.path.abspath(path), "tan": float(scene["cups_plate_tan"]),
             "shift": tuple(float(v) for v in scene["cups_plate_shift"]),
-            "gain": float(scene.get("cups_plate_gain", 1.0))}
+            "gain": float(scene.get("cups_plate_gain", 1.0)),
+            "sat": float(scene.get("cups_plate_sat", 1.0)),
+            "contrast": float(scene.get("cups_plate_contrast", 1.0)),
+            "knee": float(scene.get("cups_plate_knee", 1.0))}
+
+
+def grade(disp: np.ndarray, sat: float = 1.0, contrast: float = 1.0, knee: float = 1.0) -> np.ndarray:
+    """Экранный снимок (sRGB 0…1) спокойнее: насыщенность к яркости, контраст к
+    середине шкалы, выше knee — мягкое прижатие (tanh) к единице."""
+    if sat == 1.0 and contrast == 1.0 and knee >= 1.0:
+        return disp
+    L = (disp[..., 0] * 0.2126 + disp[..., 1] * 0.7152 + disp[..., 2] * 0.0722)[..., None]
+    out = L + (disp - L) * sat
+    out = 0.5 + (out - 0.5) * contrast
+    if knee < 1.0:
+        room = 1.0 - knee
+        out = np.where(out > knee, knee + room * np.tanh((out - knee) / room), out)
+    return np.clip(out, 0.0, 1.0)
 
 
 def pbr_neutral(c: np.ndarray) -> np.ndarray:
@@ -116,7 +136,8 @@ def layer(scene, cfg: dict, w: int, h: int) -> np.ndarray:
     v = 0.5 + (ty - sy) * k
     gx, gy = np.meshgrid(u * PW - 0.5, v * PH - 0.5)
     lin = sample(plate, gx, gy) * cfg["gain"]
-    return to_linear(display(scene, lin))
+    disp = grade(display(scene, lin), cfg.get("sat", 1.0), cfg.get("contrast", 1.0), cfg.get("knee", 1.0))
+    return to_linear(disp)
 
 
 def under(path: str, scene, cfg: dict) -> str:

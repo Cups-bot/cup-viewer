@@ -66,15 +66,16 @@ AIM = 0.0075                      # цель над центром эталон�
 # передняя кромка скамейки мягче стакана, спинка и лес — в боке (п. 5).
 # Фон — подложенный снимок (bk/plate.py), диафрагма размывает только геометрию.
 LENS, FSTOP = 70.00, 5.6
-# Солнце — главный свет, контровое сзади-справа (разбор владельца, п. 1): на
-# 28° правее оси взгляда, 22° над горизонтом. Солнце снимка — на 10° правее
-# оси, но лампа оттуда давала стакану лишь тонкий контур по краям (серый
-# стакан — ровный, v3b), а зеркальный блик в мокрых досках — белую
-# «простыню» на всю переднюю планку (v3a); на 45° блик ушёл за кадр совсем, и
-# золото на досках пропало (v3d). На 28° ядро блика за правым краем кадра, в
-# кадр заходит его край. Размытый снимок расхождения не выдаёт.
-SUN_AZ = 20.8
-SUN_ELEV = 22.0
+# Солнце — главный свет, сбоку-справа: 75° правее оси взгляда, 24° над
+# горизонтом. Перебор на глянцевой скамейке (второй разбор владельца, п. 2):
+# лицо спинки параллельно оси скамейки и смотрит к камере — солнце ближе к
+# оси взгляда оказывается за плоскостью спинки, и она тонет в тени (v3); с
+# 75° спинка освещена, верх досок и скруглённые кромки ловят длинные блики,
+# стакан получает свет справа. Зеркальный блик в мокрых досках — за кадром
+# (белая «простыня» при солнце по оси, v3a). Солнце снимка — на 10° правее
+# оси; размытый снимок расхождения не выдаёт.
+SUN_AZ = -26.2
+SUN_ELEV = 24.0
 # Фон для камеры — снимок владельца (user_bokeh_4k.png — тот же кадр, что
 # user_bokeh.png, в 4K): золотое боке, стволы, солнце справа сверху. Снимок =
 # кадр референса для DW90-430: полуширина — тангенс кадра объектива, центр —
@@ -86,10 +87,12 @@ PLATE_GAIN = 1.0
 # справа (объём стакана, светлая кромка, золото на мокрых досках, просвет
 # листьев); спереди — слабое мягкое заполнение для надписи. «Второе солнце»
 # спереди делало стакан плоским, а печать — «неоновой».
-SUN_STRENGTH = 6.0                # Вт/м²
+SUN_STRENGTH = 4.5                # Вт/м²
+PAINT_DARKEN = 0.7                # мокрая краска темнее текстуры (сухой)
 SUN_COLOR = (1.0, 0.84, 0.64)     # ~4000 K: тёплый, без оранжевой заливки
-SUN_SPECULAR = 0.6                # доля солнца в бликах (золотой блик, не белая простыня)
-FILL_W = 32.0                     # отражатель сбоку-слева, Вт
+SUN_SPECULAR = 0.9                # доля солнца в бликах: кромки досок и спинки ловят длинные блики
+FILL_W = 22.0                     # отражатель сбоку-слева, Вт
+CAM_FILL_W = 14.0                 # большое слабое заполнение от камеры, чуть справа, Вт
 SKY_CLAMP = 25.0                  # всё ярче — солнце панорамы, его заменяет лампа
 REFLECT_GAIN = 1.0                # яркость панорамы в отражениях
 WORLD_DIFFUSE = 0.55              # панорама в рассеянном свете
@@ -150,7 +153,12 @@ def planks_material():
     nor = nt.nodes.new("ShaderNodeTexImage"); nor.image = img(os.path.join(base, "bench_green_normal_generated.png"), False)
     for t in (diff, nor):
         link(nt, uv.outputs["UV"], t.inputs["Vector"])
-    link(nt, diff.outputs["Color"], b.inputs["Base Color"])
+    # Мокрая краска темнее сухой, а боковое солнце делало скамейку пастельной
+    # (v4a): свет на досках должен читаться бликами, не заливкой.
+    darker = nt.nodes.new("ShaderNodeMix"); darker.data_type = "RGBA"; darker.blend_type = "MULTIPLY"
+    darker.inputs["Factor"].default_value = 1.0
+    darker.inputs[7].default_value = (PAINT_DARKEN, PAINT_DARKEN, PAINT_DARKEN, 1.0)
+    link(nt, diff.outputs["Color"], darker.inputs[6]); link(nt, darker.outputs[2], b.inputs["Base Color"])
     # Сколы — светлое дерево в текстуре: там матово.
     hsv = nt.nodes.new("ShaderNodeSeparateColor"); hsv.mode = "HSV"
     link(nt, diff.outputs["Color"], hsv.inputs["Color"])
@@ -162,24 +170,42 @@ def planks_material():
     nmap = node(nt, "ShaderNodeNormalMap", Strength=0.3)
     link(nt, nor.outputs["Color"], nmap.inputs["Color"])
     link(nt, nmap.outputs["Normal"], b.inputs["Normal"])
-    # Влажность — крупные полосы вдоль волокна (шум, растянутый по длине
-    # планки): где плёнка — зеркальные протяжённые отражения, где подсохло —
-    # атлас. Мелкий равномерный шум давал пятнистость.
+    # Влажность — неоднородность на трёх масштабах (второй разбор, п. 3):
+    # крупные протяжённые мокрые участки (чуть вытянуты вдоль волокна) ×
+    # средние разрывы × мелкая дрожь шероховатости. Одна сильно вытянутая
+    # полоса читалась лаком с длинными параллельными полосами (v3).
     tc = nt.nodes.new("ShaderNodeTexCoord")
-    mp = node(nt, "ShaderNodeMapping"); mp.inputs["Scale"].default_value = (1.2, 9.0, 9.0)
+    mp = node(nt, "ShaderNodeMapping"); mp.inputs["Scale"].default_value = (1.6, 4.0, 4.0)
     link(nt, tc.outputs["Object"], mp.inputs["Vector"])
-    wet = node(nt, "ShaderNodeTexNoise", Scale=3.0, Detail=5.0, Roughness=0.55)
-    link(nt, mp.outputs["Vector"], wet.inputs["Vector"])
-    cw = node(nt, "ShaderNodeMapRange", **{"From Min": 0.38, "From Max": 0.62, "To Min": 0.15, "To Max": 0.9})
-    link(nt, wet.outputs["Fac"], cw.inputs["Value"]); link(nt, cw.outputs["Result"], b.inputs["Coat Weight"])
-    cr = node(nt, "ShaderNodeMapRange", **{"From Min": 0.38, "From Max": 0.62, "To Min": 0.16, "To Max": 0.05})
-    link(nt, wet.outputs["Fac"], cr.inputs["Value"]); link(nt, cr.outputs["Result"], b.inputs["Coat Roughness"])
+    big = node(nt, "ShaderNodeTexNoise", Scale=2.2, Detail=4.0, Roughness=0.55)
+    link(nt, mp.outputs["Vector"], big.inputs["Vector"])
+    bigm = node(nt, "ShaderNodeMapRange", **{"From Min": 0.40, "From Max": 0.60, "To Min": 0.0, "To Max": 1.0})
+    link(nt, big.outputs["Fac"], bigm.inputs["Value"])
+    mid = node(nt, "ShaderNodeTexNoise", Scale=16.0, Detail=5.0, Roughness=0.6)
+    link(nt, tc.outputs["Object"], mid.inputs["Vector"])
+    midm = node(nt, "ShaderNodeMapRange", **{"From Min": 0.32, "From Max": 0.68, "To Min": 0.25, "To Max": 1.0})
+    link(nt, mid.outputs["Fac"], midm.inputs["Value"])
+    wetv = nt.nodes.new("ShaderNodeMath"); wetv.operation = "MULTIPLY"
+    link(nt, bigm.outputs["Result"], wetv.inputs[0]); link(nt, midm.outputs["Result"], wetv.inputs[1])
+
+    wet = wetv.outputs[0]                      # маска влажности 0…1
+    cw = node(nt, "ShaderNodeMapRange", **{"From Min": 0.0, "From Max": 1.0, "To Min": 0.1, "To Max": 0.9})
+    link(nt, wet, cw.inputs["Value"]); link(nt, cw.outputs["Result"], b.inputs["Coat Weight"])
+    cr = node(nt, "ShaderNodeMapRange", **{"From Min": 0.0, "From Max": 1.0, "To Min": 0.20, "To Max": 0.04})
+    link(nt, wet, cr.inputs["Value"])
+    fine = node(nt, "ShaderNodeTexNoise", Scale=90.0, Detail=2.0)
+    link(nt, tc.outputs["Object"], fine.inputs["Vector"])
+    jit = node(nt, "ShaderNodeMapRange", **{"From Min": 0.3, "From Max": 0.7, "To Min": 0.0, "To Max": 0.06})
+    link(nt, fine.outputs["Fac"], jit.inputs["Value"])
+    crj = nt.nodes.new("ShaderNodeMath"); crj.operation = "ADD"
+    link(nt, cr.outputs["Result"], crj.inputs[0]); link(nt, jit.outputs["Result"], crj.inputs[1])
+    link(nt, crj.outputs[0], b.inputs["Coat Roughness"])
     b.inputs["Coat IOR"].default_value = 1.33
     # Под водой свой блик эмали почти пропадает (граница краска/вода); где
     # подсохло — обычный атласный блик. Шершавый блик эмали от солнца давал
     # бежевую «простыню» на всём сиденье (d15–d22).
-    sp = node(nt, "ShaderNodeMapRange", **{"From Min": 0.38, "From Max": 0.62, "To Min": 0.35, "To Max": 0.05})
-    link(nt, wet.outputs["Fac"], sp.inputs["Value"]); link(nt, sp.outputs["Result"], b.inputs["Specular IOR Level"])
+    sp = node(nt, "ShaderNodeMapRange", **{"From Min": 0.0, "From Max": 1.0, "To Min": 0.35, "To Max": 0.05})
+    link(nt, wet, sp.inputs["Value"]); link(nt, sp.outputs["Result"], b.inputs["Specular IOR Level"])
     # Плёнка сглаживает рельеф дерева: у неё нормаль слабее.
     cn = node(nt, "ShaderNodeNormalMap", Strength=0.1)
     link(nt, nor.outputs["Color"], cn.inputs["Color"])
@@ -244,6 +270,9 @@ def leaf_material():
     uv = nt.nodes.new("ShaderNodeUVMap")
     atlas = [f for f in os.listdir(base) if "ChatGPT" in f and f.endswith(".png")][0]
     tex = {}
+    # Цвет без белой каймы: полупрозрачный край брал белый фон атласа
+    # (светлая кайма на листе, второй разбор, п. 4) — tools/prep_leaf_atlas.py.
+    atlas = "leaf_atlas_color.png"
     for k, f, c in (("Color", atlas, True), ("Alpha", "leaf_atlas_alpha.png", False),
                     ("Normal", "leaf_atlas_normal_generated.png", False), ("Id", "leaf_atlas_ids.png", False)):
         t = nt.nodes.new("ShaderNodeTexImage"); t.image = img(os.path.join(base, f), c)
@@ -540,12 +569,44 @@ def _drops_nodes(slat, bead):
     return ng
 
 
-def leaf(name, mat, atlas_size, rect, width, loc, yaw, bend, lift=0.0, tilt=(0.0, 0.0), raise_deg=0.0, blade=None):
-    """Лист из атласа: сетка по пропорции листа, изгиб вдоль, лежит на опоре."""
+def shape_leaf(me, width, aspect, rect, shape, bend, seed):
+    """Форма сухого листа (второй разбор, п. 4): половинки подняты от главной
+    жилки (одна прижата к доске), кончик завёрнут, лопасти на разной высоте.
+    Жилка — главная ось маски листа (tools/prep_leaf_atlas.py)."""
+    x0, y0, x1, y1 = rect
+    rnd = random.Random(seed)
+    cx = ((shape["centre"][0] - x0) / (x1 - x0) - 0.5) * width
+    cy = (0.5 - (shape["centre"][1] - y0) / (y1 - y0)) * width * aspect
+    a = math.radians(shape["axis_deg"])
+    ax, ay = math.cos(a), math.sin(a)
+    R = width * 0.42
+    fold = 0.16 + (bend - 25.0) * 0.012            # подъём половинок от жилки
+    pressed = rnd.uniform(0.2, 0.5)               # одна половинка прижата
+    side = rnd.choice((-1.0, 1.0))
+    curl = rnd.uniform(0.25, 0.45)                # завёрнутый кончик
+    tip = rnd.choice((-1.0, 1.0))
+    waves = [(rnd.uniform(18, 40), rnd.uniform(0, 2 * math.pi), rnd.uniform(0, 2 * math.pi)) for _ in range(3)]
+    for v in me.vertices:
+        px, py = v.co.x - cx, v.co.y - cy
+        along = px * ax + py * ay
+        perp = -px * ay + py * ax
+        r = min(math.hypot(px, py) / R, 1.4)
+        k = 1.0 if perp * side > 0 else pressed
+        z = fold * k * perp * perp / R
+        t = max(0.0, tip * along / R - 0.35)
+        z += curl * t * t * R
+        lobe = sum(0.5 + 0.5 * math.sin(f * (px * math.cos(ph) + py * math.sin(ph)) + ph2) for f, ph, ph2 in waves) / 3
+        z += 0.14 * R * r * r * lobe
+        v.co.z = z
+
+
+def leaf(name, mat, atlas_size, rect, width, loc, yaw, bend, lift=0.0, tilt=(0.0, 0.0), raise_deg=0.0, blade=None,
+         shape=None):
+    """Лист из атласа: сетка по пропорции листа, изгиб вдоль жилки, лежит на опоре."""
     x0, y0, x1, y1 = rect
     W, H = atlas_size
     aspect = (y1 - y0) / (x1 - x0)
-    bpy.ops.mesh.primitive_grid_add(x_subdivisions=24, y_subdivisions=24, size=1.0)
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=40, y_subdivisions=40, size=1.0)
     ob = bpy.context.object
     ob.name = name
     ob.scale = (width, width * aspect, 1.0)
@@ -558,11 +619,14 @@ def leaf(name, mat, atlas_size, rect, width, loc, yaw, bend, lift=0.0, tilt=(0.0
             u = (x0 + (co.x / width + 0.5) * (x1 - x0)) / W
             v = 1.0 - (y0 + (0.5 - co.y / (width * aspect)) * (y1 - y0)) / H
             uv.data[li].uv = (u, v)
-    # Сухой лист выгнут вдоль и чуть смят.
-    mod = ob.modifiers.new("Curl", "SIMPLE_DEFORM")
-    mod.deform_method = "BEND"; mod.deform_axis = "Y"; mod.angle = math.radians(bend)
+    if shape:
+        shape_leaf(me, width, aspect, rect, shape, bend, sum(map(ord, name)))
+    else:
+        # Сухой лист выгнут вдоль и чуть смят.
+        mod = ob.modifiers.new("Curl", "SIMPLE_DEFORM")
+        mod.deform_method = "BEND"; mod.deform_axis = "Y"; mod.angle = math.radians(bend)
     tex = bpy.data.textures.new(name + " crinkle", "CLOUDS"); tex.noise_scale = 0.02
-    dis = ob.modifiers.new("Crinkle", "DISPLACE"); dis.texture = tex; dis.strength = 0.004; dis.mid_level = 0.5
+    dis = ob.modifiers.new("Crinkle", "DISPLACE"); dis.texture = tex; dis.strength = 0.002; dis.mid_level = 0.5
     ob.rotation_euler = Euler((math.radians(tilt[0]), math.radians(tilt[1]), math.radians(yaw)))
     ob.location = loc
     bpy.context.view_layer.update()
@@ -594,7 +658,7 @@ def leaf(name, mat, atlas_size, rect, width, loc, yaw, bend, lift=0.0, tilt=(0.0
 def leaves(depth):
     import json
     info = json.load(open(os.path.join(ASSETS, "user", "leaf_atlas_boxes.json"), encoding="utf-8"))
-    boxes, size = info["boxes"], tuple(info["size"])
+    boxes, size, shapes = info["boxes"], tuple(info["size"]), info["shape"]
     mat = leaf_material()
     top = SEAT_Z
     obs = []
@@ -604,7 +668,7 @@ def leaves(depth):
         bx = boxes[k][:4]
         # ширина листа в метрах — по рамке листа в атласе
         ob = leaf(name, mat, size, bx, width_m, (cup.x + dx, cup.y + dy, top if z is None else z),
-                  yaw_leaf + VIEW_AZ - 15.0, bend, raise_deg=raise_deg, blade=bx)
+                  yaw_leaf + VIEW_AZ - 15.0, bend, raise_deg=raise_deg, blade=bx, shape=shapes[k])
         ob["leaf_id"] = k + 1
         ob.visible_camera = camera
         obs.append(ob)
@@ -615,13 +679,15 @@ def leaves(depth):
     # камере (он в нерезкости), у дна видна доска; правый лист компактнее, с
     # приподнятым краем на солнце. Номера — leaf_atlas_idx.jpg.
     # (№ в атласе, ширина м, x, y от оси стакана, поворот, изгиб, подъём)
+    # Второй разбор (п. 5): крупный лист ближе к стакану (вверх и вправо в
+    # кадре, больше видно формы), задние — не россыпью: один у стакана слева,
+    # два маленьких вместе у торца.
     plan = [
-        (12, 0.105, -0.165, -0.045, -30, 26, 8),     # крупный красно-оранжевый клён слева спереди
-        (1, 0.088, 0.070, -0.075, 140, 30, 11),      # оранжевый клён справа, край на солнце
-        (5, 0.070, 0.005, 0.128, 70, 34, 6),         # жёлтый клён за стаканом слева
-        (11, 0.060, -0.085, 0.150, 20, 30, 4),       # жёлтый поменьше, дальняя планка
-        (18, 0.045, 0.200, 0.100, 200, 36, 0),       # маленький красный справа глубже
-        (20, 0.050, 0.185, 0.035, 95, 32, 5),        # маленький справа у торца
+        (12, 0.105, -0.123, -0.012, -30, 30, 5),     # крупный красно-оранжевый клён слева спереди
+        (1, 0.088, 0.070, -0.075, 140, 32, 8),       # оранжевый клён справа, край на солнце
+        (5, 0.068, 0.000, 0.130, 70, 34, 4),         # жёлтый клён за стаканом слева
+        (18, 0.045, 0.190, 0.085, 200, 34, 0),       # два маленьких у торца, вместе
+        (20, 0.050, 0.215, 0.050, 95, 32, 3),
     ]
     for i, (k, w, dx, dy, yaw_leaf, bend, raise_deg) in enumerate(plan):
         put(f"Leaf seat {i + 1}", k, w, dx, dy, yaw_leaf, bend, raise_deg)
@@ -821,6 +887,26 @@ def fill_light(base):
     return ob
 
 
+def camera_fill(base):
+    """Большое слабое заполнение со стороны камеры, чуть правее: правая
+    сторона стакана — не почти чёрная, конец надписи и сердечко читаются, а
+    переход света по корпусу остаётся (второй разбор, п. 1). В мокрых
+    досках не отражается."""
+    light = bpy.data.lights.new("Camera fill", "AREA")
+    light.shape = "RECTANGLE"; light.size = 1.4; light.size_y = 1.0
+    light.energy = CAM_FILL_W
+    light.color = (1.0, 0.92, 0.82)
+    ob = bpy.data.objects.new("Camera fill", light)
+    bpy.context.scene.collection.objects.link(ob)
+    view, right = view_axes()
+    target = base + Vector((0.0, 0.0, 0.06))
+    ob.location = target - view * 0.9 + right * 0.3 + Vector((0.0, 0.0, 0.15))
+    ob.rotation_euler = (target - ob.location).to_track_quat("-Z", "Y").to_euler()
+    ob.visible_glossy = False
+    ob.visible_camera = False
+    return ob
+
+
 def main() -> int:
     scene = reset()
     paint, iron = planks_material(), metal_material()
@@ -833,6 +919,7 @@ def main() -> int:
     hero, base = cup_hero(depth)
     camera(scene, base)
     fill_light(base)
+    camera_fill(base)
     sun_lamp()
     # Фон-снимок для камеры подкладывается после рендера (bk/plate.py): через мир
     # сцены диафрагма размыла бы уже размытый снимок второй раз.
@@ -840,6 +927,11 @@ def main() -> int:
     scene["cups_plate_tan"] = PLATE_TAN
     scene["cups_plate_shift"] = list(PLATE_SHIFT)
     scene["cups_plate_gain"] = PLATE_GAIN
+    # Фон спокойнее (второй разбор, п. 6): чуть меньше насыщенность и
+    # контраст, самые яркие пятна боке прижаты — взгляд сначала на стакан.
+    scene["cups_plate_sat"] = 0.86
+    scene["cups_plate_contrast"] = 0.9
+    scene["cups_plate_knee"] = 0.82
     scene.view_settings.view_transform = "Khronos PBR Neutral"
     scene.view_settings.exposure = 0.0
     for im in bpy.data.images:

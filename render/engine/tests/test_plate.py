@@ -34,6 +34,20 @@ class Neutral(unittest.TestCase):
         self.assertTrue(np.all(np.diff(out) >= -1e-7))
 
 
+class Grade(unittest.TestCase):
+    def test_identity_by_default(self):
+        d = np.random.default_rng(1).random((8, 8, 3))
+        self.assertIs(plate.grade(d), d)
+
+    def test_calmer(self):
+        d = np.array([[[0.9, 0.5, 0.1], [0.98, 0.97, 0.95], [0.2, 0.2, 0.2]]])
+        g = plate.grade(d, sat=0.8, contrast=0.9, knee=0.85)
+        self.assertLess(np.ptp(g[0, 0]), np.ptp(d[0, 0]))       # меньше насыщенность
+        self.assertLess(g[0, 1].max(), d[0, 1].max())            # яркое пятно прижато
+        self.assertGreater(g[0, 2, 0], d[0, 2, 0])               # тени к середине
+        self.assertTrue(np.all((g >= 0) & (g <= 1)))
+
+
 class Sample(unittest.TestCase):
     def setUp(self):
         self.img = np.arange(12, dtype=np.float32).reshape(3, 4, 1).repeat(3, axis=2)

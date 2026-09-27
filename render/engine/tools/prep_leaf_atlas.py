@@ -6,7 +6,8 @@
 пороговая рампа. Рамки — связные области маски (со стеблями); рамки соседей
 перекрываются, поэтому ещё карта номеров: лист в шейдере показывает только
 свою область. Результат рядом с атласом (scenes/assets/park/user):
-leaf_atlas_alpha.png, leaf_atlas_ids.png, leaf_atlas_boxes.json,
+leaf_atlas_alpha.png, leaf_atlas_ids.png, leaf_atlas_color.png (без белой каймы),
+leaf_atlas_boxes.json (рамки, центр, ось листа),
 leaf_atlas_idx.jpg (номера — для выбора листьев в build_park.py)."""
 import glob
 import json
@@ -54,7 +55,26 @@ for _ in range(6):
     grown = np.where(grown == 0, dil, grown)
 cv2.imencode(".png", grown)[1].tofile(os.path.join(D, "leaf_atlas_ids.png"))
 cv2.imencode(".png", (alpha * 255).astype(np.uint8))[1].tofile(os.path.join(D, "leaf_atlas_alpha.png"))
-json.dump({"atlas": os.path.basename(src), "size": [img.shape[1], img.shape[0]], "boxes": boxes},
+# Цвет без белой каймы: полупрозрачный край листа брал белый фон атласа — на
+# листе в сцене читалась светлая кайма (разбор владельца). Фон за листом
+# заливается цветом самого листа (inpaint), край — цветом листа.
+core = (alpha > 0.97).astype(np.uint8)
+bgr8 = (img * 255).astype(np.uint8)
+bleed = cv2.inpaint(bgr8, (1 - core).astype(np.uint8), 4, cv2.INPAINT_TELEA)
+cv2.imencode(".png", bleed)[1].tofile(os.path.join(D, "leaf_atlas_color.png"))
+# Ось листа (главная жилка ≈ главная ось маски) и центр — для изгиба листа
+# вдоль жилки в build_park.py (px атласа, угол от +x против часовой, y вверх).
+shape = []
+for k, i in enumerate(order):
+    ys, xs = np.nonzero(lab == i)
+    cx, cy = xs.mean(), ys.mean()
+    cov = np.cov(np.stack([xs - cx, -(ys - cy)]))
+    w, v = np.linalg.eigh(cov)
+    ax = v[:, 1]
+    shape.append({"centre": [round(float(cx), 1), round(float(cy), 1)],
+                  "axis_deg": round(float(np.degrees(np.arctan2(ax[1], ax[0]))), 1),
+                  "elong": round(float(np.sqrt(w[1] / max(w[0], 1e-6))), 2)})
+json.dump({"atlas": os.path.basename(src), "size": [img.shape[1], img.shape[0]], "boxes": boxes, "shape": shape},
           open(os.path.join(D, "leaf_atlas_boxes.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 # совпадение нормалей с цветом: маска по нормалям (отклонение от плоского синего)
 flat = np.array([255, 128, 128], np.float32)   # BGR: плоская нормаль (128,128,255) в BGR
