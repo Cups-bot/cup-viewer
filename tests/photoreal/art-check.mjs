@@ -42,12 +42,17 @@ const HUES = [0, 60, 120, 180, 240, 300];
 // Заводской лист стакана, мм: бумага — лист развёртки, PP — поле печати.
 const catalog = JSON.parse(await readFile(resolve(root, 'catalog/cups.json'), 'utf8'));
 const CUPS = new Map((catalog.cups ?? catalog).map((c) => [c.id, c]));
-// PET — поле одной стороны (web.textureMapping.sides): лист грузится в обе, А и Б.
+// Тампопечать — лист одной стороны: у PET зона web.textureMapping.sides, у BM —
+// web.textureMapping.pad.zoneMm; лист грузится в обе стороны, А и Б.
 const sidesOf = (id) => CUPS.get(id)?.web?.textureMapping?.sides ?? null;
-const sheetMm = (id) => {
+const padOf = (id) => CUPS.get(id)?.web?.textureMapping?.pad ?? null;
+const isPad = (c) => Boolean(sidesOf(c.cup)) || c.mode === 'pad';
+const sheetMm = (id, mode = null) => {
   const print = CUPS.get(id)?.render?.print ?? {};
   const sides = sidesOf(id);
-  return print.page_mm ?? print.field_mm ?? (sides ? [sides.widthMm, sides.zMm[1] - sides.zMm[0]] : null);
+  if (sides) return [sides.widthMm, sides.zMm[1] - sides.zMm[0]];
+  if (mode === 'pad') return padOf(id)?.zoneMm ?? null;
+  return print.page_mm ?? print.field_mm ?? null;
 };
 
 // Все бумажные и PP стаканы сайта лицом к камере, два — ещё и повёрнутыми
@@ -59,6 +64,8 @@ const CASES = [
     .flatMap((c) => [
       { name: `${c.id}_0`, cup: c.id, rotate: 0 },
       ...(['HB80-280', 'BM90-500', 'PG95-520'].includes(c.id) ? [{ name: `${c.id}_60`, cup: c.id, rotate: 60 }] : []),
+      // BM — ещё и тампопечатью: стороны А/Б на своей полосе (render.print.pad).
+      ...(padOf(c.id) ? [{ name: `${c.id}_pad`, cup: c.id, rotate: 0, mode: 'pad' }] : []),
     ]),
   // Второй стакан со своим макетом (design2) — через «Стакан 2», как человек.
   ...(!ONLY.length || ONLY.includes('pair')
@@ -85,7 +92,8 @@ async function shootSite() {
   for (const c of CASES) {
     // Лист в размер заводского листа этого стакана (и второго, если есть).
     for (const cup of [c.cup, c.second].filter(Boolean)) {
-    if (!sheets.has(cup)) {
+    const key = `${cup}|${cup === c.cup ? c.mode ?? '' : ''}`;
+    if (!sheets.has(key)) {
       const png = await page.evaluate(({ sheet, PX_PER_MM, STEP_MM, DOT_MM, HUES }) => {
         const [wMm, hMm] = sheet;
         const canvas = document.createElement('canvas');
@@ -105,27 +113,28 @@ async function shootSite() {
           }
         }
         return canvas.toDataURL('image/png').split(',')[1];
-      }, { sheet: sheetMm(cup), PX_PER_MM, STEP_MM, DOT_MM, HUES });
-      const file = resolve(SHEETS, `${cup}.png`);
+      }, { sheet: sheetMm(cup, cup === c.cup ? c.mode : null), PX_PER_MM, STEP_MM, DOT_MM, HUES });
+      const file = resolve(SHEETS, `${cup}${cup === c.cup && c.mode ? `_${c.mode}` : ''}.png`);
       await writeFile(file, Buffer.from(png, 'base64'));
-      sheets.set(cup, file);
+      sheets.set(key, file);
     }
     }
 
-    await page.evaluate(({ cup }) => {
+    const sheetOf = (cup) => sheets.get(`${cup}|${cup === c.cup ? c.mode ?? '' : ''}`);
+    await page.evaluate(({ cup, mode }) => {
       const { state, catalog } = window.cupViewer;
-      state.set({ tab: '3d', modelId: cup, materialId: catalog.model(cup).defaultMaterial, autoRotate: false });
-    }, { cup: c.cup });
+      state.set({ tab: '3d', modelId: cup, materialId: catalog.model(cup).defaultMaterial, printMode: mode, autoRotate: false });
+    }, { cup: c.cup, mode: c.mode ?? null });
     await settle();
-    if (sidesOf(c.cup)) {
+    if (isPad(c)) {
       // PET: как человек — плиткой стороны А, потом Б.
       for (const side of ['A', 'B']) {
         const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click(`#side-slots [data-side="${side}"]`)]);
-        await chooser.setFiles(sheets.get(c.cup));
+        await chooser.setFiles(sheetOf(c.cup));
         await page.waitForFunction((s) => window.cupViewer.state.get().design?.sides?.[s], side, { timeout: 60000 });
       }
     } else {
-      await page.setInputFiles('#texture-input', sheets.get(c.cup));
+      await page.setInputFiles('#texture-input', sheetOf(c.cup));
       await page.waitForFunction(() => window.cupViewer.state.get().design !== null, null, { timeout: 60000 });
     }
     await settle();
@@ -136,7 +145,7 @@ async function shootSite() {
     await settle();
     if (c.second) {
       await page.click('#art-target [data-cup="second"]');
-      await page.setInputFiles('#texture-input', sheets.get(c.second));
+      await page.setInputFiles('#texture-input', sheetOf(c.second));
       await page.waitForFunction(() => window.cupViewer.state.get().design2 !== null, null, { timeout: 60000 });
       await page.click('#art-target [data-cup="hero"]');
       await settle();
@@ -147,8 +156,10 @@ async function shootSite() {
       const canvas = viewer.renderArt({ width: SIZE, height: SIZE });
       return { job: viewer.photoJob(), png: canvas.toDataURL('image/png').split(',')[1] };
     }, { rotate: c.rotate, SIZE });
-    // Макет в задании — тот, что лёг на модель сайта: у PET — сведённый лист.
-    if (sidesOf(c.cup)) {
+    // Макет в задании — тот, что лёг на модель сайта: у тампопечати — сведённый
+    // лист сторон; у BM ещё и своя полоса печати (print «pad»).
+    if (c.mode === 'pad' && !sidesOf(c.cup)) result.job.cups[0].print = 'pad';
+    if (isPad(c)) {
       const sheet = await page.evaluate(async () => {
         const blob = await (await fetch(window.cupViewer.state.get().design.unwrapUrl)).blob();
         return new Promise((ok) => {
@@ -166,7 +177,12 @@ async function shootSite() {
     await writeFile(resolve(SITE, `${c.name}.png`), Buffer.from(result.png, 'base64'));
     await writeFile(resolve(JOBS, `${c.name}.json`), `${JSON.stringify(result.job, null, 1)}\n`);
     console.log(`сайт  ${c.name}: ${JSON.stringify(result.job.cups)}`);
-    await page.evaluate(() => window.cupViewer.state.set({ design: null, design2: null, photo: null }));
+    // «Убрать макет» — и из памяти (designStore): иначе он переехал бы на следующий стакан.
+    await page.evaluate(() => {
+      if (window.cupViewer.state.get().tab === 'scene') document.querySelector('#art-target [data-cup="hero"]')?.click();
+      if (window.cupViewer.state.get().design) document.getElementById('art-clear')?.click();
+      window.cupViewer.state.set({ design: null, design2: null, photo: null });
+    });
   }
   await browser.close();
   if (errors.length) throw new Error(errors.join('\n'));

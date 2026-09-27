@@ -20,14 +20,16 @@ export function loadSession(catalog) {
   if (model) {
     session.modelId = model.id;
     if (model.materialCompatibility.includes(saved.materialId)) session.materialId = saved.materialId;
+    // Вид печати пластика — к макету с прошлого раза (designStore) он и нужен.
+    if (saved.printMode) session.printMode = saved.printMode;
   }
   if (catalog.background(saved.backgroundId)) session.backgroundId = saved.backgroundId;
   return session;
 }
 
-export function saveSession({ modelId, materialId, backgroundId }) {
+export function saveSession({ modelId, materialId, backgroundId, printMode }) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ modelId, materialId, backgroundId }));
+    localStorage.setItem(KEY, JSON.stringify({ modelId, materialId, backgroundId, printMode }));
   } catch {
     // Сохранить не вышло — в следующий раз откроется пустая сцена.
   }

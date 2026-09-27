@@ -8,9 +8,13 @@
 // Уведомления батчатся: все set() одного такта дают один вызов подписчика в
 // микротаске — и один кадр рендера на пачку изменений.
 
+import { printModesOf } from '../catalog/printModes.js';
+
 export const STATE_KEYS = Object.freeze([
   'modelId',
   'materialId',
+  // Вид печати пластика (js/catalog/printModes.js): 'silk' | 'pad' | null.
+  'printMode',
   'backgroundId',
   'sceneId',
   'design',
@@ -35,6 +39,7 @@ export const PHOTO_KINDS = Object.freeze(['pair', 'side']);
 const DEFAULTS = Object.freeze({
   modelId: null,
   materialId: null,
+  printMode: null,
   backgroundId: null,
   sceneId: null,
   design: null,
@@ -120,6 +125,14 @@ export function createViewerState({ catalog, initial = {}, dev = false, warn = c
         warn(`ViewerState: материал «${materialId}» не подходит модели «${model.id}» — взят «${model.defaultMaterial}»`);
       }
       out.materialId = model.defaultMaterial;
+    }
+    // Вид печати обязан подходить стакану: BM — шелкотрафарет или
+    // тампопечать, PET — тампопечать, бумага — без вида. Смена стакана без
+    // явного вида — его вид по умолчанию.
+    if (model && ('modelId' in out || 'printMode' in out)) {
+      const modes = printModesOf(model);
+      const wanted = 'printMode' in out ? out.printMode : current.printMode;
+      out.printMode = modes.includes(wanted) ? wanted : (modes[0] ?? null);
     }
     return out;
   }

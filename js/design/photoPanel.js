@@ -57,8 +57,11 @@ export function buildJob({ viewer, state, catalog }) {
   const second = (scene?.maxCups ?? 2) > 1 ? s.photo?.second?.modelId ?? null : null;
   if (job.cups[0]?.id !== s.modelId || (job.cups[1]?.id ?? null) !== second) return null;
   // Картон — тот же набор, что у рендера (render/engine/params/boards.json).
+  // Тампопечать BM — своя полоса печати у рендера (catalog → render.print.pad).
   for (const cup of job.cups) {
-    if (catalog.model(cup.id)?.type === 'paper') cup.board = s.materialId;
+    const model = catalog.model(cup.id);
+    if (model?.type === 'paper') cup.board = s.materialId;
+    if (model?.textureMapping?.pad && s.printMode === 'pad') cup.print = 'pad';
   }
   const raster = (d) => d?.unwrapUrl ?? d?.textureUrl ?? null;
   const rasters = [raster(s.design)];

@@ -1,4 +1,5 @@
 import { blankSheetUrl } from '../utils/blankSheet.js';
+import { asPrinted } from '../catalog/printModes.js';
 
 // Связывает ViewerState с движком: состояние меняется — сцена доводится до
 // него. Обратно движок пишет в состояние только факты, которые случились
@@ -30,8 +31,9 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
 
   let shownModelId = null;
   const present = async (s) => {
+    // Модель — в виде печати: у тампопечати BM другая полоса на развёртке.
     const result = await viewer.present({
-      model: catalog.model(s.modelId),
+      model: asPrinted(catalog.model(s.modelId), s.printMode),
       material: catalog.material(s.materialId),
       designUrl: s.design?.textureUrl ?? null,
     });
@@ -44,7 +46,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     shownModelId = shownId;
     return result;
   };
-  state.subscribe(['modelId', 'materialId', 'design'], present);
+  state.subscribe(['modelId', 'materialId', 'design', 'printMode'], present);
 
   state.subscribe(['backgroundId'], (s) => {
     const background = catalog.background(s.backgroundId);
@@ -101,11 +103,11 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
     enqueue(async () => {
       const s = state.get();
       const p = s.photo ?? {};
-      const model = p.second ? catalog.model(p.second.modelId) : null;
+      const model = p.second ? asPrinted(catalog.model(p.second.modelId), s.printMode) : null;
       const materialId = model && model.materialCompatibility.includes(s.materialId) ? s.materialId : model?.defaultMaterial;
       // Свой макет второго (design2); без него у пары — макет главного.
       const designUrl = s.design2?.textureUrl ?? null;
-      const key = model ? `${model.id}|${materialId}|${p.second.kind}|${designUrl ?? ''}` : null;
+      const key = model ? `${model.id}|${s.printMode}|${materialId}|${p.second.kind}|${designUrl ?? ''}` : null;
       if (key !== secondKey) {
         secondKey = key;
         await viewer.setPhotoSecond(model
@@ -121,7 +123,7 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
       // Камера встала в другую точку — стаканы снова лицом к ней.
       if (turned || q.angles) placeAngles();
     });
-  state.subscribe(['photo', 'materialId', 'design2'], syncPhoto);
+  state.subscribe(['photo', 'materialId', 'design2', 'printMode'], syncPhoto);
 
   viewer.hooks.onFullscreen = (on) => state.set({ fullscreen: on });
 

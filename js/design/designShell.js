@@ -12,6 +12,8 @@ import { MESSAGES } from '../ui/messages.js';
 import { initPhotoPanel } from './photoPanel.js';
 import { initAccount } from '../account/account.js';
 import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
+import { PRINT_LABELS, asPrinted, printModesOf, zoneMmOf } from '../catalog/printModes.js';
+import { SIGNATURE_BYTES, detectFileType } from './fileType.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -68,7 +70,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   renderNeeds(state.get());
 
   // Сессия (§11): модель, материал и фон; макет главного — designStore.js.
-  state.subscribe(['modelId', 'materialId', 'backgroundId'], (s) => saveSession(s));
+  state.subscribe(['modelId', 'materialId', 'backgroundId', 'printMode'], (s) => saveSession(s));
   return actions;
 }
 
@@ -309,9 +311,11 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const s = state.get();
     const scene = catalog.scene(s.sceneId);
     const second = s.tab === 'scene' && (scene?.maxCups ?? 2) > 1 ? s.photo?.second : null;
-    return second ? catalog.model(second.modelId) : null;
+    return second ? asPrinted(catalog.model(second.modelId), s.printMode) : null;
   };
-  const slotModel = (t) => (t === 'second' ? photoSecond() : catalog.model(state.get().modelId));
+  // Модель слота — такой, какой её печатают сейчас: у тампопечати BM — со
+  // сторонами А/Б на своей полосе (catalog/printModes.js).
+  const slotModel = (t) => (t === 'second' ? photoSecond() : asPrinted(catalog.model(state.get().modelId), state.get().printMode));
   const slotKey = (t) => (t === 'second' ? 'design2' : 'design');
 
   // Растры, которые сделала загрузка: освобождаются, когда на них больше не
@@ -377,8 +381,9 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   };
 
   // Исходник макета главного стакана: им макет переносится на другой стакан и
-  // возвращается после перезагрузки (designStore). { kind: 'file', file } или
-  // у PET { kind: 'sides', sides: { A, B } }.
+  // возвращается после перезагрузки (designStore). { kind: 'file', file },
+  // у тампопечати { kind: 'sides', sides: { A, B } } или шаблон Формации
+  // { kind: 'template', file, as: 'field' | 'sides' } — из него всё сразу.
   let source = null;
   const remember = (next) => {
     source = next;
@@ -394,6 +399,51 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     return { textureUrl: sheet.textureUrl, unwrapUrl: sheet.unwrapUrl, width: sheet.width, height: sheet.height, sides: parts };
   };
 
+  // Картинка стороны в форме зоны: вырезка шаблона — как есть, логотип — по
+  // центру без растяжения (владелец, 2026-09-27).
+  const sidePart = async (model, url, fit) => {
+    const { fitToZone } = await import('./petSides.js');
+    const part = await fitToZone(url, zoneMmOf(model.textureMapping.sides), fit);
+    own([part.url], part.release);
+    return { url: part.url, width: part.width, height: part.height };
+  };
+
+  const isPdf = async (file) => detectFileType(new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer())) === 'pdf';
+
+  // Шаблон Формации для пластика: рамки на листе → поле шелкотрафарета или
+  // стороны тампопечати, рисунок — из слоя conus. null — не шаблон.
+  const fromTemplate = async (file, model, signal) => {
+    if (model.type === 'paper' || !(await isPdf(file))) return null;
+    const { readTemplate } = await import('./templateRead.js');
+    const spec = model.textureMapping.sides;
+    feedback.onLoading('Ищем зоны печати в шаблоне…');
+    const found = await readTemplate(file, { kind: spec ? 'sides' : 'field', signal });
+    if (!found) return null;
+    if (found.kind === 'field') {
+      const url = URL.createObjectURL(found.field.blob);
+      own([url], () => URL.revokeObjectURL(url));
+      const bitmap = await createImageBitmap(found.field.blob);
+      const design = { textureUrl: url, unwrapUrl: url, width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      return { design, mm: found.field.mm, layer: found.layer, note: `Поле из шаблона ${Math.round(found.field.mm[0])} × ${Math.round(found.field.mm[1])} мм` };
+    }
+    const parts = {};
+    for (const [side, cut] of Object.entries(found.sides)) {
+      const raw = URL.createObjectURL(cut.blob);
+      try {
+        parts[side] = await sidePart(model, raw, 'fill');
+      } finally {
+        URL.revokeObjectURL(raw);
+      }
+    }
+    const names = Object.keys(parts).map((side) => (side === 'A' ? 'А' : 'Б'));
+    return {
+      design: await composePet(model, parts),
+      layer: found.layer,
+      note: names.length > 1 ? 'Стороны А и Б из шаблона' : `Сторона ${names[0]} из шаблона — без Б печать с одной стороны`,
+    };
+  };
+
   const apply = async (file, slot = target, side = null, { origin = 'user' } = {}) => {
     if (!mode.check('uploadDesign', 'загрузить макет')) return;
     const model = slotModel(slot);
@@ -406,6 +456,27 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const stale = () => token !== generation;
 
     feedback.onLoading('Обрабатываем макет…');
+    // Шаблон Формации — сразу поле или обе стороны; иначе — обычный макет.
+    let template = null;
+    try {
+      template = await fromTemplate(file, model, signal);
+    } catch (error) {
+      if (error?.name === 'AbortError' || stale()) return;
+      console.warn('Шаблон не прочитан, файл — как обычный макет:', error);
+    }
+    if (stale() || slotModel(slot) !== model) return;
+    if (template) {
+      feedback.onLoaded();
+      const notes = [template.note];
+      if (!template.layer) notes.push(MESSAGES.templateFlattened);
+      const ok = await commit(slot, template.design, notes.filter((n) => n !== template.note),
+        `${DONE[origin]} · ${template.note}${template.layer ? ' · взят слой conus' : ''}`);
+      if (ok && slot === 'hero') {
+        remember({ kind: 'template', file, as: model.textureMapping.sides ? 'sides' : 'field' });
+        render();
+      }
+      return;
+    }
     let prepared;
     try {
       prepared = await prepareDesign(file, model, {
@@ -419,7 +490,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       }
       return;
     }
-    if (stale() || slotModel(slot)?.id !== model.id) {
+    if (stale() || slotModel(slot) !== model) {
       prepared.release();
       return;
     }
@@ -433,7 +504,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
         const current = state.get()[slotKey(slot)]?.sides ?? {};
         const free = Object.keys(spec.deg).find((s) => !current[s]);
         placed = side ?? free ?? 'A';
-        const parts = { ...current, [placed]: { url: prepared.unwrapUrl, width: prepared.width, height: prepared.height } };
+        const parts = { ...current, [placed]: await sidePart(model, prepared.unwrapUrl, 'center') };
         design = await composePet(model, parts);
       } else {
         design = { textureUrl: prepared.textureUrl, unwrapUrl: prepared.unwrapUrl, width: prepared.width, height: prepared.height };
@@ -456,9 +527,13 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     if (!placed && aspectMismatch([prepared.width, prepared.height], model.textureMapping.unwrapMm) > 0.02) {
       notes.push(MESSAGES.aspectMismatch);
     }
+    // На пластике краска — только там, где картинка непрозрачна: у JPG
+    // прозрачности нет, и белый фон тоже ляжет краской.
+    if (model.type !== 'paper' && prepared.type === 'jpeg') notes.push(MESSAGES.jpegOnPlastic);
     const ok = await commit(slot, design, notes.filter((note) => note !== MESSAGES.artLayerUsed), `${DONE[origin]}${prepared.layers?.used ? ' · взят слой conus' : ''}`);
     if (ok && slot === 'hero') {
       const sides = source?.kind === 'sides' ? source.sides : {};
+      // Логотип стороны — поверх сторон; прочее (файл целиком) — заново.
       remember(placed ? { kind: 'sides', sides: { ...sides, [placed]: file } } : { kind: 'file', file });
       // Имя файла в зоне — из исходника, а он запомнен после показа макета.
       render();
@@ -469,21 +544,25 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   // пропорции развёртки другие). Между печатью сторонами (PET) и развёрткой
   // целиком не переносится: у них разный смысл макета.
   const carry = async (origin) => {
-    const model = catalog.model(state.get().modelId);
+    const model = slotModel('hero');
     if (!model || !source) return;
-    const pet = Boolean(model.textureMapping.sides);
-    if (pet && source.kind === 'sides') {
+    const pad = Boolean(model.textureMapping.sides);
+    if (source.kind === 'template' && (source.as === 'sides') === pad) {
+      await apply(source.file, 'hero', null, { origin });
+    } else if (pad && source.kind === 'sides') {
       for (const [side, file] of Object.entries(source.sides)) if (file) await apply(file, 'hero', side, { origin });
-    } else if (!pet && source.kind === 'file') {
+    } else if (!pad && source.kind === 'file') {
       await apply(source.file, 'hero', null, { origin });
     } else if (origin === 'switch') {
-      feedback.onToast('Макет не перенесён: у этого стакана печать другого вида — загрузите макет для него', 'warning');
+      feedback.onToast('Макет не перенесён: у этого стакана или вида печати другой макет — загрузите его', 'warning');
     }
   };
-  let heroId = state.get().modelId;
-  state.subscribe(['modelId'], (s) => {
-    if (s.modelId === heroId) return;
-    heroId = s.modelId;
+  // Сменился стакан или вид печати — макет переносится, если подходит.
+  let heroKey = `${state.get().modelId}|${state.get().printMode}`;
+  state.subscribe(['modelId', 'printMode'], (s) => {
+    const key = `${s.modelId}|${s.printMode}`;
+    if (key === heroKey) return;
+    heroKey = key;
     if (source && !s.design) carry('switch');
   });
 
@@ -511,6 +590,33 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
 
   // ── показ слотов ────────────────────────────────────────────────────────
   const sideButtons = [...(sideBox?.querySelectorAll('[data-side]') ?? [])];
+  const sideNote = sideBox?.querySelector('.side-slots__note');
+  // Вид печати: у BM — переключатель, у PET — подпись (только тампопечать).
+  const modeBox = document.getElementById('print-mode');
+  const modeNote = document.getElementById('print-mode-note');
+  const modeButtons = [...(modeBox?.querySelectorAll('[data-mode]') ?? [])];
+  // На узком экране левой панели нет (её шаги — в нижней панели): переключатель
+  // вида печати переезжает под заголовок стакана. Элемент один — переносится.
+  const head = document.querySelector('.page-head');
+  const railSpot = modeBox?.parentElement;
+  const railNext = modeBox?.nextSibling;
+  const narrow = window.matchMedia('(max-width: 1023px)');
+  const placeMode = () => {
+    if (!modeBox) return;
+    if (narrow.matches && head) head.append(modeBox, modeNote ?? '');
+    else if (railSpot) railSpot.insertBefore(modeBox, railNext), modeNote && railSpot.insertBefore(modeNote, railNext);
+  };
+  narrow.addEventListener('change', placeMode);
+  placeMode();
+  for (const b of modeButtons) {
+    b.addEventListener('click', () => {
+      const s = state.get();
+      if (s.printMode === b.dataset.mode) return;
+      // Макет одного вида другому не подходит (поле и стороны) — снимается;
+      // исходник переносится, если он того же вида (carry).
+      state.set({ printMode: b.dataset.mode, design: null, design2: null });
+    });
+  }
   const targetButtons = [...(targetBox?.querySelectorAll('[data-cup]') ?? [])];
   const render = () => {
     const s = state.get();
@@ -525,6 +631,21 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const model = slotModel(target);
     const design = s[slotKey(target)];
     const pet = Boolean(model?.textureMapping?.sides);
+    const modes = printModesOf(catalog.model(s.modelId));
+    if (modeBox) modeBox.hidden = modes.length < 2;
+    if (modeNote) {
+      modeNote.hidden = modes.length !== 1;
+      modeNote.textContent = modes.length === 1 ? `${PRINT_LABELS[modes[0]]} · стороны А и Б` : '';
+    }
+    for (const b of modeButtons) {
+      const on = b.dataset.mode === s.printMode;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+    if (pet && sideNote) {
+      const [zw, zh] = zoneMmOf(model.textureMapping.sides);
+      sideNote.textContent = `Зона стороны — ${Math.round(zw)} × ${Math.round(zh)} мм, логотип встаёт по центру. Шаблон Формации (PDF, AI) — обе стороны сразу. Без Б — печать с одной стороны.`;
+    }
     if (button) button.hidden = pet || CONFIG.ui.uploadButton === false;
     if (sideBox) sideBox.hidden = !pet;
     for (const b of sideButtons) {
@@ -567,11 +688,12 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       }
     }
     if (clearButton) {
-      clearButton.hidden = target === 'second' ? !s.design2 : !(s.design && !pet);
+      // У тампопечати — тоже: убрать обе стороны разом (по одной — крестиком стороны).
+      clearButton.hidden = target === 'second' ? !s.design2 : !s.design;
       clearButton.textContent = pair ? 'Вернуть макет первого' : 'Убрать макет';
     }
   };
-  state.subscribe(['modelId', 'design', 'design2', 'photo', 'tab', 'sceneId'], render);
+  state.subscribe(['modelId', 'printMode', 'design', 'design2', 'photo', 'tab', 'sceneId'], render);
   render();
 
   for (const b of targetButtons) {

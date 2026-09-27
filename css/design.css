@@ -242,6 +242,41 @@
   margin: -6px 0 -4px;
 }
 
+/* Вид печати пластика: BM — переключатель, PET — подпись. */
+.print-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.print-mode .segmented__item {
+  justify-content: center;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+
+.print-mode[hidden],
+.print-mode__note[hidden] {
+  display: none;
+}
+
+/* Под заголовком стакана (узкий экран, placeMode в designShell.js). */
+.page-head .print-mode {
+  max-width: 340px;
+  margin: 10px 0 0;
+}
+
+.page-head .print-mode__note {
+  margin: 6px 0 0;
+}
+
+.print-mode__note {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
 /* Миниатюра загруженного макета — на месте анимации зоны. */
 .upload-zone__thumb {
   display: block;

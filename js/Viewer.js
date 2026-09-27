@@ -859,7 +859,9 @@ export class Viewer {
     if (sameModel) {
       this.#dropCompanion();
       companion = { model: hero.clone(true), cup: this.modelLoader.cup, clone: true };
-    } else if (this.companion && !this.companion.clone && this.companion.cup.id === target.model.id) {
+    // По ссылке, а не по коду: у тампопечати BM та же модель с другой полосой
+    // печати (catalog/printModes.asPrinted) — её лист ложится иначе.
+    } else if (this.companion && !this.companion.clone && this.companion.cup === target.model) {
       companion = this.companion;
       companion.loader.applyMaterial(target.material);
       if (companion.sheet !== sheet) {

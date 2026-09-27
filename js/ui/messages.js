@@ -15,4 +15,6 @@ export const MESSAGES = Object.freeze({
   aspectMismatch: 'Пропорции макета не совпадают с развёрткой модели',
   artLayerUsed: 'Взят слой conus',
   artLayerMissing: 'В файле нет слоя conus — на стакане весь лист',
+  templateFlattened: 'В файле нет слоя conus — пунктиры шаблона стёрты, проверьте края рисунка',
+  jpegOnPlastic: 'У JPG нет прозрачности — белый фон тоже ляжет краской; лучше PNG или PDF',
 });

@@ -1,6 +1,13 @@
-// Стороны печати PET → лист развёртки стенки (CupViewer v2, этап В).
+// Стороны тампопечати → лист развёртки стенки (CupViewer v2).
 //
-// Так же, как сборка стакана (render/cups/pet/build_pet.py, compose_print):
+// Два вида листа (js/catalog/printModes.js):
+//   PET  — развёртка по азимуту (ниже, composeSides);
+//   BM   — полоса зоны на развёртке UVPrint, та же, что у шелкотрафарета
+//          (composeBand): стороны А и Б — в четверти окружности от середины.
+// Картинка стороны заранее приведена к форме зоны (fitToZone): логотип — по
+// центру без растяжения, вырезка из шаблона — как есть.
+//
+// PET так же, как сборка стакана (render/cups/pet/build_pet.py, compose_print):
 // u — азимут от +X по кругу, v — высота z/H снизу вверх; сторона — поле
 // widthMm по дуге на своём радиусе и zMm по высоте, центр — азимут deg. Лист
 // ложится на развёртку модели сайта (та же UVMap, render/engine/tools/
@@ -55,6 +62,102 @@ export function composeSides(spec, images, width) {
   return canvas;
 }
 
+// BM: лист = поле полосы зоны (fieldMm, та же доля развёртки, что задаёт
+// textureMapping.field); сторона — прямоугольник zoneMm по центру своей
+// четверти, на всю высоту полосы (полоса и есть зона по высоте).
+export function composeBand(spec, images, width) {
+  const [fw, fh] = spec.fieldMm;
+  const [zw] = spec.zoneMm;
+  const height = Math.max(16, Math.round((width * fh) / fw));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const g = canvas.getContext('2d');
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = 'high';
+  const pxPerMm = width / fw;
+  for (const [side, offset] of Object.entries(spec.offsetMm)) {
+    const image = images[side];
+    if (!image) continue;
+    const x = (fw / 2 + offset - zw / 2) * pxPerMm;
+    g.drawImage(image, x, 0, zw * pxPerMm, height);
+  }
+  return canvas;
+}
+
+const compose = (spec, images, width) => (spec.kind === 'band' ? composeBand : composeSides)(spec, images, width);
+
+// Картинка стороны → форма зоны [ширина, высота] мм. fit:
+//   'fill'   — вырезка из шаблона: она и есть зона, кладётся как есть;
+//   'center' — логотип (PNG, JPG, PDF без шаблона): пустые прозрачные поля
+//              обрезаются, остальное вписывается по центру без растяжения
+//              (владелец, 2026-09-27).
+// Возвращает { url, width, height, release }.
+export async function fitToZone(url, zoneMm, fit = 'center') {
+  const bitmap = await loadImage(url);
+  try {
+    const [zw, zh] = zoneMm;
+    // 12 px/мм — около 300 dpi: мелкий текст логотипа не мылится.
+    const width = Math.round(zw * 12);
+    const height = Math.round(zh * 12);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const g = canvas.getContext('2d');
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    if (fit === 'fill') {
+      g.drawImage(bitmap, 0, 0, width, height);
+    } else {
+      const [sx, sy, sw, sh] = opaqueBox(bitmap);
+      const scale = Math.min(width / sw, height / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      g.drawImage(bitmap, sx, sy, sw, sh, (width - dw) / 2, (height - dh) / 2, dw, dh);
+    }
+    const out = await toBlobUrl(canvas);
+    canvas.width = 0;
+    return { url: out, width, height, release: () => URL.revokeObjectURL(out) };
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+// Где в картинке есть что-то непрозрачное: [x, y, w, h]. Считается по копии
+// до 1024 px — у логотипа поля важны, а не точность до пикселя.
+function opaqueBox(bitmap) {
+  const k = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * k));
+  const h = Math.max(1, Math.round(bitmap.height * k));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  g.drawImage(bitmap, 0, 0, w, h);
+  const { data } = g.getImageData(0, 0, w, h);
+  canvas.width = 0;
+  let x0 = w;
+  let y0 = h;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] < 8) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return [0, 0, bitmap.width, bitmap.height];
+  // Запас в пиксель копии — край логотипа не срезается округлением.
+  const fx = bitmap.width / w;
+  const fy = bitmap.height / h;
+  const sx = Math.max(0, (x0 - 1) * fx);
+  const sy = Math.max(0, (y0 - 1) * fy);
+  return [sx, sy, Math.min(bitmap.width, (x1 + 2) * fx) - sx, Math.min(bitmap.height, (y1 + 2) * fy) - sy];
+}
+
 const toBlobUrl = (canvas) => new Promise((resolve, reject) => {
   canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error('лист PET не собрался'))), 'image/png');
 });
@@ -64,15 +167,15 @@ async function loadImage(url) {
   return createImageBitmap(blob);
 }
 
-// Макет PET для состояния: лист в размер видеокарты (textureUrl) и полный —
-// для развёртки и задания рендера (unwrapUrl). parts — { A, B }: { url } или
-// null, url — растр стороны в полном размере (prepareDesign → unwrapUrl).
+// Макет тампопечати для состояния: лист в размер видеокарты (textureUrl) и
+// полный — для развёртки и задания рендера (unwrapUrl). parts — { A, B }:
+// { url } или null, url — картинка стороны в форме зоны (fitToZone).
 export async function composePetDesign(spec, parts, { displayWidth = 2048, fullWidth = 4096 } = {}) {
   const images = {};
   for (const side of Object.keys(spec.deg)) images[side] = parts[side] ? await loadImage(parts[side].url) : null;
   try {
-    const display = composeSides(spec, images, displayWidth);
-    const full = composeSides(spec, images, fullWidth);
+    const display = compose(spec, images, displayWidth);
+    const full = compose(spec, images, fullWidth);
     const textureUrl = await toBlobUrl(display);
     const unwrapUrl = await toBlobUrl(full);
     const size = { width: full.width, height: full.height };

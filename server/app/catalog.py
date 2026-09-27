@@ -63,5 +63,10 @@ def check_job(job: dict) -> dict:
             out["board"] = board
         if cup.get("print") == "none":
             out["print"] = "none"
+        elif cup.get("print") == "pad":
+            # Тампопечать PP: своя полоса у рендера (render.print.pad).
+            if entry["type"] != "pp" or not (entry.get("render") or {}).get("print", {}).get("pad"):
+                raise HTTPException(400, "bad_print")
+            out["print"] = "pad"
         clean.append(out)
     return {"set": job["set"], "camera": {"preset": preset, "frame": frame}, "cups": clean}

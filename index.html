@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=620151d8" />
-    <link rel="stylesheet" href="css/design.css?v=97b6a11b" />
+    <link rel="stylesheet" href="css/design.css?v=4fa55dae" />
   </head>
   <body>
     <div class="app">
@@ -80,6 +80,12 @@
           <button class="segmented__item" type="button" role="radio" data-cup="hero">Стакан 1</button>
           <button class="segmented__item" type="button" role="radio" data-cup="second">Стакан 2</button>
         </div>
+        <!-- Вид печати пластика (js/catalog/printModes.js): BM — выбор, PET — подпись. -->
+        <div class="segmented print-mode" id="print-mode" role="radiogroup" aria-label="Вид печати" hidden>
+          <button class="segmented__item" type="button" role="radio" data-mode="silk" aria-checked="true">Шелкотрафарет</button>
+          <button class="segmented__item" type="button" role="radio" data-mode="pad" aria-checked="false">Тампопечать</button>
+        </div>
+        <p class="print-mode__note" id="print-mode-note" hidden></p>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
           <span class="upload-zone__title">Загрузить макет</span>
@@ -333,6 +339,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=7da43f3f"></script>
+    <script type="module" src="dist/design.js?v=1d9e875f"></script>
   </body>
 </html>

@@ -317,6 +317,26 @@ class Flow(unittest.TestCase):
         self.assertEqual((status, err["error"]), (413, "too_large"))
 
 
+    def test_6_pad_print(self):
+        # Тампопечать BM: print «pad» доходит до исполнителя (своя полоса у рендера);
+        # у PET и бумаги такого варианта нет.
+        user = Client(self.server)
+        user.login("pad@example.ru")
+        job = {"set": "studio", "camera": {"preset": "front", "frame": "1:1"},
+               "cups": [{"id": "BM90-410", "rotate": 0, "print": "pad"}]}
+        body, ctype = multipart({"job": json.dumps(job), "size": "1600"}, {"art0": ("art.png", tiny_png(), "image/png")})
+        status, made = user.call("POST", "api/jobs", body, ctype)
+        self.assertEqual(status, 200, made)
+        claim = self.worker.call("POST", "api/worker/claim")[1]
+        self.assertEqual((claim["id"], claim["job"]["cups"][0]["print"]), (made["id"], "pad"))
+        self.finish(claim["id"])
+        for cup in ({"id": "PG95-400", "print": "pad"}, {"id": "HB80-280", "print": "pad"}):
+            bad = dict(job, cups=[cup])
+            body, ctype = multipart({"job": json.dumps(bad), "size": "1600"}, {})
+            status, err = user.call("POST", "api/jobs", body, ctype)
+            self.assertEqual((status, err["error"]), (400, "bad_print"), cup)
+
+
 class Sweep(unittest.TestCase):
     """Уборка в том же процессе, на своей временной базе."""
 
