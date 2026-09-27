@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "_about": "Тяжёлые файлы render/ вне git: путь от render/, размер, SHA-256. Переписывает engine/tools/assets.py index, проверяет — check.",
- "indexed": "2026-09-26",
- "totalBytes": 542148234,
+ "indexed": "2026-09-27",
+ "totalBytes": 682758609,
  "files": [
   {
    "path": "art/410_cosmic_200x85.png",
@@ -738,6 +738,216 @@
    "path": "scenes/assets/concrete_floor_02/concrete_floor_02_rough_2k.jpg",
    "bytes": 1417673,
    "sha256": "cb539b0f8fdc8c63241683e01c923eb040fa701ec4c60cff27b674294746ae67"
+  },
+  {
+   "path": "scenes/assets/park/ground/leaves_forest_ground_diff_2k.jpg",
+   "bytes": 4253470,
+   "sha256": "bda0ffc30570af7c067a3d6922cb1c7f31ada4fcece24b8f2cc4c5dde742e22c"
+  },
+  {
+   "path": "scenes/assets/park/ground/leaves_forest_ground_nor_gl_2k.jpg",
+   "bytes": 5273836,
+   "sha256": "2713002b4a75b8b47b983c75d3f388d79f0775f305ca14884eae6a277b8f48bd"
+  },
+  {
+   "path": "scenes/assets/park/ground/leaves_forest_ground_rough_2k.jpg",
+   "bytes": 2096339,
+   "sha256": "a08b1aaba9ca87924abfbe65a1c6be03c6cc7fcfcf140dc784ccf35205c307f0"
+  },
+  {
+   "path": "scenes/assets/park/hdri/sunny_vondelpark_4k.hdr",
+   "bytes": 29318417,
+   "sha256": "f53da12e967b25fa55ebc6feea429f3844f2200526b5f55d1115d5b64d2991b8"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027.png",
+   "bytes": 192521,
+   "sha256": "d04cdfd2f6671bbea69dd87ecf8bede3b721113c56fc9c93cd52bf9462bc80a7"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG.blend",
+   "bytes": 1121380,
+   "sha256": "caa22644059d09f607948d6343fb167ad292446293ff09ed76e94e7fd39f7784"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG.mtlx",
+   "bytes": 2626,
+   "sha256": "b70df03b992fd8b6bff8c0bc88eec7a05d5e775c8bb086eba11cb0e41e6bfb56"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG.tres",
+   "bytes": 1042,
+   "sha256": "720ebb7414ae5cbe0d45ac971d00d7425b20383e02860bac3e050742c38405a8"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG.usdc",
+   "bytes": 3068,
+   "sha256": "325675de4025cfe7caf69b212822a19e2d1098524e72d1de8a88e3bc89a3d557"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_Color.jpg",
+   "bytes": 7866641,
+   "sha256": "216f87dbbbd50803e436b260871ec4d24091bf4179a1b8561b595d3fd921cbbb"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_Displacement.jpg",
+   "bytes": 1858718,
+   "sha256": "9920ac590c61c45a8ccce28af1e0850f1c3c2b6524bd37dbe42e1644e63af43a"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_NormalDX.jpg",
+   "bytes": 7075289,
+   "sha256": "6ddad30fea06ccd4a13a391033b2a1b3b1be894b4eac7986a3018f096f738d87"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_NormalGL.jpg",
+   "bytes": 6979205,
+   "sha256": "2f02d29eec2367060e32a0d447b94201d4859330b613205984dd10a2b86a80d1"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_Opacity.jpg",
+   "bytes": 537188,
+   "sha256": "df1b6b889231a48f6f63d4a5c311902d946d30a2a4c7e262f4f3fd4f96155f11"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_Roughness.jpg",
+   "bytes": 3066029,
+   "sha256": "e22dcfc64c708bfa014d860ae1455598e02a8544daba41296d522f43e5afb04a"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet027/LeafSet027_4K-JPG_Scattering.jpg",
+   "bytes": 8016157,
+   "sha256": "26edaf22ac7b0c8ce3e6d8bd7383bb2d92f6f9be8944bac64001dd99d264ae2a"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028.png",
+   "bytes": 169496,
+   "sha256": "dbb6be4ea70b195df9153dcd64722d8c80e1765755d5068266d6f56a9be92f21"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG.blend",
+   "bytes": 1121172,
+   "sha256": "23c347b1f109eca5e3923545a3a16892ae0b6859e1add91e8ce8d967b8819962"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG.mtlx",
+   "bytes": 2626,
+   "sha256": "2c8d67f97519c594d58027a9a3d27e9143f2dc81549897961231c458c89a6bf0"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG.tres",
+   "bytes": 1042,
+   "sha256": "2433fce981263718e75ed145805151c41dbc236c6310aacb6108daa8c1c056b2"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG.usdc",
+   "bytes": 3050,
+   "sha256": "36ae6799b43c084df49c2ae61a2e797d3bb4eb4a45a003e3dd0fd4d16f93bb16"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_Color.jpg",
+   "bytes": 4753687,
+   "sha256": "4a56d94cbb67df4a4e420b953a5ea42ac7cd3107108f31a773139380c14099a2"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_Displacement.jpg",
+   "bytes": 1031170,
+   "sha256": "d0428c5c951fd582d4c39c28c39b37c147ae5f63780cc15009df6b225575705a"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_NormalDX.jpg",
+   "bytes": 3946175,
+   "sha256": "d946ff8b2332cdd153662de5d2f7069faf78b23c4f2cd16c0e9f000292110eea"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_NormalGL.jpg",
+   "bytes": 3941873,
+   "sha256": "88032f682f610ea32d60d6a2ce0cfa40e1505d2ee4effcb278f3cacd0bcf8bbc"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_Opacity.jpg",
+   "bytes": 483557,
+   "sha256": "d0670a91256740457db1cd957edc98c1e46c63c482d0ef2949c9558cc7b087d0"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_Roughness.jpg",
+   "bytes": 805722,
+   "sha256": "76370f087f8b3002cbd6d02d23963532a6780bf8a49e5be5ada4f0e2ae20b66b"
+  },
+  {
+   "path": "scenes/assets/park/leaves/LeafSet028/LeafSet028_4K-JPG_Scattering.jpg",
+   "bytes": 4900391,
+   "sha256": "622c97ed1d7088c68d835997f4951049457071a8771fe1ffb7f0b83627d95159"
+  },
+  {
+   "path": "scenes/assets/park/leaves/boxes.json",
+   "bytes": 797,
+   "sha256": "24c990d5b210c9a9c71260fada80a598ea3a758f1246ddba6f746b0eefd9be6a"
+  },
+  {
+   "path": "scenes/assets/park/metal/green_metal_rust_diff_4k.jpg",
+   "bytes": 3160711,
+   "sha256": "80eb6161c146e2d440bcda84cb2949458580498680955474298d5ddf0d85bbbd"
+  },
+  {
+   "path": "scenes/assets/park/metal/green_metal_rust_nor_gl_4k.jpg",
+   "bytes": 1053528,
+   "sha256": "deff5a3a38380b96692b9d5fca0e08654c8762d84b4e75705cc11cc12588fd9f"
+  },
+  {
+   "path": "scenes/assets/park/metal/green_metal_rust_rough_4k.jpg",
+   "bytes": 5155157,
+   "sha256": "f3c9a49ea551d75ebae502620f1612413e9d7622aa97981107a1139d684f5705"
+  },
+  {
+   "path": "scenes/assets/park/planks/green_rough_planks_diff_4k.jpg",
+   "bytes": 6864012,
+   "sha256": "bfe54142903cf37642e3ce3496f824b8199b8350896586642624b4b64f09af26"
+  },
+  {
+   "path": "scenes/assets/park/planks/green_rough_planks_disp_4k.jpg",
+   "bytes": 1538586,
+   "sha256": "def85d9ab64e9704ad0f1d483ce8f09a37389f57a7ec5d4a381e611a37200fb6"
+  },
+  {
+   "path": "scenes/assets/park/planks/green_rough_planks_nor_gl_4k.jpg",
+   "bytes": 7983939,
+   "sha256": "b4d377af6e90450e228262e4e0aab67c728c0aaf06966ac5d08050e4e5e2d692"
+  },
+  {
+   "path": "scenes/assets/park/planks/green_rough_planks_rough_4k.jpg",
+   "bytes": 2937238,
+   "sha256": "834116acee14fa89be1465b15cafa62e929f0fc1afd2cadc770ca06931e37ccc"
+  },
+  {
+   "path": "scenes/assets/park/user/user_bokeh.png",
+   "bytes": 1353884,
+   "sha256": "0b49710b4fdc03de89985d7db89572afa18dc35715e06af5fbea7db7c744b5bc"
+  },
+  {
+   "path": "scenes/assets/park/user/user_green_planks.png",
+   "bytes": 3250216,
+   "sha256": "7488acbd0f1ca87109b0b738dcfc664a857c47b1b805826970321683f0301e51"
+  },
+  {
+   "path": "scenes/assets/park/user/user_leaves.png",
+   "bytes": 2457000,
+   "sha256": "8d2670934b59a335f1a304ccb1fff60871aeaa5eb3a205f21ac601227be0fe96"
+  },
+  {
+   "path": "scenes/assets/park/user/user_reference.png",
+   "bytes": 1696350,
+   "sha256": "fd7fe61d7cf2e36a267e3088cfab383b6783199788c145f12fc8d01d4a8663db"
+  },
+  {
+   "path": "scenes/assets/park/user/user_wet_paint.png",
+   "bytes": 3747287,
+   "sha256": "26e6c1c862053f2d3b258e52bfa94844108625e7b7440b0527ab8170873eb525"
+  },
+  {
+   "path": "scenes/park.blend",
+   "bytes": 589783,
+   "sha256": "028687cef8dad262a752cf9a84f10f7c11d40135a71e7130a29502010e7b4c1d"
   }
  ]
 }

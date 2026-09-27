@@ -12,7 +12,9 @@ B. Стакан — диафрагма «весь стакан резкий», �
    невидимо для камеры (светит, отражается, затеняет), фон прозрачный, считается
    только рамка вокруг стаканов.
 
-Склейка — B поверх A по прозрачности B (bk/finish.apply_file). Только для
+Склейка — B поверх A по прозрачности B (bk/finish.apply_file). Если у сцены
+есть фон-снимок (bk/plate.py), фон A снимается прозрачным и снимок ложится под
+него — без второго размытия объективом. Только для
 непрозрачных стаканов: сквозь PET и PP во втором проходе фон вышел бы резким,
 а в жизни он размыт объективом. Им — одна съёмка с диафрагмой посередине по
 ступеням между авторской и «весь стакан резкий».
@@ -23,6 +25,8 @@ import os
 from typing import Optional
 
 import bpy
+
+from bk import plate as backplate
 
 
 # Фон в склейке размыт объективом: шум в нём сходится раньше, чем на резком
@@ -39,6 +43,13 @@ def _render(scene, path: str, rgba: bool) -> str:
     return path
 
 
+def _background(scene, path: str) -> str:
+    """Кадр фона: с фоном-снимком сцены — прозрачный проход и снимок под ним."""
+    if backplate.config(scene):
+        return backplate.shoot(scene, path, _render)
+    return _render(scene, path, False)
+
+
 def render(scene_name: str, out_dir: str, stem: str, plan: Optional[dict]) -> dict:
     """Кадр со склейкой фокуса. {"image": путь, "over": путь слоя стакана | None,
     "mode": stack | middle | single}."""
@@ -47,12 +58,12 @@ def render(scene_name: str, out_dir: str, stem: str, plan: Optional[dict]) -> di
     path = os.path.join(out_dir, f"{stem}.png")
     d = scene.camera.data
     if not plan:
-        return {"image": _render(scene, path, False), "over": None, "mode": "single"}
+        return {"image": _background(scene, path), "over": None, "mode": "single"}
     if not plan["opaque"]:
         d.dof.aperture_fstop = math.sqrt(plan["fstop_scene"] * plan["fstop_product"])
         d.dof.focus_object = None
         d.dof.focus_distance = plan["focus_product"]
-        return {"image": _render(scene, path, False), "over": None, "mode": "middle"}
+        return {"image": _background(scene, path), "over": None, "mode": "middle"}
 
     cups = {n for n in plan["cups"] if n in scene.objects}
     seen = {ob.name: ob.visible_camera for ob in scene.objects}
@@ -66,7 +77,7 @@ def render(scene_name: str, out_dir: str, stem: str, plan: Optional[dict]) -> di
         for name in cups:
             scene.objects[name].visible_camera = False
         scene.cycles.samples = max(16, round(samples * BACKGROUND_SAMPLES))
-        _render(scene, path, False)
+        _background(scene, path)
         scene.cycles.samples = samples
         # B: только стаканы, резкие целиком; фон прозрачный.
         for ob in scene.objects:

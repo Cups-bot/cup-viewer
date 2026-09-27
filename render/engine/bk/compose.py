@@ -341,5 +341,13 @@ def _focus(cam, cups, placed, s, st, preset, pair) -> Optional[dict]:
         return {"focus_m": round(d.dof.focus_distance, 4), "fstop": round(d.dof.aperture_fstop, 2)}
     if st["focus"] == "cup" or moved or abs(hero["height"] - st["href"]) > 1e-6:
         dist = place.focus_on_cup(cam, hero["obj"], z_hero)
+        pull = st.get("focus_pull", 0.0)
+        if pull:
+            # Сцена в фокусе ближе стакана (сам он резкий склейкой фокуса,
+            # bk/stack.py): передний план резкий, дальний — в боке, как в
+            # референсе парка (передний лист резкий, капли на спинке — кружки).
+            d.dof.focus_distance = max(0.05, dist - pull)
+            return {"focus_m": round(d.dof.focus_distance, 4), "fstop": round(d.dof.aperture_fstop, 2),
+                    "pull_m": pull}
         return {"focus_m": dist, "fstop": round(d.dof.aperture_fstop, 2)}
     return {"focus_m": round(d.dof.focus_distance, 4), "fstop": round(d.dof.aperture_fstop, 2), "kept": True}

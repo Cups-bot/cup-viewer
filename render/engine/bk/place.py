@@ -969,9 +969,11 @@ def build(cfg: dict, shot_name: str, samples: Optional[int] = None,
                           f"(есть: {', '.join(sorted(cfg['shots']))})")
     shot = cfg["shots"][shot_name]
 
-    source = _abs(cfg["source_blend"])
+    # Свой файл у фона ("blend" в sets/<фон>.json, 2026-09-27: парк собран
+    # tools/build_park.py) — иначе общий файл сцен BlenderKit.
+    source = _abs(shot.get("blend") or cfg["source_blend"])
     if not os.path.isfile(source):
-        raise ConfigError(f"{source}: файл со сценами BlenderKit не найден")
+        raise ConfigError(f"{source}: файл сцены не найден")
     bpy.ops.wm.open_mainfile(filepath=source)
 
     scene = bpy.data.scenes.get(shot["scene"])
@@ -1061,7 +1063,8 @@ def build(cfg: dict, shot_name: str, samples: Optional[int] = None,
         comp = compose.run(scene, cam, cups, cfg, shot, shot_name, {
             "origin": pivot.location.copy(), "scale": scale, "holder": pivot,
             "rotation_deg": shot.get("rotation_deg", (0.0, 0.0, 0.0)), "href": ref_h,
-            "focus": "cup" if shot.get("focus") == "cup" else "keep"})
+            "focus": "cup" if shot.get("focus") == "cup" else "keep",
+            "focus_pull": float(shot.get("focus_pull_m", 0.0))})
         pair = comp["group"]
         focus = (comp["focus"] or {}).get("focus_m")
     else:
