@@ -2,7 +2,7 @@
  "schema": 1,
  "_about": "Тяжёлые файлы render/ вне git: путь от render/, размер, SHA-256. Переписывает engine/tools/assets.py index, проверяет — check.",
  "indexed": "2026-09-27",
- "totalBytes": 682758609,
+ "totalBytes": 741299707,
  "files": [
   {
    "path": "art/410_cosmic_200x85.png",
@@ -920,9 +920,114 @@
    "sha256": "834116acee14fa89be1465b15cafa62e929f0fc1afd2cadc770ca06931e37ccc"
   },
   {
+   "path": "scenes/assets/park/user/8ef21fea5bc4193a83835a10ec88d180_59b09da8-1fb3-45e2-b15b-2dbfc05eed68.png",
+   "bytes": 24747521,
+   "sha256": "60b10199d07ab4672a531c3a5b935fabd9e55c4c69501e12804f927b75bc4423"
+  },
+  {
+   "path": "scenes/assets/park/user/bench_green_basecolor.png",
+   "bytes": 2682700,
+   "sha256": "b80efdbeb6728b209ffb62deec1623a74531efb42b55fac191bd8c292a3689e8"
+  },
+  {
+   "path": "scenes/assets/park/user/bench_green_normal_generated.png",
+   "bytes": 2216799,
+   "sha256": "55a5d596e4aaad6b6da6fca9b71792704d81778753d236abd91a8a26e0fc149b"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_alpha.png",
+   "bytes": 50378,
+   "sha256": "06479cd3f95b640e64e99d67231014d95c90f689ae2c15284d37ea327d29b06e"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_boxes.json",
+   "bytes": 1568,
+   "sha256": "d98d98b0147fcac5749963a17c05040867155fd101a431ad08f3c7f138e09b6d"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_ids.png",
+   "bytes": 44322,
+   "sha256": "48753a001808812ba859a1ae05c31b02baf6a592d4cc4259f9d9fd0b36e1a377"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_idx.jpg",
+   "bytes": 849766,
+   "sha256": "e2b75df9457857def7cbd113a4e170d9707c97e238b8c49b5c3f1848b3e01894"
+  },
+  {
+   "path": "scenes/assets/park/user/leaf_atlas_normal_generated.png",
+   "bytes": 2567358,
+   "sha256": "a8ba484cb62a43157508e4b93a21a101a9258a817516b67db4ad087ec2e196b3"
+  },
+  {
+   "path": "scenes/assets/park/user/maple_leaf_normal_generated.png",
+   "bytes": 1933817,
+   "sha256": "3c61768bb8bb9b93a11063c94969f0781a0c1cfeade1b7a2aff6dc21fab02b25"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_01_color.png",
+   "bytes": 512647,
+   "sha256": "fbc8e4f1b212f1f1f67063491eb8ee3905a5fb71be32bb6a4eccb7ee618766ba"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_01_normal_generated.png",
+   "bytes": 414410,
+   "sha256": "451e30fee0d4cff16139cd484f8d96c41e02026fb8bda7487e840285d8881fa5"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_02_color.png",
+   "bytes": 467544,
+   "sha256": "a108c578ba6916f63053c03e1774b9aa777c4419221fdc985a2dc6611fd3a67f"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_02_normal_generated.png",
+   "bytes": 386906,
+   "sha256": "8b2cbf0c0455896742f993280a8c97a25ccdbbcd0c9619a1cbae7a64735d5087"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_03_color.png",
+   "bytes": 449741,
+   "sha256": "99e512bbdb9a5fe0c2bc2f8883be967ac015b46eee9c75150bfaf8e7098d87de"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_03_normal_generated.png",
+   "bytes": 383505,
+   "sha256": "ef71bc92393671d7f895cf77739f1482de8a554863112b150903f1b1ed613c3a"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_04_color.png",
+   "bytes": 479122,
+   "sha256": "5c9537bb67b9e18bb03dce55bf39e77e23d8909c427490a72ad87ab6fb0470c6"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_04_normal_generated.png",
+   "bytes": 399846,
+   "sha256": "15b954e034a4c82371f709e8ad18322af2b8638d279b5f335a56ed47dc119e22"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_06_color.png",
+   "bytes": 489851,
+   "sha256": "b6cb347c04be5cdade9ab7d98bf6c27c1a3d836af25a2a7178a9217d3fbf2a60"
+  },
+  {
+   "path": "scenes/assets/park/user/plank_06_normal_generated.png",
+   "bytes": 402727,
+   "sha256": "f0e8a8314689c334cebac7c1f98a770d29c3d9f7f267580e321ec4b356bc44ad"
+  },
+  {
+   "path": "scenes/assets/park/user/preview.png",
+   "bytes": 1432224,
+   "sha256": "8237d1b0380db2c98c7468f43973078422a92224a0c10be97a4be7e3275ab66b"
+  },
+  {
    "path": "scenes/assets/park/user/user_bokeh.png",
    "bytes": 1353884,
    "sha256": "0b49710b4fdc03de89985d7db89572afa18dc35715e06af5fbea7db7c744b5bc"
+  },
+  {
+   "path": "scenes/assets/park/user/user_bokeh_4k.png",
+   "bytes": 15197484,
+   "sha256": "53bc261a752a5fafa720dd9a05325247d517897116cc725038367fd3b47d4b25"
   },
   {
    "path": "scenes/assets/park/user/user_green_planks.png",
@@ -945,9 +1050,14 @@
    "sha256": "26e6c1c862053f2d3b258e52bfa94844108625e7b7440b0527ab8170873eb525"
   },
   {
+   "path": "scenes/assets/park/user/Изображение ChatGPT 27 сент. 2026 г., 20_27_07.png",
+   "bytes": 2411095,
+   "sha256": "775490964bacdce454824c81a36bf024a2556b4edde69bbde31a51a4f2c67e0e"
+  },
+  {
    "path": "scenes/park.blend",
-   "bytes": 589783,
-   "sha256": "028687cef8dad262a752cf9a84f10f7c11d40135a71e7130a29502010e7b4c1d"
+   "bytes": 609550,
+   "sha256": "91ce5820b77508923462a290a2c6644d8bb2f2b499fc1a52051c89c7a38278e6"
   }
  ]
 }
