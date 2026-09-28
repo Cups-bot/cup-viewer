@@ -17,5 +17,6 @@ export const MESSAGES = Object.freeze({
   artLayerMissing: 'В файле нет слоя conus — на стакане весь лист',
   templateFlattened: 'В файле нет слоя conus — пунктиры шаблона стёрты, проверьте края рисунка',
   jpegOnPlastic: 'У JPG нет прозрачности — белый фон тоже ляжет краской; лучше PNG или PDF',
+  rectLowRes: 'Рисунок меньше 300 dpi — в печати будет мягче',
   proofFailed: 'Не удалось загрузить профиль картона — цвет показан как в файле',
 });

@@ -3,7 +3,8 @@
 // не уходит (как и раньше, §6) — это только память вкладки, пережившая
 // перезагрузку. Хранилища нет (приватный режим, запрет) — просто не помним.
 //
-// source — { kind: 'file', file } | { kind: 'sides', sides: { A: File|null, B: File|null } }.
+// source — { kind: 'file', file } | { kind: 'sides', sides: { A: File|null, B: File|null } }
+//        | { kind: 'template', file, as } | { kind: 'rect', file } (прямоугольник SIZE).
 
 const DB = 'cupviewer';
 const STORE = 'design';

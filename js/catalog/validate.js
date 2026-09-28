@@ -12,6 +12,17 @@ const isPositive = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
 const isUnit = (v) => typeof v === 'number' && v >= 0 && v <= 1;
 const isPair = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
 const isStringList = (v) => Array.isArray(v) && v.every(isString);
+const isNumberList = (v) => Array.isArray(v) && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+
+// Прямоугольник SIZE (js/design/rectWarp.js): где он на странице и как гнётся.
+const WARP_NUMBERS = ['degPerMm', 'axisXMm', 'midYMm', 'midRMm', 'rPerMm'];
+const isGuide = (g) => typeof g?.color === 'string' && HEX.test(g.color)
+  && (g.x === undefined || isNumberList(g.x)) && (g.y === undefined || isNumberList(g.y));
+const isRect = (v) => isPair(v?.atMm) && Array.isArray(v.sizeMm) && v.sizeMm.length === 2 && v.sizeMm.every(isPositive)
+  && isPair(v.warp?.apexMm) && WARP_NUMBERS.every((key) => typeof v.warp[key] === 'number' && Number.isFinite(v.warp[key]))
+  && v.warp.degPerMm > 0 && v.warp.rPerMm > 0
+  && (v.guides === undefined || (Array.isArray(v.guides) && v.guides.every(isGuide)))
+  && (v.template === undefined || isString(v.template));
 
 // Проверяет запись по списку правил [путь, проверка, что ожидается].
 // Возвращает текст первой ошибки или null.
@@ -79,6 +90,7 @@ function modelRules(materialIds) {
     ['textureMapping.seamDeg', (v) => typeof v === 'number' && v >= 0 && v < 360, 'азимут шва 0…359°'],
     ['textureMapping.field', (v) => v === undefined || (isPair(v?.u) && isPair(v?.v) && v.u[1] > 0 && v.v[1] > v.v[0]),
       '{ u: [начало, доля], v: [низ, верх] } или без поля'],
+    ['textureMapping.rect', (v) => v === undefined || isRect(v), '{ atMm, sizeMm, warp, guides?, template? } или без поля'],
     ['materialCompatibility', known, 'непустой список известных материалов'],
     ['defaultMaterial', (v, r) => r.materialCompatibility.includes(v), 'материал из materialCompatibility'],
     ['printType', isString, 'непустая строка'],

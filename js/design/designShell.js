@@ -26,6 +26,12 @@ const KIND_LABELS = Object.freeze({
 
 const kindOf = (model) => KIND_LABELS[model.wall] ?? '';
 
+// Предупреждения прямоугольника SIZE (sizeRect.js → notes).
+const RECT_NOTES = Object.freeze({
+  rectLowRes: MESSAGES.rectLowRes,
+  firstPage: MESSAGES.firstPageUsed,
+});
+
 export function initDesign({ state, mode, catalog, viewer, feedback }) {
   const actions = {
     // Макет на новую модель не переносится: у каждого стакана своя развёртка,
@@ -397,9 +403,23 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
 
   // Исходник макета главного стакана: им макет переносится на другой стакан и
   // возвращается после перезагрузки (designStore). { kind: 'file', file },
-  // у тампопечати { kind: 'sides', sides: { A, B } } или шаблон Формации
-  // { kind: 'template', file, as: 'field' | 'sides' } — из него всё сразу.
+  // у тампопечати { kind: 'sides', sides: { A, B } }, шаблон Формации
+  // { kind: 'template', file, as: 'field' | 'sides' } — из него всё сразу,
+  // или рисунок в прямоугольнике SIZE { kind: 'rect', file }.
   let source = null;
+
+  // Бумага с прямоугольником SIZE (catalog: textureMapping.rect): макет — готовый
+  // конус или рисунок в прямоугольнике, который сайт гнёт сам (sizeRect.js).
+  let form = 'sheet';
+  const rectOf = (model) => (model?.textureMapping?.sides ? null : model?.textureMapping?.rect ?? null);
+  // Направляющие SIZE поверх 3D: только вид — в рендер уходит лист без них.
+  let guides = false;
+  const guided = async (design, model) => {
+    const { withGuides } = await import('./sizeRect.js');
+    const sheet = await withGuides(design.rect.url, model);
+    own([sheet.url], sheet.release);
+    return { ...design, textureUrl: sheet.url };
+  };
   const remember = (next) => {
     source = next;
     if (next) saveDesignSource(next);
@@ -459,7 +479,79 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     };
   };
 
-  const apply = async (file, slot = target, side = null, { origin = 'user' } = {}) => {
+  // Рисунок прямоугольника SIZE → конус на листе, дальше — как обычный макет.
+  // Картинку не в пропорциях рамки клиент размещает сам (rectCropper.js);
+  // placement — уже выбранное место (перенос, «Кадрировать»).
+  const applyRect = async (file, slot, model, { origin, signal, stale, placement = null }) => {
+    const rect = rectOf(model);
+    let prepared;
+    try {
+      const { prepareRect, readRectSource } = await import('./sizeRect.js');
+      const art = await readRectSource(file, model, { signal });
+      let place = null;
+      if (art.kind !== 'page') {
+        const { fitPlacement, openCropper } = await import('./rectCropper.js');
+        const same = placement && placement.rectMm?.[0] === rect.sizeMm[0] && placement.rectMm?.[1] === rect.sizeMm[1];
+        place = same ? placement : fitPlacement(art.width / art.height, rect, 'fill');
+        if (art.kind === 'free' && !same) {
+          feedback.onLoaded();
+          place = stale() ? null : await openCropper({ image: art.image, width: art.width, height: art.height, rect, placement: place });
+          // Отмена — остаётся прежний макет.
+          if (!place || stale()) {
+            art.close();
+            return;
+          }
+        }
+      }
+      feedback.onLoading('Гнём прямоугольник в конус…');
+      prepared = await prepareRect(art, model, { placement: place, signal });
+      prepared.placement = place;
+    } catch (error) {
+      if (!stale()) {
+        feedback.onLoaded();
+        fail(error);
+      }
+      return;
+    }
+    if (stale() || slotModel(slot) !== model) {
+      prepared.release();
+      return;
+    }
+    own([prepared.unwrapUrl, prepared.rectUrl], prepared.release);
+    let design = {
+      textureUrl: prepared.textureUrl,
+      unwrapUrl: prepared.unwrapUrl,
+      width: prepared.width,
+      height: prepared.height,
+      // file и placement — для «Кадрировать»: окно открывается с тем же местом.
+      rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement },
+    };
+    if (guides) {
+      try {
+        design = await guided(design, model);
+      } catch (error) {
+        console.warn('Направляющие не нарисовались:', error);
+      }
+    }
+    if (stale()) return;
+    feedback.onLoaded();
+    const notes = prepared.notes.map((note) => RECT_NOTES[note]);
+    const done = [
+      DONE[origin],
+      'прямоугольник согнут в конус',
+      prepared.erased ? 'направляющие SIZE стёрты' : null,
+      prepared.layer ? 'взят слой conus' : null,
+    ].filter(Boolean).join(' · ');
+    const ok = await commit(slot, design, notes, done);
+    if (ok && slot === 'hero') {
+      remember({ kind: 'rect', file, placement: prepared.placement });
+      render();
+    }
+  };
+
+  // as — как понимать файл у бумаги с прямоугольником SIZE: 'sheet' — готовый
+  // конус, 'rect' — рисунок в прямоугольнике; по умолчанию — выбор у зоны.
+  const apply = async (file, slot = target, side = null, { origin = 'user', as = form, placement = null } = {}) => {
     if (!mode.check('uploadDesign', 'загрузить макет')) return;
     const model = slotModel(slot);
     if (!model) return;
@@ -471,6 +563,10 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const stale = () => token !== generation;
 
     feedback.onLoading('Обрабатываем макет…');
+    if (as === 'rect' && rectOf(model)) {
+      await applyRect(file, slot, model, { origin, signal, stale, placement });
+      return;
+    }
     // Шаблон Формации — сразу поле или обе стороны; иначе — обычный макет.
     let template = null;
     try {
@@ -562,12 +658,17 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     const model = slotModel('hero');
     if (!model || !source) return;
     const pad = Boolean(model.textureMapping.sides);
+    if (source.kind === 'rect') {
+      if (rectOf(model)) await apply(source.file, 'hero', null, { origin, as: 'rect', placement: source.placement ?? null });
+      else if (origin === 'switch') feedback.onToast('Макет не перенесён: у этого стакана пока нет прямоугольника SIZE — загрузите готовый макет', 'warning');
+      return;
+    }
     if (source.kind === 'template' && (source.as === 'sides') === pad) {
       await apply(source.file, 'hero', null, { origin });
     } else if (pad && source.kind === 'sides') {
       for (const [side, file] of Object.entries(source.sides)) if (file) await apply(file, 'hero', side, { origin });
     } else if (!pad && source.kind === 'file') {
-      await apply(source.file, 'hero', null, { origin });
+      await apply(source.file, 'hero', null, { origin, as: 'sheet' });
     } else if (origin === 'switch') {
       feedback.onToast('Макет не перенесён: у этого стакана или вида печати другой макет — загрузите его', 'warning');
     }
@@ -623,6 +724,83 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   };
   narrow.addEventListener('change', placeMode);
   placeMode();
+  // Готовый макет или прямоугольник SIZE — и инструменты прямоугольника. На
+  // узком экране — туда же, под заголовок стакана.
+  const formBox = document.getElementById('art-form');
+  const formButtons = [...(formBox?.querySelectorAll('[data-form]') ?? [])];
+  const rectTools = document.getElementById('rect-tools');
+  const templateLink = document.getElementById('rect-template');
+  const guidesButton = document.getElementById('rect-guides');
+  const downloadButton = document.getElementById('rect-download');
+  const cropButton = document.getElementById('rect-crop');
+  const rectSpots = [formBox, rectTools].filter(Boolean).map((node) => ({ node, parent: node.parentElement, next: node.nextSibling }));
+  const placeRect = () => {
+    for (const { node, parent, next } of rectSpots) {
+      if (narrow.matches && head) head.append(node);
+      else parent.insertBefore(node, next);
+    }
+  };
+  narrow.addEventListener('change', placeRect);
+  placeRect();
+  for (const b of formButtons) {
+    b.addEventListener('click', () => {
+      if (b.dataset.form === form) return;
+      form = b.dataset.form;
+      render();
+      // Уже загруженный файл — заново в новом смысле: SIZE, принятый за конус, и наоборот.
+      if (target === 'hero' && (source?.kind === 'file' || source?.kind === 'rect') && state.get().design) {
+        apply(source.file, 'hero', null, { as: form });
+      }
+    });
+  }
+  guidesButton?.addEventListener('click', async () => {
+    guides = !guides;
+    render();
+    for (const slot of ['hero', 'second']) {
+      const key = slotKey(slot);
+      const design = state.get()[key];
+      if (!design?.rect) continue;
+      let next = { ...design, textureUrl: design.unwrapUrl };
+      if (guides) {
+        try {
+          next = await guided(design, slotModel(slot));
+        } catch (error) {
+          console.warn('Направляющие не нарисовались:', error);
+          continue;
+        }
+      }
+      if (state.get()[key] === design) state.set({ [key]: next });
+    }
+  });
+  // «Кадрировать»: то же окно, с тем местом картинки, что сейчас на стакане.
+  cropButton?.addEventListener('click', async () => {
+    const slot = target;
+    const design = state.get()[slotKey(slot)];
+    const model = slotModel(slot);
+    if (!design?.rect?.file || design.rect.kind === 'page' || !model) return;
+    let placement = null;
+    try {
+      const { readRectSource } = await import('./sizeRect.js');
+      const { openCropper } = await import('./rectCropper.js');
+      const source = await readRectSource(design.rect.file, model);
+      try {
+        placement = await openCropper({ image: source.image, width: source.width, height: source.height, rect: rectOf(model), placement: design.rect.placement });
+      } finally {
+        source.close();
+      }
+    } catch (error) {
+      fail(error);
+      return;
+    }
+    if (placement && state.get()[slotKey(slot)] === design) apply(design.rect.file, slot, null, { as: 'rect', placement });
+  });
+  downloadButton?.addEventListener('click', () => {
+    const design = state.get()[slotKey(target)];
+    const model = slotModel(target);
+    if (!design?.rect || !model) return;
+    const link = Object.assign(document.createElement('a'), { href: design.unwrapUrl, download: `${model.name} — конус.png` });
+    link.click();
+  });
   for (const b of modeButtons) {
     b.addEventListener('click', () => {
       const s = state.get();
@@ -663,6 +841,27 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     }
     if (button) button.hidden = pet || CONFIG.ui.uploadButton === false;
     if (sideBox) sideBox.hidden = !pet;
+    const rect = rectOf(model);
+    const asRect = Boolean(rect) && form === 'rect';
+    if (formBox) formBox.hidden = !rect;
+    for (const b of formButtons) {
+      const on = b.dataset.form === form;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+    if (rectTools) rectTools.hidden = !asRect;
+    if (templateLink) {
+      templateLink.hidden = !rect?.template;
+      if (rect?.template) templateLink.href = rect.template;
+    }
+    const rectShown = asRect && Boolean(design?.rect);
+    if (guidesButton) {
+      guidesButton.hidden = !rectShown;
+      guidesButton.textContent = guides ? 'Скрыть направляющие' : 'Показать направляющие';
+      guidesButton.setAttribute('aria-pressed', String(guides));
+    }
+    if (downloadButton) downloadButton.hidden = !rectShown;
+    if (cropButton) cropButton.hidden = !rectShown || design.rect.kind === 'page';
     for (const b of sideButtons) {
       const part = design?.sides?.[b.dataset.side] ?? null;
       b.classList.toggle('is-filled', Boolean(part));
@@ -688,9 +887,11 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     }
     if (title && hint) {
       if (target !== 'second') {
-        const name = source?.kind === 'file' ? source.file.name : null;
-        title.textContent = design ? 'Макет на стакане' : defaults.title;
-        hint.textContent = design ? `${name ? `${name} · ` : ''}нажмите, чтобы заменить` : defaults.hint;
+        const name = source?.kind === 'file' || source?.kind === 'rect' ? source.file.name : null;
+        title.textContent = design ? 'Макет на стакане' : asRect ? 'Загрузить прямоугольник' : defaults.title;
+        hint.textContent = design
+          ? `${name ? `${name} · ` : ''}нажмите, чтобы заменить`
+          : asRect ? 'Рисунок в прямоугольнике из файла SIZE — PDF, AI, PNG или JPG. В конус согнём сами' : defaults.hint;
       } else if (design) {
         title.textContent = 'Свой макет';
         hint.textContent = 'Нажмите, чтобы заменить';
@@ -752,6 +953,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   loadDesignSource().then((saved) => {
     if (!saved || source || state.get().design) return;
     source = saved;
+    if (saved.kind === 'rect') form = 'rect';
     if (state.get().modelId) carry('restore');
     render();
   });

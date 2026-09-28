@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=9ccd642f" />
-    <link rel="stylesheet" href="css/design.css?v=42254cba" />
+    <link rel="stylesheet" href="css/design.css?v=e002f7b3" />
   </head>
   <body>
     <div class="app">
@@ -86,11 +86,22 @@
           <button class="segmented__item" type="button" role="radio" data-mode="pad" aria-checked="false">Тампопечать</button>
         </div>
         <p class="print-mode__note" id="print-mode-note" hidden></p>
+        <!-- Бумага с прямоугольником SIZE (js/design/sizeRect.js): готовый конус или рисунок в прямоугольнике. -->
+        <div class="segmented print-mode art-form" id="art-form" role="radiogroup" aria-label="Вид макета" hidden>
+          <button class="segmented__item" type="button" role="radio" data-form="sheet" aria-checked="true">Готовый макет</button>
+          <button class="segmented__item" type="button" role="radio" data-form="rect" aria-checked="false">Прямоугольник</button>
+        </div>
         <button class="upload-zone" id="texture-btn" type="button" disabled>
           <span class="upload-zone__anim" data-lottie="wrap" data-lottie-play="hover" aria-hidden="true"></span>
           <span class="upload-zone__title">Загрузить макет</span>
           <span class="upload-zone__hint">PNG, JPG, PDF или AI — можно перетащить файл на страницу</span>
         </button>
+        <div class="rect-tools" id="rect-tools" hidden>
+          <a class="rail__link" id="rect-template" href="#" download>Шаблон SIZE</a>
+          <button class="rail__link" id="rect-crop" type="button" hidden>Кадрировать</button>
+          <button class="rail__link" id="rect-guides" type="button" aria-pressed="false" hidden>Показать направляющие</button>
+          <button class="rail__link" id="rect-download" type="button" hidden>Скачать конус</button>
+        </div>
         <!-- PET: печать с одной или двух сторон, А и Б. -->
         <div class="side-slots" id="side-slots" hidden>
           <div class="side-slots__row">
@@ -319,7 +330,7 @@
       </div>
       <ol class="help-steps">
         <li><b>Выберите стакан</b> — по объёму и типу стенки; материал — вверху страницы.</li>
-        <li><b>Загрузите макет</b> — PNG, JPG, PDF или AI; можно просто перетащить файл. В шаблоне Формации со слоями берётся только слой рисунка <i>conus</i>.</li>
+        <li><b>Загрузите макет</b> — PNG, JPG, PDF или AI; можно просто перетащить файл. В шаблоне Формации со слоями берётся только слой рисунка <i>conus</i>. Рисовали в прямоугольнике из файла SIZE — выберите «Прямоугольник»: сайт согнёт рисунок в конус сам, картинку других пропорций можно подвинуть и кадрировать.</li>
         <li><b>Проверьте</b> в 3D и на развёртке; «Имитация картона» у названия стакана покажет, каким цвет выйдет на картоне. Фото или видео оборота — бесплатно.</li>
         <li><b>«Фотореал»</b> — стакан в настоящей сцене: фон, ракурс, формат, второй стакан. «Рендер» делает фотореалистичный кадр за токены: Standard — для соцсетей и сайта, Ultra — максимум деталей для печати. После входа по почте — 3 токена в подарок.</li>
         <li><b>Мои рендеры</b> — в меню под балансом: скачать, убрать знак, выбрать несколько и скачать архивом, вернуть сцену в редактор.</li>
@@ -342,6 +353,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=19d19ef1"></script>
+    <script type="module" src="dist/design.js?v=0d2d34e7"></script>
   </body>
 </html>
