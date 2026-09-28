@@ -60,42 +60,65 @@
   gap: 8px;
 }
 
-/* Картон — у стакана в панели шагов, сеткой 2 × 2 (в ширину панели четыре
-   названия не влезают). Один картон (BM) — на всю ширину. */
-.material-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 100%;
+/* Картон — у стакана: «Картон · название» и кружки образцов под ней
+   (выбор цвета в Apple Store, Printful). Названия не обрезаются, место — одна
+   строка. Один картон (BM) — показан как факт. */
+.material-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 4px 0;
 }
 
-.material-switch__item {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 5px;
-  min-width: 0;
-  padding: 0 7px;
+.material-pick[hidden] {
+  display: none;
+}
+
+.material-pick__label {
   font-size: 12.5px;
-  white-space: nowrap;
+  color: var(--muted);
 }
 
-.material-switch__item:only-of-type {
-  grid-column: 1 / -1;
+.material-pick__label b {
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.material-switch__item > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.material-pick__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.material-switch__item .swatch-dot {
-  width: 12px;
-  height: 12px;
+.material-swatch {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  transition: border-color 0.15s ease;
 }
 
-/* Один материал (BM): показан как факт, не как выбор. */
-.material-switch__item:disabled {
-  opacity: 1;
+.material-swatch .swatch-dot {
+  width: 26px;
+  height: 26px;
+}
+
+@media (hover: hover) {
+  .material-swatch:not(:disabled):hover {
+    border-color: var(--line-strong);
+  }
+}
+
+.material-swatch[aria-checked='true'] {
+  border-color: var(--action);
+}
+
+.material-swatch:disabled {
   cursor: default;
 }
 
@@ -336,43 +359,55 @@
   color: #b45309;
 }
 
-/* Действия с макетом — плитки «иконка над подписью» под карточкой (Canva,
-   Printful): равной ширины, разрушительное — последним и тихим. */
+/* Действия с макетом — нижняя строка его карточки (Canva, Printful):
+   равной ширины, разрушительное — последним и тихим. */
+.upload-zone.is-loaded.has-actions {
+  border-bottom-color: transparent;
+  border-radius: 16px 16px 0 0;
+}
+
 .art-actions {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  gap: 6px;
-  margin-top: 6px;
+  display: flex;
+  margin-top: -10px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 16px 16px;
 }
 
 .art-actions[hidden],
-.art-action[hidden],
-.rail-switch[hidden] {
+.art-action[hidden] {
   display: none;
 }
 
 .art-action {
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
-  padding: 8px 4px 7px;
+  height: 36px;
+  padding: 0 4px;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
-  background: var(--fill);
+  background: none;
   border: none;
-  border-radius: 12px;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.art-action + .art-action {
+  border-left: 1px solid var(--line);
+}
+
 .art-action .icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .art-action span {
@@ -382,8 +417,15 @@
   text-overflow: ellipsis;
 }
 
+/* «Убрать» — значком корзины (подпись — в подсказке): так «Кадр» и
+   «Заменить» не обрезаются и в узкой панели. */
 .art-action--quiet {
+  flex: 0 0 44px;
   color: var(--muted);
+}
+
+.art-action--quiet span {
+  display: none;
 }
 
 @media (hover: hover) {
@@ -394,40 +436,6 @@
   .art-action--quiet:hover {
     color: var(--danger);
   }
-}
-
-/* Направляющие SIZE — строка-переключатель, мгновенно (Material: switch). */
-.rail-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 8px;
-  padding: 9px 10px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  transition: border-color 0.15s ease;
-}
-
-.rail-switch .icon {
-  width: 18px;
-  height: 18px;
-  color: var(--muted);
-}
-
-.rail-switch .switch {
-  margin-left: auto;
-}
-
-.rail-switch[aria-pressed='true'] {
-  border-color: var(--primary);
 }
 
 /* Окно «Разместить рисунок» (rectCropper.js). */
@@ -655,10 +663,6 @@
     --rail-w: 240px;
   }
 
-  /* Панель уже — у картона остаются одни названия, без точек цвета. */
-  .rail .material-switch__item .swatch-dot {
-    display: none;
-  }
 
   .main {
     padding: 16px 18px 18px;
@@ -997,9 +1001,13 @@
     min-width: 44px;
   }
 
-  .material-switch__item,
   .view-presets .segmented__item {
     min-height: 40px;
+  }
+
+  .material-swatch {
+    width: 44px;
+    height: 44px;
   }
 }
 

@@ -177,39 +177,44 @@ function initModelPicker({ state, catalog, actions }) {
 // Материал (§14) — переключатель в шапке, как выбор картона на colorcups.ru:
 // только совместимые с моделью. Один материал (BM) — показан, но выбирать
 // нечего.
+// Картон — кружки образцов и название выбранного над ними; наведение
+// показывает название того, на который навели (как выбор цвета в Apple Store).
 function initMaterialSwitch({ state, catalog, actions }) {
   const box = document.getElementById('material-switch');
+  const pick = document.getElementById('material-pick');
+  const name = document.getElementById('material-name');
   if (!box) return;
   let items = [];
   let builtFor;
+  const current = () => catalog.material(state.get().materialId)?.name ?? '';
   const build = (modelId) => {
     builtFor = modelId;
     const materials = modelId ? catalog.materialsFor(modelId) : [];
     items = materials.map((material) => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'segmented__item material-switch__item';
+      item.className = 'material-swatch';
       item.setAttribute('role', 'radio');
+      item.setAttribute('aria-label', material.name);
       item.dataset.material = material.id;
-      item.title = material.note ?? '';
+      item.dataset.tip = material.note ? `${material.name} — ${material.note}` : material.name;
       const swatch = document.createElement('span');
       paintSwatch(swatch, material);
-      const text = document.createElement('span');
-      text.textContent = material.name;
-      item.append(swatch, text);
+      item.append(swatch);
       item.disabled = materials.length < 2;
       item.addEventListener('click', () => actions.selectMaterial(material.id));
+      item.addEventListener('pointerenter', () => name && (name.textContent = material.name));
+      item.addEventListener('pointerleave', () => name && (name.textContent = current()));
       return item;
     });
-    // Подложку выбранного (motion.js initSegments) не выбрасываем вместе с
-    // пунктами — без неё выбранный картон не выделен.
-    box.replaceChildren(...box.querySelectorAll(':scope > .seg-thumb'), ...items);
-    box.hidden = materials.length === 0;
+    box.replaceChildren(...items);
+    if (pick) pick.hidden = materials.length === 0;
   };
 
   const render = ({ modelId, materialId }) => {
     if (modelId !== builtFor) build(modelId);
     for (const item of items) item.setAttribute('aria-checked', String(item.dataset.material === materialId));
+    if (name) name.textContent = current();
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());
@@ -880,12 +885,10 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     }
     const rectShown = asRect && Boolean(design?.rect);
     if (formNote) {
-      formNote.hidden = !rect;
-      // Пояснение — по виду и шагу: до загрузки — что грузить и где шаблон,
-      // после — где взять согнутый конус (одно место — «Развёртка» → PNG).
-      if (!rect) formNote.replaceChildren();
-      else if (!asRect) formNote.replaceChildren('Конус из шаблона Формации — ляжет на стакан как есть.');
-      else if (rectShown) formNote.replaceChildren('Согнутый конус для печати — во вкладке «Развёртка», кнопка PNG.');
+      // Пояснение — только там, где без него не обойтись: прямоугольник до
+      // загрузки (что грузить и где шаблон SIZE).
+      formNote.hidden = !asRect || Boolean(design);
+      if (formNote.hidden) formNote.replaceChildren();
       else {
         const link = Object.assign(document.createElement('a'), { className: 'art-form__link', href: rect.template ?? '#', textContent: 'Шаблон SIZE (PDF)' });
         link.setAttribute('download', '');
@@ -950,12 +953,15 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
         hint.textContent = 'Без макета стакан будет чистым';
       }
     }
-    // Панель действий — когда макет есть. У тампопечати заменяют по стороне
-    // (плитки А/Б), а «Убрать» снимает обе стороны разом.
+    // Панель действий — когда макет есть: нижняя строка карточки макета. У
+    // тампопечати заменяют по стороне (плитки А/Б), «Убрать» снимает обе.
     if (actionsBox) actionsBox.hidden = !design;
+    button?.classList.toggle('has-actions', Boolean(design) && !pet);
     if (replaceButton) replaceButton.hidden = pet;
-    const clearLabel = clearButton?.querySelector('span');
-    if (clearLabel) clearLabel.textContent = pair ? 'Как у первого' : 'Убрать';
+    // У пары «Убрать» свой макет второго — значит вернуть макет первого.
+    const clearText = pair ? 'Вернуть макет первого' : 'Убрать макет';
+    clearButton?.setAttribute('aria-label', clearText);
+    if (clearButton) clearButton.dataset.tip = clearText;
   };
   state.subscribe(['modelId', 'printMode', 'design', 'design2', 'photo', 'tab', 'sceneId'], render);
   render();

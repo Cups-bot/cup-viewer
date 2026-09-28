@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
-    <link rel="stylesheet" href="css/design.css?v=5ee2d685" />
+    <link rel="stylesheet" href="css/design.css?v=d33cff60" />
   </head>
   <body>
     <div class="app">
@@ -59,16 +59,13 @@
           </span>
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
-        <!-- Картон (§14) — у стакана, как параметр товара (Printful, Vistaprint):
-             только совместимые с моделью; у BM один — показан как факт. -->
-        <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Картон"></div>
-        <!-- «Имитация картона» (js/design/proof.js): цвет печати по профилю картона. -->
-        <button class="rail-switch" id="proof-toggle" type="button" aria-pressed="false" hidden
-          data-tip="Цвет печати по профилю типографии" data-tip-side="right">
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#palette" /></svg>
-          <span>Имитация картона</span>
-          <span class="switch" aria-hidden="true"></span>
-        </button>
+        <!-- Картон (§14) — у стакана, как параметр товара: строка «Картон ·
+             название» и кружки образцов (выбор цвета в Apple Store, Printful).
+             Только совместимые с моделью; у BM один — показан как факт. -->
+        <div class="material-pick" id="material-pick" hidden>
+          <p class="material-pick__label">Картон · <b id="material-name"></b></p>
+          <div class="material-pick__swatches" id="material-switch" role="radiogroup" aria-label="Картон"></div>
+        </div>
 
         <!-- «Фотореал»: второй стакан в кадре (js/design/photoPanel.js). -->
         <div class="second-cup" id="second-cup" hidden>
@@ -117,7 +114,7 @@
           <span class="upload-zone__title">Загрузить макет</span>
           <span class="upload-zone__hint">PNG, JPG, PDF или AI — можно перетащить файл на страницу</span>
         </button>
-        <!-- Действия с загруженным макетом — прямо под его карточкой (Canva, Printful: кадрировать · заменить · убрать). -->
+        <!-- Действия с загруженным макетом — нижней строкой его карточки (Canva, Printful: кадрировать · заменить · убрать). -->
         <div class="art-actions" id="art-actions" hidden>
           <button class="art-action" id="rect-crop" type="button" hidden aria-label="Кадрировать" data-tip="Подвинуть и масштабировать рисунок в прямоугольнике">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#crop" /></svg>
@@ -127,17 +124,11 @@
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
             <span>Заменить</span>
           </button>
-          <button class="art-action art-action--quiet" id="art-clear" type="button">
+          <button class="art-action art-action--quiet" id="art-clear" type="button" aria-label="Убрать макет" data-tip="Убрать макет">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#trash" /></svg>
             <span>Убрать</span>
           </button>
         </div>
-        <!-- Направляющие SIZE поверх 3D — мгновенная настройка вида, как «Имитация картона». -->
-        <button class="rail-switch" id="rect-guides" type="button" aria-pressed="false" hidden>
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#guides" /></svg>
-          <span>Направляющие SIZE</span>
-          <span class="switch" aria-hidden="true"></span>
-        </button>
         <!-- PET: печать с одной или двух сторон, А и Б. -->
         <div class="side-slots" id="side-slots" hidden>
           <div class="side-slots__row">
@@ -252,6 +243,16 @@
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
               </button>
               <span class="toolbar__sep" aria-hidden="true"></span>
+              <!-- Настройки вида сцены: цвет по профилю картона (js/design/proof.js)
+                   и направляющие SIZE поверх макета (js/design/sizeRect.js). -->
+              <button class="icon-btn" id="proof-toggle" type="button" aria-label="Имитация картона" aria-pressed="false" hidden
+                data-tip="Имитация картона — цвет печати по профилю типографии" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#palette" /></svg>
+              </button>
+              <button class="icon-btn" id="rect-guides" type="button" aria-label="Направляющие SIZE" aria-pressed="false" hidden
+                data-tip="Направляющие SIZE: видимая зона, крышка, отступ снизу" data-tip-side="left">
+                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#guides" /></svg>
+              </button>
               <button class="icon-btn" id="screenshot-btn" type="button" aria-label="Снимок экрана" data-tip="Снимок · S" data-tip-side="left">
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
               </button>
@@ -364,7 +365,7 @@
       <ol class="help-steps">
         <li><b>Стакан</b> — по объёму и типу стенки; картон — сразу под ним.</li>
         <li><b>Макет</b> — готовый конус из шаблона Формации (PDF, AI, PNG) или рисунок в прямоугольнике SIZE — сайт согнёт его сам. Файл можно просто перетащить на страницу.</li>
-        <li><b>Проверка</b> — 3D и развёртка; «Имитация картона» покажет цвет на картоне. Фото и видео оборота — кнопка «Скачать».</li>
+        <li><b>Проверка</b> — 3D и развёртка; кнопка с палитрой у сцены — «Имитация картона»: цвет, каким он выйдет на картоне. Фото и видео оборота — кнопка «Скачать».</li>
         <li><b>«Фотореал»</b> — стакан в настоящей сцене. «Рендер» — кадр за токены: Standard для соцсетей и сайта, Ultra — для печати. Готовые кадры — в «Моих рендерах», в меню под балансом.</li>
       </ol>
       <ul class="help-list">
@@ -385,6 +386,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=991b5ebe"></script>
+    <script type="module" src="dist/design.js?v=0b0b5659"></script>
   </body>
 </html>
