@@ -186,6 +186,30 @@ body.has-fullscreen-stage {
   transition: opacity 0.2s ease;
 }
 
+/* На сенсорном экране колеса нет — своя подсказка; узкий экран — перенос. */
+.unwrap__hint-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .unwrap__hint-mouse {
+    display: none;
+  }
+
+  .unwrap__hint-touch {
+    display: inline;
+  }
+}
+
+@media (max-width: 600px) {
+  .unwrap__hint {
+    width: max-content;
+    max-width: calc(100% - 32px);
+    white-space: normal;
+    text-align: center;
+  }
+}
+
 /* Приблизили — подсказка своё отработала и больше не закрывает макет. */
 .unwrap.is-zoomed .unwrap__hint {
   opacity: 0;
@@ -881,6 +905,22 @@ body.has-fullscreen-stage {
   padding: 36px 0;
   color: var(--muted);
   text-align: center;
+}
+
+/* Метка «SIZE» — у стакана есть прямоугольник (рисунок гнётся сам); слева —
+   справа у выбранной карточки галочка. */
+.cup-card__tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: var(--shadow-s);
 }
 
 /* Высота окна постоянна: при фильтрации оно не прыгает. */

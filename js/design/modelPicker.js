@@ -166,6 +166,14 @@ export class CupPicker {
         info.className = 'cup-card__info';
         info.append(volume, name, size);
         card.append(cupPhoto(cup, scale), info);
+        // Можно рисовать в прямоугольнике SIZE — сайт согнёт сам (sizeRect.js).
+        if (cup.textureMapping?.rect) {
+          const tag = document.createElement('span');
+          tag.className = 'cup-card__tag';
+          tag.textContent = 'SIZE';
+          tag.title = 'Можно загрузить рисунок в прямоугольнике из файла SIZE';
+          card.append(tag);
+        }
         card.addEventListener('click', () => this.#choose(cup.id));
 
         grid.appendChild(card);

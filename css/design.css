@@ -1052,6 +1052,13 @@
 .rail > :nth-child(n + 5) { animation-delay: 180ms; }
 .page-head { animation-delay: 80ms; }
 .stage-card { animation-delay: 140ms; }
+
+/* Стакан не выбран: вкладки, фон, ракурсы и кнопки вида не видны (stage.js). */
+.stage-card.is-empty .stage-card__bar,
+.stage-card.is-empty .stage-card__foot,
+.stage-card.is-empty .stage-controls {
+  visibility: hidden;
+}
 .action-bar { animation-delay: 200ms; }
 
 @keyframes page-in {
@@ -1906,6 +1913,10 @@
 }
 
 .renders__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
   margin: 40px auto;
   max-width: 360px;
   font-size: 14px;

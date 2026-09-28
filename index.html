@@ -8,8 +8,8 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
-    <link rel="stylesheet" href="css/viewer.css?v=9ccd642f" />
-    <link rel="stylesheet" href="css/design.css?v=482ea917" />
+    <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
+    <link rel="stylesheet" href="css/design.css?v=3ea379ee" />
   </head>
   <body>
     <div class="app">
@@ -195,7 +195,7 @@
             <!-- Развёртка (§16): макет плоско, без разметки. -->
             <div class="unwrap" id="unwrap" hidden>
               <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
-              <p class="unwrap__hint">Колесо — приблизить, перетаскивание — сдвинуть, двойной клик — по размеру</p>
+              <p class="unwrap__hint"><span class="unwrap__hint-mouse">Колесо — приблизить, перетаскивание — сдвинуть, двойной клик — по размеру</span><span class="unwrap__hint-touch">Щипок — приблизить, двойное касание — по размеру</span></p>
               <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
                 <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить" data-tip="Отдалить" data-tip-side="top">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
@@ -369,6 +369,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=3419cefc"></script>
+    <script type="module" src="dist/design.js?v=fac46b57"></script>
   </body>
 </html>

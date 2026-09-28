@@ -115,7 +115,8 @@ function modal(className, titleText, ...content) {
 }
 
 // onOpenJob(spec) — «В редактор» из «Моих рендеров»: вернуть сцену кадра на сайт.
-export function initAccount({ catalog, feedback, onOpenJob = null }) {
+// onOpenScene() — открыть вкладку «Фотореал» (кнопка пустых «Моих рендеров»).
+export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene = null }) {
   const listeners = new Set();
   let me = null;
   let available = false;
@@ -272,8 +273,11 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
   // пересобирается опросом раз в 5 с, поэтому выбор и вопросы «удалить?» живут
   // здесь, а не в DOM.
   const grid = el('div', { class: 'renders' });
-  const empty = el('p', { class: 'renders__empty', hidden: true,
-    text: 'Здесь появятся ваши кадры. Соберите сцену во вкладке «Фотореал» и нажмите «Рендер».' });
+  // Пустое состояние — с действием, а не только с текстом (Material, empty states).
+  const emptyGo = el('button', { class: 'btn btn--accent', type: 'button', text: 'Открыть «Фотореал»' });
+  const empty = el('div', { class: 'renders__empty', hidden: true },
+    el('p', { text: 'Здесь появятся ваши кадры. Соберите сцену во вкладке «Фотореал» и нажмите «Рендер».' }),
+    ...(onOpenScene ? [emptyGo] : []));
   const rendersBalance = el('p', { class: 'renders__balance' });
   const selectBtn = el('button', { class: 'btn renders__select', type: 'button', text: 'Выбрать' });
   const head = el('div', { class: 'renders__head' }, rendersBalance, selectBtn);
@@ -283,6 +287,10 @@ export function initAccount({ catalog, feedback, onOpenJob = null }) {
   const bulkDelete = el('button', { class: 'btn', type: 'button', text: 'Удалить' });
   const bulk = el('div', { class: 'renders__bulk', hidden: true }, bulkCount, bulkAll, el('span', { class: 'renders__spacer' }), bulkZip, bulkDelete);
   const renders = modal('renders-dialog', 'Мои рендеры', head, empty, grid, bulk);
+  emptyGo.addEventListener('click', () => {
+    renders.hide();
+    onOpenScene?.();
+  });
   let poll = null;
   let jobsNow = [];
   let shownKey = '';

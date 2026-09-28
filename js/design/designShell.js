@@ -57,6 +57,10 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
     catalog,
     feedback,
     onOpenJob: (spec) => restoreJob(spec, { state, catalog, feedback, upload }),
+    onOpenScene: () => {
+      if (!mode.check('openScene')) return;
+      state.set({ tab: 'scene', sceneId: state.get().sceneId ?? catalog.scenes[0]?.id ?? null });
+    },
   });
   initMaterialSwitch({ state, catalog, actions });
   upload = initUpload({ state, mode, catalog, viewer, feedback });
@@ -906,6 +910,8 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       if (target !== 'second') {
         const name = source?.kind === 'file' || source?.kind === 'rect' ? source.file.name : null;
         title.textContent = design ? (name ?? 'Макет на стакане') : asRect ? 'Загрузить прямоугольник' : defaults.title;
+        // Длинное имя обрезается многоточием — целиком оно в подсказке.
+        if (button) button.title = design && name ? name : '';
         hint.textContent = !design
           ? asRect ? 'PDF, AI, PNG или JPG — рисунок в рамке SIZE или картинка, её можно кадрировать' : defaults.hint
           : design.rect

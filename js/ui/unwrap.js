@@ -28,9 +28,9 @@ export class UnwrapView {
     this.canvas = root.querySelector('.unwrap__canvas');
     this.ctx = this.canvas?.getContext('2d') ?? null;
     this.hint = root.querySelector('.unwrap__hint');
-    // Подсказку про жесты пишет разметка — запоминаем, чтобы вернуть её после
-    // сообщения об ошибке.
-    this.hintText = this.hint?.textContent ?? '';
+    // Подсказку про жесты пишет разметка (для мыши и для касания — разная) —
+    // запоминаем её узлы, чтобы вернуть после сообщения об ошибке.
+    this.hintNodes = [...(this.hint?.childNodes ?? [])].map((node) => node.cloneNode(true));
 
     this.image = null;
     this.zoom = 1;
@@ -69,7 +69,7 @@ export class UnwrapView {
     image.decoding = 'async';
     image.addEventListener('load', () => {
       this.image = image;
-      if (this.hint) this.hint.textContent = this.hintText;
+      this.hint?.replaceChildren(...this.hintNodes.map((node) => node.cloneNode(true)));
       this.reset();
       onSettled?.();
     });

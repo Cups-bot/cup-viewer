@@ -48,13 +48,21 @@ function initTabs(state, actions) {
     if (swatches) swatches.hidden = mode !== '3d';
     if (scenes) scenes.hidden = mode !== 'scene';
     // В «Фотореале» ракурсы студии уступают место панели сцены (photoPanel):
-    // карточка становится сеткой «кадр | панель».
+    // карточка становится сеткой «кадр | панель». На развёртке ракурсов нет —
+    // она плоская.
     const panel = document.getElementById('photo-panel');
-    if (studioFoot && panel) studioFoot.hidden = mode === 'scene';
+    if (studioFoot && panel) studioFoot.hidden = mode === 'scene' || mode === 'unwrap';
     card?.classList.toggle('is-photo', Boolean(panel) && mode === 'scene');
   };
   state.subscribe(['tab'], render);
   render(state.get());
+
+  // Стакан не выбран — на сцене только приглашение выбрать его: вкладки,
+  // ракурсы, фон и кнопки вида ещё не к чему применить (место под ними
+  // сохраняется — карточка не прыгает, когда стакан появится).
+  const renderEmpty = ({ modelId }) => card?.classList.toggle('is-empty', !modelId);
+  state.subscribe(['modelId'], renderEmpty);
+  renderEmpty(state.get());
 }
 
 // Ряд выбора сцены — со второй сцены в каталоге: одна кнопка, которую некуда
