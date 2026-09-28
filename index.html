@@ -9,18 +9,17 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
-    <link rel="stylesheet" href="css/design.css?v=703244d5" />
+    <link rel="stylesheet" href="css/design.css?v=5ee2d685" />
   </head>
   <body>
     <div class="app">
-      <!-- Шапка — как у colorcups.ru: логотип, по центру материал (как выбор
-           картона там), справа тема и «Как пользоваться». -->
+      <!-- Шапка — только общее: логотип, кабинет, тема, «Как пользоваться».
+           Картон — свойство стакана: он в панели шагов, у стакана. -->
       <header class="site-header">
         <a class="site-logo" href="./" aria-label="Cup Viewer">
           <svg class="site-logo__full" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-logo" /></svg>
         </a>
 
-        <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Материал"></div>
 
         <div class="site-header__actions">
           <!-- Кабинет (js/account/account.js): «Войти» или баланс с меню. Без сервера — скрыт. -->
@@ -41,8 +40,16 @@
       </header>
 
       <!-- Левая панель по шагам: стакан → макет → результат. На узком экране
-           те же кнопки переезжают в нижнюю панель (.action-bar). -->
-      <aside class="rail" aria-label="Шаги">
+           она же — нижний лист: кнопки нижней панели (.action-bar) открывают
+           в нём раздел «Стакан» или «Макет» (designShell.js initRailSheet). -->
+      <aside class="rail" id="rail" aria-label="Шаги">
+        <div class="drawer__head rail__sheet-head">
+          <p class="rail__sheet-title" id="rail-sheet-title"></p>
+          <button class="icon-btn" type="button" id="rail-close" aria-label="Закрыть">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
+          </button>
+        </div>
+        <section class="rail__section" data-section="cup" aria-label="Стакан">
         <p class="rail__label">Стакан</p>
         <button class="cup-current" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
           <span class="cup-current__art" id="cup-art" aria-hidden="true"></span>
@@ -51,6 +58,16 @@
             <span class="cup-current__meta" id="cup-meta">Бумажные, пластиковые BM и PET</span>
           </span>
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
+        </button>
+        <!-- Картон (§14) — у стакана, как параметр товара (Printful, Vistaprint):
+             только совместимые с моделью; у BM один — показан как факт. -->
+        <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Картон"></div>
+        <!-- «Имитация картона» (js/design/proof.js): цвет печати по профилю картона. -->
+        <button class="rail-switch" id="proof-toggle" type="button" aria-pressed="false" hidden
+          data-tip="Цвет печати по профилю типографии" data-tip-side="right">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#palette" /></svg>
+          <span>Имитация картона</span>
+          <span class="switch" aria-hidden="true"></span>
         </button>
 
         <!-- «Фотореал»: второй стакан в кадре (js/design/photoPanel.js). -->
@@ -73,7 +90,9 @@
           </button>
           <p class="second-cup__note" id="second-note" hidden>В этой сцене — один стакан</p>
         </div>
+        </section>
 
+        <section class="rail__section" data-section="art" aria-label="Макет">
         <p class="rail__label">Макет</p>
         <!-- «Фотореал» с двумя стаканами: чей макет грузим (js/design/designShell.js initUpload). -->
         <div class="segmented art-target" id="art-target" role="radiogroup" aria-label="Макет для стакана" hidden>
@@ -138,7 +157,9 @@
           <p class="side-slots__note">Без стороны Б — печать с одной стороны. Поле стороны — 50 мм по стенке.</p>
         </div>
         <input type="file" id="texture-input" accept=".png,.jpg,.jpeg,.pdf,.ai,.eps,.cdr,image/png,image/jpeg,application/pdf" hidden />
+        </section>
 
+        <section class="rail__section rail__section--result" data-section="result" aria-label="Результат">
         <p class="rail__label">Результат</p>
         <div class="rail__result">
           <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled>
@@ -146,18 +167,14 @@
             <span>Скачать фото или видео</span>
           </button>
         </div>
+        </section>
       </aside>
+      <div class="dialog-backdrop rail-backdrop" id="rail-backdrop" hidden></div>
 
       <main class="main">
         <div class="page-head">
           <h1 class="page-head__title" id="page-title">Выберите стакан</h1>
           <p class="page-head__sub" id="page-sub">Затем загрузите макет — он ляжет на развёртку сам.</p>
-          <!-- «Имитация картона» (js/design/proof.js): цвет печати по профилю картона. -->
-          <button class="proof-toggle" id="proof-toggle" type="button" aria-pressed="false" hidden
-            data-tip="Цвет печати по профилю типографии" data-tip-side="left">
-            <span class="switch" aria-hidden="true"></span>
-            <span>Имитация картона</span>
-          </button>
         </div>
 
         <!-- Карточка сцены: сверху вкладки и фон, снизу ракурсы. -->
@@ -345,7 +362,7 @@
         </button>
       </div>
       <ol class="help-steps">
-        <li><b>Стакан</b> — по объёму и типу стенки; картон — вверху страницы.</li>
+        <li><b>Стакан</b> — по объёму и типу стенки; картон — сразу под ним.</li>
         <li><b>Макет</b> — готовый конус из шаблона Формации (PDF, AI, PNG) или рисунок в прямоугольнике SIZE — сайт согнёт его сам. Файл можно просто перетащить на страницу.</li>
         <li><b>Проверка</b> — 3D и развёртка; «Имитация картона» покажет цвет на картоне. Фото и видео оборота — кнопка «Скачать».</li>
         <li><b>«Фотореал»</b> — стакан в настоящей сцене. «Рендер» — кадр за токены: Standard для соцсетей и сайта, Ultra — для печати. Готовые кадры — в «Моих рендерах», в меню под балансом.</li>
@@ -368,6 +385,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=bdfe43b8"></script>
+    <script type="module" src="dist/design.js?v=991b5ebe"></script>
   </body>
 </html>

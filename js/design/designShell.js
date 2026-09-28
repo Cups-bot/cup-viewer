@@ -63,13 +63,14 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
     },
   });
   initMaterialSwitch({ state, catalog, actions });
-  upload = initUpload({ state, mode, catalog, viewer, feedback });
+  const sheet = initRailSheet();
+  upload = initUpload({ state, mode, catalog, viewer, feedback, sheet });
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   initProofToggle({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
-  initActionBar({ exportCenter });
+  initActionBar({ state, exportCenter, sheet });
 
   // Кнопки, которым нужна модель в сцене.
   const needsModel = [
@@ -200,7 +201,9 @@ function initMaterialSwitch({ state, catalog, actions }) {
       item.addEventListener('click', () => actions.selectMaterial(material.id));
       return item;
     });
-    box.replaceChildren(...items);
+    // Подложку выбранного (motion.js initSegments) не выбрасываем вместе с
+    // пунктами — без неё выбранный картон не выделен.
+    box.replaceChildren(...box.querySelectorAll(':scope > .seg-thumb'), ...items);
     box.hidden = materials.length === 0;
   };
 
@@ -293,17 +296,58 @@ function initExport(app) {
   return { open };
 }
 
-// Нижняя панель узкого экрана (§45): те же шаги, что в левой панели, —
-// кнопки панели просто нажимаются за человека.
-function initActionBar({ exportCenter }) {
+// Узкий экран: панель шагов — нижний лист с одним разделом («Стакан» с
+// картоном или «Макет»), как панели инструментов Canva и Pacdora на телефоне:
+// сцене — весь экран, инструменты выезжают по кнопке. Элементы те же, что в
+// панели на широком экране, — ничего не дублируется.
+function initRailSheet() {
+  const rail = document.getElementById('rail');
+  const backdrop = document.getElementById('rail-backdrop');
+  const title = document.getElementById('rail-sheet-title');
+  const close = document.getElementById('rail-close');
+  const narrow = window.matchMedia('(max-width: 1023px)');
+  const TITLES = { cup: 'Стакан и картон', art: 'Макет' };
+  let opener = null;
+  const isOpen = () => Boolean(rail?.classList.contains('is-open'));
+  const hide = () => {
+    if (!isOpen()) return;
+    rail.classList.remove('is-open');
+    delete rail.dataset.section;
+    if (backdrop) backdrop.hidden = true;
+    opener?.focus?.();
+  };
+  const show = (section, from) => {
+    if (!rail || !narrow.matches) return false;
+    opener = from ?? null;
+    rail.dataset.section = section;
+    if (title) title.textContent = TITLES[section] ?? '';
+    rail.classList.add('is-open');
+    rail.scrollTop = 0;
+    if (backdrop) backdrop.hidden = false;
+    close?.focus();
+    return true;
+  };
+  close?.addEventListener('click', hide);
+  backdrop?.addEventListener('click', hide);
+  // Escape закрывает лист, если поверх него нет окна (выбор стакана, кадр).
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !document.querySelector('.dialog:not([hidden])')) hide();
+  });
+  narrow.addEventListener('change', () => !narrow.matches && hide());
+  return { show, hide, get open() { return isOpen(); } };
+}
+
+// Нижняя панель узкого экрана (§45): «Стакан» и «Макет» открывают свой
+// раздел панели шагов листом; пока стакан не выбран, «Стакан» — сразу выбор.
+function initActionBar({ state, exportCenter, sheet }) {
   const click = (id) => document.getElementById(id)?.click();
   const nav = {
-    cup: () => click('cup-btn'),
-    design: () => click('texture-btn'),
+    cup: (from) => (state.get().modelId ? sheet.show('cup', from) : click('cup-btn')),
+    design: (from) => sheet.show('art', from),
     export: () => exportCenter.open('photo'),
   };
   for (const button of document.querySelectorAll('[data-mobile-nav]')) {
-    button.addEventListener('click', () => !button.disabled && nav[button.dataset.mobileNav]?.());
+    button.addEventListener('click', () => !button.disabled && nav[button.dataset.mobileNav]?.(button));
   }
 }
 
@@ -312,7 +356,7 @@ function initActionBar({ exportCenter }) {
 //
 // Повторный выбор во время обработки отменяет предыдущий (§17): у каждой
 // загрузки своё поколение, и результат устаревшего не применяется.
-function initUpload({ state, mode, catalog, viewer, feedback }) {
+function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
   const button = document.getElementById('texture-btn');
   const input = document.getElementById('texture-input');
   const overlay = document.getElementById('drop-overlay');
@@ -404,6 +448,8 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       }
     }
     feedback.onToast(notes.length ? [done, ...notes].join(' · ') : done, notes.length ? 'warning' : 'success');
+    // Телефон: макет ради того и грузили, чтобы увидеть на стакане.
+    sheet?.hide();
     return true;
   };
 
@@ -721,23 +767,9 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   const modeBox = document.getElementById('print-mode');
   const modeNote = document.getElementById('print-mode-note');
   const modeButtons = [...(modeBox?.querySelectorAll('[data-mode]') ?? [])];
-  // На узком экране левой панели нет (её шаги — в нижней панели): переключатель
-  // вида печати переезжает под заголовок стакана. Элемент один — переносится.
-  const head = document.querySelector('.page-head');
-  const railSpot = modeBox?.parentElement;
-  const railNext = modeBox?.nextSibling;
-  const narrow = window.matchMedia('(max-width: 1023px)');
-  const placeMode = () => {
-    if (!modeBox) return;
-    if (narrow.matches && head) head.append(modeBox, modeNote ?? '');
-    else if (railSpot) railSpot.insertBefore(modeBox, railNext), modeNote && railSpot.insertBefore(modeNote, railNext);
-  };
-  narrow.addEventListener('change', placeMode);
-  placeMode();
   // Вид макета (готовый конус или прямоугольник SIZE) с пояснением, действия с
   // загруженным макетом и направляющие. Панель действий — у карточки макета,
-  // как у Canva и Printful; на узком экране левой панели нет — всё это
-  // переезжает под заголовок стакана.
+  // как у Canva и Printful; на узком экране всё это — в листе «Макет».
   const formBox = document.getElementById('art-form');
   const formButtons = [...(formBox?.querySelectorAll('[data-form]') ?? [])];
   const formNote = document.getElementById('art-form-note');
@@ -745,16 +777,6 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   const replaceButton = document.getElementById('art-replace');
   const guidesButton = document.getElementById('rect-guides');
   const cropButton = document.getElementById('rect-crop');
-  const rectSpots = [formBox, formNote, actionsBox, guidesButton].filter(Boolean)
-    .map((node) => ({ node, parent: node.parentElement, next: node.nextSibling }));
-  const placeRect = () => {
-    for (const { node, parent, next } of rectSpots) {
-      if (narrow.matches && head) head.append(node);
-      else parent.insertBefore(node, next);
-    }
-  };
-  narrow.addEventListener('change', placeRect);
-  placeRect();
   for (const b of formButtons) {
     b.addEventListener('click', () => {
       if (b.dataset.form === form) return;

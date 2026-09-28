@@ -1,7 +1,7 @@
-/* Раскладка Design Mode — по системе colorcups.ru: шапка с материалом по
-   центру, слева панель шагов, справа заголовок и карточка сцены. Узкий экран:
-   панель шагов уезжает в нижнюю панель действий, материал — второй строкой
-   шапки. */
+/* Раскладка Design Mode: шапка (логотип, кабинет, тема, помощь), слева
+   панель шагов — стакан с картоном, макет, результат; справа заголовок и
+   карточка сцены. Узкий экран: сцене — всё, панель шагов — нижний лист,
+   который открывают кнопки нижней панели действий. */
 
 :root {
   --header-h: 56px;
@@ -32,7 +32,7 @@
   z-index: 30;
   grid-area: header;
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 0 16px 0 20px;
@@ -60,29 +60,37 @@
   gap: 8px;
 }
 
-/* Материал — как выбор картона на colorcups: сегменты по центру шапки. */
+/* Картон — у стакана в панели шагов, сеткой 2 × 2 (в ширину панели четыре
+   названия не влезают). Один картон (BM) — на всю ширину. */
 .material-switch {
-  justify-self: center;
-  flex-wrap: nowrap;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.material-switch::-webkit-scrollbar {
-  display: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
 .material-switch__item {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-start;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 7px;
+  font-size: 12.5px;
   white-space: nowrap;
 }
 
+.material-switch__item:only-of-type {
+  grid-column: 1 / -1;
+}
+
+.material-switch__item > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .material-switch__item .swatch-dot {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 /* Один материал (BM): показан как факт, не как выбор. */
@@ -116,10 +124,22 @@
   margin-top: 0;
 }
 
+/* Разделы панели: стакан (с картоном), макет, результат. */
+.rail__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Результат — внизу панели, как «Моя палитра / Скачать PDF» у colorcups. */
-.rail__label:nth-of-type(3) {
+.rail__section--result {
   margin-top: auto;
   padding-top: 16px;
+}
+
+/* Заголовок нижнего листа (узкий экран) — на широком не нужен. */
+.rail__sheet-head {
+  display: none;
 }
 
 .cup-current {
@@ -258,16 +278,6 @@
 .print-mode[hidden],
 .print-mode__note[hidden] {
   display: none;
-}
-
-/* Под заголовком стакана (узкий экран, placeMode в designShell.js). */
-.page-head .print-mode {
-  max-width: 340px;
-  margin: 10px 0 0;
-}
-
-.page-head .print-mode__note {
-  margin: 6px 0 0;
 }
 
 /* Вид макета бумаги: пояснение под переключателем (что грузить, где шаблон). */
@@ -418,21 +428,6 @@
 
 .rail-switch[aria-pressed='true'] {
   border-color: var(--primary);
-}
-
-/* Узкий экран: то же под заголовком стакана. */
-.page-head .art-form__note,
-.page-head .art-actions,
-.page-head .rail-switch {
-  max-width: 340px;
-}
-
-.page-head .art-form__note {
-  margin: 6px 0 0;
-}
-
-.page-head .art-actions {
-  margin-top: 8px;
 }
 
 /* Окно «Разместить рисунок» (rectCropper.js). */
@@ -597,42 +592,6 @@
 }
 
 /* «Имитация картона» — справа от названия стакана; на узком экране — под ним. */
-.page-head > .proof-toggle {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-}
-
-.proof-toggle {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 36px;
-  padding: 0 14px 0 10px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.proof-toggle:hover {
-  border-color: var(--line-strong);
-}
-
-.proof-toggle[aria-pressed='true'] {
-  border-color: var(--primary);
-}
-
-.proof-toggle[hidden] {
-  display: none;
-}
-
 .page-head__title {
   overflow: hidden;
   font-size: 28px;
@@ -696,6 +655,11 @@
     --rail-w: 240px;
   }
 
+  /* Панель уже — у картона остаются одни названия, без точек цвета. */
+  .rail .material-switch__item .swatch-dot {
+    display: none;
+  }
+
   .main {
     padding: 16px 18px 18px;
   }
@@ -722,15 +686,6 @@
    слишком много. */
 
 @media (max-width: 1023px) {
-  .page-head > .proof-toggle {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
-    min-height: 32px;
-    margin-top: 8px;
-    font-size: 13px;
-  }
-
   .app {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) calc(var(--action-bar-h) + env(safe-area-inset-bottom));
@@ -742,37 +697,66 @@
 
   .site-header {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      'logo actions'
-      'material material';
     gap: 8px 12px;
     padding: 10px 12px 10px 14px;
   }
 
-  .site-logo {
-    grid-area: logo;
-  }
-
-  .site-header__actions {
-    grid-area: actions;
-  }
-
-  .material-switch {
-    grid-area: material;
-    justify-self: stretch;
-  }
-
-  .material-switch[hidden] + .site-header__actions {
-    grid-row: 1;
-  }
-
-  .material-switch__item {
-    flex: 1 0 auto;
-    justify-content: center;
-  }
-
-  /* Кнопки панели шагов остаются в DOM: нижняя панель нажимает их. */
+  /* Панель шагов — нижний лист (Canva, Pacdora на телефоне: холсту — весь
+     экран, инструменты выезжают снизу). Открыт один раздел — тот, чью кнопку
+     нажали в нижней панели (designShell.js initRailSheet). */
   .rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 61;
+    display: none;
+    max-height: 86dvh;
+    padding: 0 16px max(16px, env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-right: none;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: var(--shadow-l);
+  }
+
+  .rail.is-open {
+    display: flex;
+    animation: sheet-up 0.34s var(--ease);
+  }
+
+  .rail__section,
+  .rail__section--result {
+    display: none;
+  }
+
+  .rail[data-section='cup'] > .rail__section[data-section='cup'],
+  .rail[data-section='art'] > .rail__section[data-section='art'] {
+    display: flex;
+  }
+
+  /* Заголовок листа говорит, что открыто; подпись раздела повторяла бы его. */
+  .rail__section > .rail__label:first-child {
+    display: none;
+  }
+
+  .rail__sheet-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 -16px 4px;
+    padding: 14px 12px 8px 20px;
+    background: var(--surface);
+  }
+
+  .rail__sheet-title {
+    font-size: 17px;
+    font-weight: 650;
+  }
+
+  .rail-backdrop[hidden] {
     display: none;
   }
 
@@ -876,15 +860,6 @@
     height: 24px;
   }
 
-  .material-switch__item .swatch-dot {
-    display: none;
-  }
-
-  .material-switch__item {
-    padding: 0 8px;
-    font-size: 12.5px;
-  }
-
   .main {
     padding: 10px 8px 8px;
   }
@@ -977,13 +952,7 @@
 
 @media (max-height: 620px) and (min-width: 700px) and (max-width: 1023px) {
   .site-header {
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
-    grid-template-areas: 'logo material actions';
     padding: 6px 12px;
-  }
-
-  .material-switch {
-    justify-self: center;
   }
 
   .stage-card__bar {
