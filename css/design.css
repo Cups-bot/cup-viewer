@@ -270,25 +270,169 @@
   margin: 6px 0 0;
 }
 
-/* Прямоугольник SIZE: шаблон, направляющие, конус — ссылками под зоной. */
-.rect-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  margin: 2px 0 0;
+/* Вид макета бумаги: пояснение под переключателем (что грузить, где шаблон). */
+.art-form__note {
+  margin: -2px 2px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
-.rect-tools[hidden],
-.rect-tools [hidden] {
+.art-form__link {
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.art-form__link:hover {
+  text-decoration: underline;
+}
+
+/* Загруженный макет — карточка файла: миниатюра слева, имя и статус справа
+   (Carbon, Uploadcare). Нажатие по карточке — заменить, как и раньше. */
+.upload-zone.is-loaded {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  border-style: solid;
+  border-color: var(--line);
+}
+
+.upload-zone.is-loaded .upload-zone__thumb {
+  grid-row: 1 / span 2;
+  width: 64px;
+  height: 44px;
+}
+
+.upload-zone.is-loaded .upload-zone__title {
+  overflow: hidden;
+  font-size: 13.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.upload-zone.is-loaded .upload-zone__hint {
+  align-self: start;
+}
+
+.upload-zone__hint.is-warning {
+  font-weight: 600;
+  color: #b45309;
+}
+
+/* Действия с макетом — плитки «иконка над подписью» под карточкой (Canva,
+   Printful): равной ширины, разрушительное — последним и тихим. */
+.art-actions {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.art-actions[hidden],
+.art-action[hidden],
+.rail-switch[hidden] {
   display: none;
 }
 
-.rect-tools .rail__link {
-  text-decoration: none;
+.art-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 4px 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--fill);
+  border: none;
+  border-radius: 12px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.page-head .rect-tools {
+.art-action .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.art-action span {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.art-action--quiet {
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .art-action:hover {
+    background: var(--fill-hover);
+  }
+
+  .art-action--quiet:hover {
+    color: var(--danger);
+  }
+}
+
+/* Направляющие SIZE — строка-переключатель, мгновенно (Material: switch). */
+.rail-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.rail-switch .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.rail-switch .switch {
+  margin-left: auto;
+}
+
+.rail-switch[aria-pressed='true'] {
+  border-color: var(--primary);
+}
+
+/* Узкий экран: то же под заголовком стакана. */
+.page-head .art-form__note,
+.page-head .art-actions,
+.page-head .rail-switch {
+  max-width: 340px;
+}
+
+.page-head .art-form__note {
   margin: 6px 0 0;
+}
+
+.page-head .art-actions {
+  margin-top: 8px;
 }
 
 /* Окно «Разместить рисунок» (rectCropper.js). */

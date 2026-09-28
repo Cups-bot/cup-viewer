@@ -138,7 +138,7 @@ function warpToSheet(rectCanvas, model) {
 }
 
 // Источник (readRectSource) → макет: { textureUrl, unwrapUrl, width, height,
-// rectUrl, kind, pages, type, layer, notes: [...], erased, release() }.
+// rectUrl, kind, pages, type, layer, dpi, notes: [...], erased, release() }.
 // placement — где картинка в рамке (не у страницы SIZE: там рамка своя).
 // rectUrl — рисунок прямоугольника без направляющих: от него строится вид с
 // направляющими (withGuides). Источник закрывается здесь же.
@@ -162,10 +162,13 @@ export async function prepareRect(source, model, { placement = null, signal } = 
       erased = eraseGuides(image, rect.guides ?? [], RECT_PX_PER_MM, { originMm: rect.atMm });
       if (erased) g.putImageData(image, 0, 0);
     }
-    // У PDF растр — 12 px/мм от его страницы: увеличенный в рамке, он тоже мягче.
+    // Разрешение рисунка в печати. У PDF растр — 12 px/мм от его страницы:
+    // увеличенный в рамке, он тоже мягче; страница SIZE в PDF — вектор.
+    let dpi = null;
     if (!source.vector || source.kind !== 'page') {
       const pxPerMm = source.kind === 'page' ? source.width / pageMm[0] : source.width / place.w;
-      if (pxPerMm * 25.4 < LOW_DPI) notes.push('rectLowRes');
+      dpi = Math.round(pxPerMm * 25.4);
+      if (dpi < LOW_DPI) notes.push('rectLowRes');
     }
     if (source.pages > 1) notes.push('firstPage');
     throwIfAborted(signal);
@@ -185,6 +188,7 @@ export async function prepareRect(source, model, { placement = null, signal } = 
       pages: source.pages,
       type: source.type,
       layer: source.layer,
+      dpi,
       notes,
       erased,
       release,

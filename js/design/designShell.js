@@ -524,7 +524,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       width: prepared.width,
       height: prepared.height,
       // file и placement — для «Кадрировать»: окно открывается с тем же местом.
-      rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement },
+      rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement, dpi: prepared.dpi },
     };
     if (guides) {
       try {
@@ -724,16 +724,19 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
   };
   narrow.addEventListener('change', placeMode);
   placeMode();
-  // Готовый макет или прямоугольник SIZE — и инструменты прямоугольника. На
-  // узком экране — туда же, под заголовок стакана.
+  // Вид макета (готовый конус или прямоугольник SIZE) с пояснением, действия с
+  // загруженным макетом и направляющие. Панель действий — у карточки макета,
+  // как у Canva и Printful; на узком экране левой панели нет — всё это
+  // переезжает под заголовок стакана.
   const formBox = document.getElementById('art-form');
   const formButtons = [...(formBox?.querySelectorAll('[data-form]') ?? [])];
-  const rectTools = document.getElementById('rect-tools');
-  const templateLink = document.getElementById('rect-template');
+  const formNote = document.getElementById('art-form-note');
+  const actionsBox = document.getElementById('art-actions');
+  const replaceButton = document.getElementById('art-replace');
   const guidesButton = document.getElementById('rect-guides');
-  const downloadButton = document.getElementById('rect-download');
   const cropButton = document.getElementById('rect-crop');
-  const rectSpots = [formBox, rectTools].filter(Boolean).map((node) => ({ node, parent: node.parentElement, next: node.nextSibling }));
+  const rectSpots = [formBox, formNote, actionsBox, guidesButton].filter(Boolean)
+    .map((node) => ({ node, parent: node.parentElement, next: node.nextSibling }));
   const placeRect = () => {
     for (const { node, parent, next } of rectSpots) {
       if (narrow.matches && head) head.append(node);
@@ -794,13 +797,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     }
     if (placement && state.get()[slotKey(slot)] === design) apply(design.rect.file, slot, null, { as: 'rect', placement });
   });
-  downloadButton?.addEventListener('click', () => {
-    const design = state.get()[slotKey(target)];
-    const model = slotModel(target);
-    if (!design?.rect || !model) return;
-    const link = Object.assign(document.createElement('a'), { href: design.unwrapUrl, download: `${model.name} — конус.png` });
-    link.click();
-  });
+  replaceButton?.addEventListener('click', () => pick(null));
   for (const b of modeButtons) {
     b.addEventListener('click', () => {
       const s = state.get();
@@ -849,18 +846,24 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-checked', String(on));
     }
-    if (rectTools) rectTools.hidden = !asRect;
-    if (templateLink) {
-      templateLink.hidden = !rect?.template;
-      if (rect?.template) templateLink.href = rect.template;
-    }
     const rectShown = asRect && Boolean(design?.rect);
+    if (formNote) {
+      formNote.hidden = !rect;
+      // Пояснение — по виду и шагу: до загрузки — что грузить и где шаблон,
+      // после — где взять согнутый конус (одно место — «Развёртка» → PNG).
+      if (!rect) formNote.replaceChildren();
+      else if (!asRect) formNote.replaceChildren('Конус из шаблона Формации — ляжет на стакан как есть.');
+      else if (rectShown) formNote.replaceChildren('Согнутый конус для печати — во вкладке «Развёртка», кнопка PNG.');
+      else {
+        const link = Object.assign(document.createElement('a'), { className: 'art-form__link', href: rect.template ?? '#', textContent: 'Шаблон SIZE (PDF)' });
+        link.setAttribute('download', '');
+        formNote.replaceChildren('Рисунок в прямоугольнике из файла SIZE — согнём в конус сами. ', ...(rect.template ? [link] : []));
+      }
+    }
     if (guidesButton) {
       guidesButton.hidden = !rectShown;
-      guidesButton.textContent = guides ? 'Скрыть направляющие' : 'Показать направляющие';
       guidesButton.setAttribute('aria-pressed', String(guides));
     }
-    if (downloadButton) downloadButton.hidden = !rectShown;
     if (cropButton) cropButton.hidden = !rectShown || design.rect.kind === 'page';
     for (const b of sideButtons) {
       const part = design?.sides?.[b.dataset.side] ?? null;
@@ -879,19 +882,27 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     // макет на нём сейчас.
     const pair = target === 'second' && second?.id === s.modelId;
     const shown = Boolean(design) && !pet;
+    // Загруженный макет — карточка файла: миниатюра того, что рисовал клиент
+    // (у прямоугольника — сам прямоугольник, а не согнутый конус), имя, статус.
+    button?.classList.toggle('is-loaded', shown);
     thumb.hidden = !shown;
     if (anim) anim.hidden = shown;
-    if (shown && thumb.dataset.src !== design.textureUrl) {
-      thumb.src = design.textureUrl;
-      thumb.dataset.src = design.textureUrl;
+    const thumbUrl = design?.rect?.url ?? design?.textureUrl;
+    if (shown && thumb.dataset.src !== thumbUrl) {
+      thumb.src = thumbUrl;
+      thumb.dataset.src = thumbUrl;
     }
+    const lowDpi = Boolean(design?.rect?.dpi && design.rect.dpi < 270);
+    hint?.classList.toggle('is-warning', shown && lowDpi);
     if (title && hint) {
       if (target !== 'second') {
         const name = source?.kind === 'file' || source?.kind === 'rect' ? source.file.name : null;
-        title.textContent = design ? 'Макет на стакане' : asRect ? 'Загрузить прямоугольник' : defaults.title;
-        hint.textContent = design
-          ? `${name ? `${name} · ` : ''}нажмите, чтобы заменить`
-          : asRect ? 'Рисунок в прямоугольнике из файла SIZE — PDF, AI, PNG или JPG. В конус согнём сами' : defaults.hint;
+        title.textContent = design ? (name ?? 'Макет на стакане') : asRect ? 'Загрузить прямоугольник' : defaults.title;
+        hint.textContent = !design
+          ? asRect ? 'PDF, AI, PNG или JPG — рисунок в рамке SIZE или картинка, её можно кадрировать' : defaults.hint
+          : design.rect
+            ? ['Прямоугольник', design.rect.dpi ? `≈\u00a0${design.rect.dpi}\u00a0dpi${lowDpi ? ' — мягко для печати' : ''}` : null].filter(Boolean).join(' · ')
+            : 'Готовый макет';
       } else if (design) {
         title.textContent = 'Свой макет';
         hint.textContent = 'Нажмите, чтобы заменить';
@@ -903,11 +914,12 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
         hint.textContent = 'Без макета стакан будет чистым';
       }
     }
-    if (clearButton) {
-      // У тампопечати — тоже: убрать обе стороны разом (по одной — крестиком стороны).
-      clearButton.hidden = target === 'second' ? !s.design2 : !s.design;
-      clearButton.textContent = pair ? 'Вернуть макет первого' : 'Убрать макет';
-    }
+    // Панель действий — когда макет есть. У тампопечати заменяют по стороне
+    // (плитки А/Б), а «Убрать» снимает обе стороны разом.
+    if (actionsBox) actionsBox.hidden = !design;
+    if (replaceButton) replaceButton.hidden = pet;
+    const clearLabel = clearButton?.querySelector('span');
+    if (clearLabel) clearLabel.textContent = pair ? 'Как у первого' : 'Убрать';
   };
   state.subscribe(['modelId', 'printMode', 'design', 'design2', 'photo', 'tab', 'sceneId'], render);
   render();
