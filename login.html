@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>CupViewer · Вход</title>
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <script src="js/ui/themeBoot.js?v=404de260"></script>
+    <link rel="stylesheet" href="css/app.css?v=f34d1730" />
+    <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
+    <link rel="stylesheet" href="css/login.css?v=f3f1cf5b" />
+  </head>
+  <body class="login-page">
+    <!-- Вход в CupViewer (владелец, 2026-09-28): сайт целиком — по почте и
+         паролю, после оплаты доступа. Логика — js/entries/login.js. -->
+    <main class="login">
+      <a class="site-logo login__logo" href="login.html" aria-label="CupViewer">
+        <svg class="site-logo__full" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-logo" /></svg>
+      </a>
+
+      <section class="login-card" id="auth" hidden>
+        <h1 class="login-card__title">3D-примерка макетов на стаканах</h1>
+        <p class="login-card__lead">Макет на стакане в 3D, развёртка и фотореалистичные кадры — по подписке.</p>
+        <div class="segmented login-tabs" role="tablist" aria-label="Вход или регистрация">
+          <button class="segmented__item" type="button" role="tab" data-mode="login" aria-selected="true">Вход</button>
+          <button class="segmented__item" type="button" role="tab" data-mode="register" aria-selected="false">Регистрация</button>
+        </div>
+
+        <form class="login-form" id="login-form" novalidate>
+          <label class="field">
+            <span class="field__label">Почта</span>
+            <input class="text-input" name="email" type="email" autocomplete="email" placeholder="name@mail.ru" required />
+          </label>
+          <label class="field">
+            <span class="field__label">Пароль</span>
+            <input class="text-input" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="btn btn--accent btn--block" type="submit">Войти</button>
+          <button class="rail__link login-form__link" type="button" data-go="reset">Забыли пароль?</button>
+        </form>
+
+        <form class="login-form" id="register-form" novalidate hidden>
+          <label class="field">
+            <span class="field__label">Почта</span>
+            <input class="text-input" name="email" type="email" autocomplete="email" placeholder="name@mail.ru" required />
+          </label>
+          <label class="field">
+            <span class="field__label">Пароль</span>
+            <input class="text-input" name="password" type="password" autocomplete="new-password" minlength="8" required />
+            <span class="field__hint">Не короче 8 символов</span>
+          </label>
+          <button class="btn btn--accent btn--block" type="submit">Создать аккаунт</button>
+          <p class="login-form__small">Дальше — выбор срока доступа и оплата.</p>
+        </form>
+
+        <form class="login-form" id="reset-form" novalidate hidden>
+          <p class="login-form__lead" id="reset-lead">Пришлём на почту код — по нему зададите новый пароль.</p>
+          <label class="field" id="reset-email-field">
+            <span class="field__label">Почта</span>
+            <input class="text-input" name="email" type="email" autocomplete="email" placeholder="name@mail.ru" required />
+          </label>
+          <div class="login-form__step" id="reset-step" hidden>
+            <label class="field">
+              <span class="field__label">Код из письма</span>
+              <input class="text-input login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
+            </label>
+            <label class="field">
+              <span class="field__label">Новый пароль</span>
+              <input class="text-input" name="password" type="password" autocomplete="new-password" minlength="8" />
+              <span class="field__hint">Не короче 8 символов</span>
+            </label>
+          </div>
+          <button class="btn btn--accent btn--block" type="submit" id="reset-submit">Прислать код</button>
+          <button class="rail__link login-form__link" type="button" data-go="login">Назад ко входу</button>
+        </form>
+
+        <p class="login-status" id="auth-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="login-card login-card--plans" id="plans" hidden>
+        <h1 class="login-card__title" id="plans-title">Выберите срок доступа</h1>
+        <p class="login-card__lead" id="plans-lead"></p>
+        <div class="plans" id="plan-list"></div>
+        <p class="login-form__small" id="plans-note">Сейчас оплата тестовая: деньги не списываются.</p>
+        <p class="login-status" id="plans-status" role="status" aria-live="polite"></p>
+        <div class="login-card__foot">
+          <span class="login-card__who" id="plans-who"></span>
+          <a class="rail__link" id="plans-back" href="./" hidden>На сайт</a>
+          <button class="rail__link" type="button" id="logout">Выйти</button>
+        </div>
+      </section>
+
+      <section class="login-card" id="offline" hidden>
+        <h1 class="login-card__title">Кабинет недоступен</h1>
+        <p class="login-card__lead">Сервер CupViewer не отвечает. Попробуйте обновить страницу чуть позже.</p>
+      </section>
+    </main>
+    <script type="module" src="dist/login.js?v=dec533dc"></script>
+  </body>
+</html>

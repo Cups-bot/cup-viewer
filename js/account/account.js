@@ -1,61 +1,26 @@
-// Кабинет CupViewer v2 (этапы Г–Е): вход по почте и коду, баланс токенов в
-// шапке, рендер за токены, «Мои рендеры», покупка пакета, уведомление «Кадр
-// готов». Только Design Mode — в клиентский бандл не попадает.
+// Кабинет CupViewer v2: баланс токенов и срок доступа в шапке, рендер за
+// токены, «Мои рендеры», пакеты токенов, уведомление «Кадр готов». Только
+// Design Mode — в клиентский бандл не попадает.
+//
+// Вход, регистрация и оплата доступа — отдельная страница login.html
+// (js/entries/login.js): сайт без подписки сервер не отдаёт. Кончился срок
+// посреди работы — сайт уводит туда же.
 //
 // Сервер — server/ (python -m server). На dev-сервере (npm run serve) API
 // кабинета нет: api/me отвечает 404, и кабинет не показывается вовсе —
 // остаётся ручное «Задание» для Blender (scripts/renderJobApi.mjs).
 
 import { hideLayer, showLayer } from '../ui/motion.js';
+import { ApiError, api, dateText, errorText, plural, tokensText } from './api.js';
 
-export class ApiError extends Error {
-  constructor(status, code) {
-    super(code || `HTTP ${status}`);
-    this.status = status;
-    this.code = code;
-  }
-}
+export { ApiError, api, errorText, plural, tokensText };
 
-export async function api(path, { method = 'GET', json, body } = {}) {
-  const res = await fetch(path, {
-    method,
-    credentials: 'same-origin',
-    headers: json !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: json !== undefined ? JSON.stringify(json) : body,
-  });
-  const data = (res.headers.get('content-type') ?? '').includes('application/json') ? await res.json() : null;
-  if (!res.ok) throw new ApiError(res.status, data?.error);
-  return data;
-}
+// На вход (и к оплате) — со страницы сайта; renew — продлить заранее.
+export const toLogin = (renew = false) => location.assign(renew ? 'login.html?renew' : 'login.html');
 
-// Тексты ошибок сервера — по-человечески.
-const ERRORS = {
-  bad_email: 'Проверьте адрес почты',
-  disposable_email: 'Одноразовая почта не подходит — укажите обычную',
-  too_many_codes: 'Слишком много кодов подряд — попробуйте через час',
-  too_many_accounts: 'С этого адреса сегодня уже создавали аккаунты — попробуйте завтра',
-  bad_code: 'Код не подошёл — проверьте цифры',
-  code_expired: 'Код устарел — запросите новый',
-  not_enough_tokens: 'Не хватает токенов — пополните баланс',
-  paid_tokens_required: 'Знак снимается купленными токенами — пополните баланс',
-  one_free_job_at_a_time: 'Бесплатные кадры — по одному: дождитесь готового',
-  login_required: 'Войдите, чтобы продолжить',
-};
-export const errorText = (error, fallback = 'Что-то пошло не так — попробуйте ещё раз') =>
-  ERRORS[error?.code] ?? fallback;
-
-export function plural(n, [one, few, many]) {
-  const a = Math.abs(n) % 100;
-  const b = a % 10;
-  if (a > 10 && a < 20) return many;
-  if (b === 1) return one;
-  if (b >= 2 && b <= 4) return few;
-  return many;
-}
 // Уровень кадра: Standard или Ultra (server/app/config.py TIERS).
 const TIER_LABELS = { standard: 'Standard', ultra: 'Ultra' };
 export const tierLabel = (size) => TIER_LABELS[size] ?? size;
-export const tokensText = (n) => `${n} ${plural(n, ['токен', 'токена', 'токенов'])}`;
 
 const el = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
@@ -104,8 +69,8 @@ function modal(className, titleText, ...content) {
       opener = from ?? document.activeElement;
       onHide = whenHidden ?? null;
       shown = true;
-      // Последнее открытое — сверху: пакеты открываются и поверх «Моих рендеров»
-      // («Убрать знак» без купленных токенов), а слой у окон один.
+      // Последнее открытое — сверху: пакеты открываются и поверх «Моих рендеров»,
+      // а слой у окон один.
       document.body.append(backdrop, dialog);
       showLayer(backdrop);
       showLayer(dialog);
@@ -122,6 +87,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
   let available = false;
 
   const emit = () => listeners.forEach((fn) => fn(me));
+  // Сессия кончилась или срок доступа истёк посреди работы — на вход.
   const refresh = async () => {
     try {
       me = await api('api/me');
@@ -129,117 +95,23 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
     } catch (error) {
       me = null;
       available = error.status === 401;
+      if (available) toLogin();
     }
+    if (me && !me.access.active && !me.isAdmin) toLogin();
     emit();
     return me;
   };
 
-  // ── вход ─────────────────────────────────────────────────────────────────
-  const email = el('input', { class: 'text-input', type: 'email', autocomplete: 'email', placeholder: 'name@mail.ru', 'aria-label': 'Почта' });
-  const code = el('input', { class: 'text-input login-code', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '6', placeholder: '000000', 'aria-label': 'Код из письма' });
-  const status = el('p', { class: 'login-status', role: 'status' });
-  const sendBtn = el('button', { class: 'btn btn--accent btn--block', type: 'button', text: 'Получить код' });
-  const enterBtn = el('button', { class: 'btn btn--accent btn--block', type: 'button', text: 'Войти' });
-  const backBtn = el('button', { class: 'rail__link', type: 'button', text: 'Другая почта' });
-  const againBtn = el('button', { class: 'rail__link', type: 'button', text: 'Прислать ещё раз' });
-  const stepEmail = el('div', { class: 'login-step' },
-    el('p', { class: 'login-lead', text: 'Пароль не нужен: пришлём на почту код из 6 цифр. После первого входа — 3 фотореал-кадра бесплатно.' }),
-    el('p', { class: 'field-label', text: 'Почта' }), email, sendBtn);
-  const sentTo = el('b');
-  // Пока письма не уходят (до этапа Ж), сервер печатает код в своей консоли —
-  // и говорит об этом в ответе (console: true); с почтой подсказки не будет.
-  const consoleNote = el('span', { text: ' Пока письма не уходят, код печатается в консоли сервера.', hidden: true });
-  const stepCode = el('div', { class: 'login-step', hidden: true },
-    el('p', { class: 'login-lead' }, 'Код отправлен на ', sentTo, '.', consoleNote),
-    el('p', { class: 'field-label', text: 'Код' }), code, enterBtn, el('div', { class: 'login-links' }, backBtn, againBtn));
-  const login = modal('login-dialog', 'Вход', stepEmail, stepCode, status);
-  let pending = null;
-
-  const setStep = (codeStep) => {
-    stepEmail.hidden = codeStep;
-    stepCode.hidden = !codeStep;
-    status.textContent = '';
-    (codeStep ? code : email).focus();
-  };
-  // «Прислать ещё раз» — не чаще раза в минуту: письмо может идти не сразу,
-  // а кодов в час на почту — пять (server/app/config.py).
-  let cooldown = null;
-  const holdResend = (seconds = 60) => {
-    clearInterval(cooldown);
-    let left = seconds;
-    const tick = () => {
-      againBtn.disabled = left > 0;
-      againBtn.textContent = left > 0 ? `Прислать ещё раз · ${left} с` : 'Прислать ещё раз';
-      left -= 1;
-      if (left < -1) clearInterval(cooldown);
-    };
-    tick();
-    cooldown = setInterval(tick, 1000);
-  };
-  const send = async () => {
-    sendBtn.disabled = againBtn.disabled = true;
-    status.textContent = '';
-    try {
-      const sent = await api('api/auth/request', { method: 'POST', json: { email: email.value } });
-      sentTo.textContent = email.value.trim();
-      consoleNote.hidden = !sent?.console;
-      code.value = '';
-      setStep(true);
-      holdResend();
-    } catch (error) {
-      status.textContent = errorText(error);
-      againBtn.disabled = false;
-    } finally {
-      sendBtn.disabled = false;
-    }
-  };
-  const enter = async () => {
-    enterBtn.disabled = true;
-    status.textContent = '';
-    try {
-      const fresh = await api('api/auth/verify', { method: 'POST', json: { email: email.value, code: code.value } });
-      me = fresh;
-      emit();
-      const done = pending;
-      pending = null;
-      login.hide();
-      done?.(true);
-      feedback.onToast(fresh.balance.welcome > 0 && fresh.balance.paid === 0
-        ? `Вы вошли · ${tokensText(fresh.balance.welcome)} на пробу`
-        : 'Вы вошли', 'success');
-    } catch (error) {
-      status.textContent = errorText(error);
-    } finally {
-      enterBtn.disabled = false;
-    }
-  };
-  sendBtn.addEventListener('click', send);
-  againBtn.addEventListener('click', send);
-  enterBtn.addEventListener('click', enter);
-  backBtn.addEventListener('click', () => setStep(false));
-  email.addEventListener('keydown', (e) => e.key === 'Enter' && send());
-  code.addEventListener('keydown', (e) => e.key === 'Enter' && enter());
-  code.addEventListener('input', () => code.value.replace(/\D/g, '').length === 6 && enter());
-
-  const requireLogin = (from) => {
+  // Вход — на login.html; здесь только проверка «вошёл ли» перед действием.
+  const requireLogin = () => {
     if (me) return Promise.resolve(true);
-    if (!available) return Promise.resolve(false);
-    return new Promise((resolve) => {
-      pending = resolve;
-      setStep(false);
-      login.open(from, () => {
-        if (pending === resolve) {
-          pending = null;
-          resolve(false);
-        }
-      });
-      email.focus();
-    });
+    if (available) toLogin();
+    return Promise.resolve(false);
   };
 
   // ── покупка пакета (тестовая оплата до эквайринга, этап Ж) ──────────────
   const packsBox = el('div', { class: 'packs' });
-  const buyNote = el('p', { class: 'export-note', text: 'Купленные токены не сгорают, кадры за них — без знака, ими же снимается знак с бесплатных кадров. Сейчас оплата тестовая: деньги не списываются.' });
+  const buyNote = el('p', { class: 'export-note', text: 'Купленные токены не сгорают и тратятся после стартовых — пока открыт доступ. Сейчас оплата тестовая: деньги не списываются.' });
   const buy = modal('buy-dialog', 'Пополнить токены', packsBox, buyNote);
   const openBuy = async (from) => {
     if (!(await requireLogin(from))) return;
@@ -332,7 +204,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
   };
 
   // Удаление — только со второго нажатия: кадр удаляется насовсем, а за него
-  // могли заплатить (и за снятие знака тоже).
+  // заплатили.
   const confirmRow = (job) => el('div', { class: 'render__confirm' },
     el('p', { class: 'render__confirm-text', text: job.status === 'queued' ? 'Отменить задание? Токены вернутся' : 'Удалить кадр насовсем?' }),
     button(job.status === 'queued' ? 'Отменить' : 'Удалить', () => {
@@ -360,18 +232,6 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
       actions = el('div', { class: 'render__actions' });
       if (job.status === 'done') {
         actions.append(el('a', { class: 'btn btn--accent', href: `${job.imageUrl}&download=1`, download: '', text: 'Скачать PNG' }));
-        if (job.marked) {
-          const price = me?.unmarkPrice ?? 1;
-          // Только купленными: без них — сразу к пакетам, а не ошибка после клика.
-          actions.append(button(`Убрать знак · ${price}`, (b) => {
-            if ((me?.balance.paid ?? 0) < price) {
-              feedback.onToast(ERRORS.paid_tokens_required, 'warning');
-              openBuy(b);
-              return;
-            }
-            act(() => api(`api/jobs/${job.id}/unmark`, { method: 'POST' }), 'Знак убран');
-          }));
-        }
       }
       // Готовый кадр тем же заданием повторять незачем — рендер тот же; для
       // правок сцена возвращается в редактор. «Повторить» — только после сбоя.
@@ -405,8 +265,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
     el('div', { class: 'render__media' }, art, check),
     el('div', { class: 'render__body' },
       el('p', { class: 'render__title', text: `${scene} · ${tierLabel(job.size)} · ${job.frame}` }),
-      el('p', { class: 'render__status', text: statusText(job) }),
-      job.marked ? el('p', { class: 'render__mark', text: 'Со знаком — кадр за приветственный токен. Убрать — купленным токеном' }) : null),
+      el('p', { class: 'render__status', text: statusText(job) })),
     actions);
     if (selecting && pickable) {
       const toggle = () => {
@@ -553,7 +412,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
     }
   });
 
-  // ── шапка: «Войти» или баланс с меню ─────────────────────────────────────
+  // ── шапка: «Войти» или баланс с меню (срок доступа, продление) ───────────
   const box = document.getElementById('account');
   const loginBtn = el('button', { class: 'pill-btn account__login', type: 'button', hidden: true },
     el('span', { class: 'pill-btn__text', text: 'Войти' }));
@@ -572,7 +431,7 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
     menu.hidden = !open;
     meBtn.setAttribute('aria-expanded', String(open));
   };
-  loginBtn.addEventListener('click', () => requireLogin(loginBtn));
+  loginBtn.addEventListener('click', () => toLogin());
   meBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleMenu();
@@ -595,19 +454,21 @@ export function initAccount({ catalog, feedback, onOpenJob = null, onOpenScene =
       m.activeJobs ? el('span', { class: 'spinner account__busy', role: 'img', 'aria-label': 'Кадр считается', title: 'Кадр считается' }) : null,
       m.unseenJobs ? el('span', { class: 'account__dot', 'aria-label': 'Есть готовые кадры' }) : null,
     ].filter(Boolean));
-    const welcomeLeft = m.balance.welcome
-      ? `, приветственных ${m.balance.welcome} до ${new Date(m.balance.welcomeExpiresAt).toLocaleDateString('ru-RU')}` : '';
+    const access = m.access.until ? `Доступ до ${dateText(m.access.until)}` : 'Доступ без срока (админ)';
+    const starterLeft = m.balance.welcome ? ` · стартовых ${m.balance.welcome}` : '';
     menu.replaceChildren(...[
-      el('p', { class: 'account-menu__head' }, el('b', { text: m.email }), el('span', { text: `Купленных ${m.balance.paid}${welcomeLeft}` })),
+      el('p', { class: 'account-menu__head' }, el('b', { text: m.email }), el('span', { text: access }),
+        el('span', { text: `Купленных ${m.balance.paid}${starterLeft}` })),
       item(m.unseenJobs ? `Мои рендеры · ${m.unseenJobs} нов.` : 'Мои рендеры', openRenders),
       item('Пополнить токены', openBuy),
+      item('Продлить доступ', () => toLogin(true)),
       m.isAdmin ? item('Админка', () => window.open('admin.html', '_blank', 'noopener')) : null,
       item('Выйти', async () => {
         await api('api/auth/logout', { method: 'POST' }).catch(() => {});
-        await refresh();
+        toLogin();
       }),
     ].filter(Boolean));
-    rendersBalance.textContent = `Баланс: ${tokensText(total)}${m.balance.welcome ? ` (приветственных ${m.balance.welcome})` : ''}`;
+    rendersBalance.textContent = `Баланс: ${tokensText(total)}${m.balance.welcome ? ` (стартовых ${m.balance.welcome} — до ${dateText(m.balance.welcomeExpiresAt)})` : ''}`;
   });
 
   refresh();

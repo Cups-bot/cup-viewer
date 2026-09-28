@@ -8,8 +8,8 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
-    <link rel="stylesheet" href="css/viewer.css?v=9ccd642f" />
-    <link rel="stylesheet" href="css/admin.css?v=795ee0a0" />
+    <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
+    <link rel="stylesheet" href="css/admin.css?v=bc6bbca8" />
   </head>
   <body class="admin">
     <header class="admin-head">
@@ -30,6 +30,7 @@
           <button class="segmented__item is-active" type="button" role="tab" data-tab="users" aria-selected="true">Пользователи</button>
           <button class="segmented__item" type="button" role="tab" data-tab="queue" aria-selected="false">Очередь</button>
           <button class="segmented__item" type="button" role="tab" data-tab="payments" aria-selected="false">Платежи</button>
+          <button class="segmented__item" type="button" role="tab" data-tab="plans" aria-selected="false">Тарифы</button>
         </div>
 
         <div class="admin-panel" data-panel="users">
@@ -43,9 +44,13 @@
           <p class="admin-note">Оплата пока тестовая: эквайринг подключается при выгрузке (этап Ж).</p>
           <div class="admin-table-wrap"><table class="admin-table" id="payments-table"></table></div>
         </div>
+        <div class="admin-panel" data-panel="plans" hidden>
+          <p class="admin-note">Срок доступа ко всему сайту, цена и стартовые токены на этот срок. Правка — для новых оплат, оплаченное не меняется. Выключенный тариф клиенту не виден.</p>
+          <div class="admin-table-wrap"><table class="admin-table" id="plans-table"></table></div>
+        </div>
       </section>
     </main>
 
-    <script type="module" src="dist/admin.js?v=773e1815"></script>
+    <script type="module" src="dist/admin.js?v=11f6244c"></script>
   </body>
 </html>

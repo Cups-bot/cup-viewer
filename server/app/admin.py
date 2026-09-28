@@ -1,52 +1,15 @@
-"""Оплата (заглушка до эквайринга, §5) и админка (§2): пользователи, токены,
-очередь, платежи."""
+"""Админка (§2): пользователи и их доступ, токены, тарифы подписки, очередь,
+платежи. Оплата — server/app/billing.py."""
+
+import re
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from . import config, db, jobs, tokens
-from .security import require_admin, require_user, same_origin
+from . import billing, db, jobs, tokens
+from .security import require_admin, same_origin
 
 router = APIRouter()
-
-
-# ── пакеты токенов: пока тестовая оплата ─────────────────────────────────────
-
-class Checkout(BaseModel):
-    tokens: int
-
-
-@router.get("/api/payments/packs")
-def packs():
-    return {"packs": [{"tokens": t, "priceRub": p} for t, p in config.PACKS.items()], "test": True}
-
-
-@router.post("/api/payments/checkout")
-def checkout(body: Checkout, request: Request):
-    same_origin(request)
-    user = require_user(request)
-    if body.tokens not in config.PACKS:
-        raise HTTPException(400, "bad_pack")
-    cur = db.connect().execute(
-        "INSERT INTO payments (user_id, tokens, amount_rub, status, created_at) VALUES (?, ?, ?, 'pending', ?)",
-        (user["id"], body.tokens, config.PACKS[body.tokens], db.stamp()),
-    )
-    return {"paymentId": cur.lastrowid, "test": True}
-
-
-@router.post("/api/payments/{payment_id}/confirm")
-def confirm(payment_id: int, request: Request):
-    """Тестовая оплата: на этапе Ж её заменит уведомление платёжного сервиса."""
-    same_origin(request)
-    user = require_user(request)
-    with db.tx() as con:
-        pay = con.execute("SELECT * FROM payments WHERE id = ? AND user_id = ?", (payment_id, user["id"])).fetchone()
-        if pay is None or pay["status"] != "pending":
-            raise HTTPException(409, "not_pending")
-        con.execute("UPDATE payments SET status = 'paid', paid_at = ? WHERE id = ?", (db.stamp(), payment_id))
-        tokens.add(con, user["id"], "paid", pay["tokens"], "purchase", payment_id=payment_id,
-                   note=f"пакет {pay['tokens']} (тест)")
-        return {"ok": True, "balance": tokens.balance(con, user)}
 
 
 # ── админка ──────────────────────────────────────────────────────────────────
@@ -64,8 +27,82 @@ def users(request: Request, q: str = ""):
             "SELECT COUNT(*) AS total, SUM(status = 'done') AS done FROM jobs WHERE user_id = ?", (u["id"],)
         ).fetchone()
         out.append({"id": u["id"], "email": u["email"], "isAdmin": bool(u["is_admin"]), "createdAt": u["created_at"],
+                    "accessUntil": u["access_until"], "hasPassword": bool(u["password_hash"]),
                     "balance": tokens.balance(con, u), "jobs": counts["total"] or 0, "done": counts["done"] or 0})
     return {"users": out}
+
+
+class Access(BaseModel):
+    days: int
+    starterTokens: int = 0
+
+
+@router.post("/api/admin/users/{user_id}/access")
+def access(user_id: int, body: Access, request: Request):
+    """Продлить доступ вручную (оплата по счёту, подарок): +days к сроку и
+    стартовые токены до его конца. Отрицательные дни — укоротить срок."""
+    same_origin(request)
+    admin = require_admin(request)
+    if body.days == 0 or abs(body.days) > 3650 or not 0 <= body.starterTokens <= 1000:
+        raise HTTPException(400, "bad_amount")
+    with db.tx() as con:
+        if con.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone() is None:
+            raise HTTPException(404, "not_found")
+        until = billing.extend_access(con, user_id, body.days, body.starterTokens, f"стартовые · админ {admin['email']}")
+    return {"accessUntil": until}
+
+
+# ── тарифы подписки ──────────────────────────────────────────────────────────
+
+class Plan(BaseModel):
+    label: str
+    days: int
+    priceRub: int
+    starterTokens: int = 0
+    active: bool = True
+
+
+def check_plan(body: Plan) -> None:
+    if not body.label.strip() or not 1 <= body.days <= 3650 or not 0 <= body.priceRub <= 10_000_000             or not 0 <= body.starterTokens <= 10000:
+        raise HTTPException(400, "bad_plan")
+
+
+@router.get("/api/admin/plans")
+def admin_plans(request: Request):
+    require_admin(request)
+    rows = db.connect().execute("SELECT * FROM plans ORDER BY sort, days").fetchall()
+    return {"plans": [billing.plan_view(r) for r in rows]}
+
+
+@router.post("/api/admin/plans")
+def create_plan(body: Plan, request: Request):
+    same_origin(request)
+    require_admin(request)
+    check_plan(body)
+    con = db.connect()
+    base = re.sub(r"[^a-z0-9]+", "-", body.label.lower()).strip("-") or "plan"
+    plan_id = f"{base}-{body.days}d"
+    while con.execute("SELECT 1 FROM plans WHERE id = ?", (plan_id,)).fetchone():
+        plan_id += "x"
+    sort = con.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM plans").fetchone()[0]
+    con.execute("INSERT INTO plans (id, label, days, price_rub, starter_tokens, active, sort) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (plan_id, body.label.strip()[:60], body.days, body.priceRub, body.starterTokens, int(body.active), sort))
+    return {"id": plan_id}
+
+
+@router.put("/api/admin/plans/{plan_id}")
+def update_plan(plan_id: str, body: Plan, request: Request):
+    """Цена, срок и стартовые токены — для новых оплат; оплаченное не меняется."""
+    same_origin(request)
+    require_admin(request)
+    check_plan(body)
+    cur = db.connect().execute(
+        "UPDATE plans SET label = ?, days = ?, price_rub = ?, starter_tokens = ?, active = ? WHERE id = ?",
+        (body.label.strip()[:60], body.days, body.priceRub, body.starterTokens, int(body.active), plan_id),
+    )
+    if cur.rowcount == 0:
+        raise HTTPException(404, "not_found")
+    return {"ok": True}
 
 
 class Grant(BaseModel):

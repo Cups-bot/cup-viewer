@@ -1,11 +1,11 @@
 """Токены: журнал операций, баланс по кошелькам, списание (§3–§5 концепции).
 
 Кошельков два: paid — купленные и начисленные админом, не сгорают; welcome —
-приветственные, 3 на 30 дней. Кадр оплачивается сначала купленными (кадр без
-знака); не хватает — приветственными (кадр со знаком, купленные целы); не
-хватает ни тех, ни других по отдельности — вместе (bucket mixed, кадр со
-знаком): в шапке сумма, и кадр по сумме должен запускаться. «Убрать знак» —
-только купленными (владелец, 2026-09-27).
+стартовые токены подписки, живут до конца оплаченного срока (billing.py).
+Кадр оплачивается сначала стартовыми — они сгорают с концом срока, купленные
+нет; не хватает — купленными; не хватает ни тех, ни других по отдельности —
+вместе (bucket mixed): в шапке сумма, и кадр по сумме должен запускаться.
+Кадры все без знака (владелец, 2026-09-28).
 """
 
 from typing import Optional
@@ -42,12 +42,12 @@ def add(con, user_id: int, bucket: str, amount: int, kind: str, *, job_id: Optio
 def plan(con, user, cost: int) -> dict:
     """Чем платить за кадр: {bucket, paid, welcome}. bucket — paid | welcome | mixed."""
     b = balance(con, user)
-    if b["paid"] >= cost:
-        return {"bucket": "paid", "paid": cost, "welcome": 0}
     if b["welcome"] >= cost:
         return {"bucket": "welcome", "paid": 0, "welcome": cost}
+    if b["paid"] >= cost:
+        return {"bucket": "paid", "paid": cost, "welcome": 0}
     if b["paid"] + b["welcome"] >= cost:
-        return {"bucket": "mixed", "paid": b["paid"], "welcome": cost - b["paid"]}
+        return {"bucket": "mixed", "paid": cost - b["welcome"], "welcome": b["welcome"]}
     raise HTTPException(402, "not_enough_tokens")
 
 

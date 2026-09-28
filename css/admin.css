@@ -126,8 +126,25 @@
 
 .admin-actions {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* Строка действий: доступ (+дни, стартовые) и токены (начислить, журнал). */
+.admin-actions__row {
+  display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.admin-unit {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.admin-table .text-input {
+  height: 32px;
 }
 
 .admin-actions .btn {

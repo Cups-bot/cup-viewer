@@ -1,0 +1,220 @@
+/* Страница входа (login.html): карточка по центру — вход/регистрация, сброс
+   пароля, тарифы. Токены цвета и кнопки — из app.css и viewer.css. */
+
+.login-page {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  min-height: 100dvh;
+  padding: clamp(24px, 8vh, 72px) 16px 40px;
+}
+
+.login__logo {
+  display: inline-flex;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(420px, 100%);
+  padding: 26px 24px 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+}
+
+.login-card[hidden],
+.login-form[hidden],
+.login-form__step[hidden],
+.field[hidden],
+.login-tabs[hidden],
+.plan__save[hidden] {
+  display: none;
+}
+
+.login-card--plans {
+  width: min(760px, 100%);
+}
+
+.login-card__title {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.login-card__lead {
+  margin-top: -6px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.login-tabs .segmented__item {
+  justify-content: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-form__step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.field__hint,
+.login-form__small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.login-form__lead {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.login-form__link {
+  align-self: center;
+}
+
+.login-code {
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.login-status {
+  min-height: 1.2em;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.login-status:empty {
+  display: none;
+}
+
+/* Тарифы — карточками, как прайс у сервисов по подписке: срок, цена, что
+   входит, кнопка — одна на карточку. */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.plan__label {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.plan__price {
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.plan__save {
+  margin-top: -4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.plan__list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 2px 0 6px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.login-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.login-card__who {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Поле и ссылка-кнопка — как на сайте (design.css), без его стилей целиком. */
+.login-page .text-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+}
+
+.login-page .text-input:focus {
+  background: var(--surface);
+  border-color: var(--action);
+  outline: none;
+}
+
+.login-page .rail__link {
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.login-page .rail__link[hidden] {
+  display: none;
+}

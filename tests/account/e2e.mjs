@@ -1,6 +1,7 @@
-// Кабинет глазами человека (этапы Г–Е): свой сервер на временной базе, вход по
-// коду из его консоли, рендер из «Фотореала», исполнитель — запросами (Blender
-// проверяется отдельно, server/worker.py), «Мои рендеры», знак, пакет, админка.
+// Кабинет глазами человека: свой сервер на временной базе, сайт закрыт —
+// регистрация по почте и паролю, выбор тарифа и оплата (тестовая), рендер из
+// «Фотореала», исполнитель — запросами (Blender проверяется отдельно,
+// server/worker.py), «Мои рендеры», пакет токенов, админка (отдельный аккаунт).
 //
 //   node tests/account/e2e.mjs            исполнитель — запросами (быстро)
 //   node tests/account/e2e.mjs --real     настоящий server/worker.py и Blender (черновик)
@@ -19,13 +20,16 @@ const OUT = resolve(root, 'tests/account/out');
 const PORT = 8010;
 const BASE = `http://127.0.0.1:${PORT}/`;
 const EMAIL = 'owner@example.ru';
+const CLIENT = 'client@example.ru';
+const PASSWORD = 'e2e-password-1';
 const PYTHON = process.platform === 'win32' ? resolve(root, 'server/.venv/Scripts/python.exe') : resolve(root, 'server/.venv/bin/python');
 const ART = process.env.CV_ART ?? 'D:/Cups_Soft/3D_Cups/Mockups/HB80-280/design_HB80-280_A4.jpg';
 
 await mkdir(OUT, { recursive: true });
 const data = await mkdtemp(join(tmpdir(), 'cv-e2e-'));
 const server = spawn(PYTHON, [resolve(root, 'server/run.py')], {
-  // Сценарий ниже — на экономике «кадр Standard за 1 токен, приветственных 3».
+  // Сценарий ниже — на экономике «кадр Standard за 1 токен, тариф «Месяц» —
+  // 3 стартовых».
   env: { ...process.env, CV_PORT: String(PORT), CV_DATA: data, CV_ADMINS: EMAIL, PYTHONIOENCODING: 'utf-8',
     CV_PRICE_STANDARD: '1', CV_PRICE_ULTRA: '3' },
 });
@@ -35,14 +39,6 @@ server.stderr.on('data', (d) => (log += d));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let i = 0; i < 100 && !log.includes('CupViewer: http'); i++) await wait(100);
 
-const codeFor = async (email) => {
-  for (let i = 0; i < 50; i++) {
-    const m = [...log.matchAll(new RegExp(`Код входа для ${email.replace('.', '\\.')}: (\\d{6})`, 'g'))].pop();
-    if (m) return m[1];
-    await wait(100);
-  }
-  throw new Error('кода нет в консоли сервера');
-};
 const key = (await readFile(join(data, 'worker.key'), 'utf8')).trim();
 const REAL = process.argv.includes('--real');
 let workerProc = null;
@@ -68,11 +64,27 @@ const settle = () => page.evaluate(async () => {
   }
 });
 
+// Регистрация на login.html и оплата тарифа — сайт открывается после неё.
+const signup = async (p, email, { pay = true } = {}) => {
+  await p.goto(BASE);
+  await p.waitForSelector('#auth:not([hidden])');
+  await p.click('[data-mode="register"]');
+  await p.fill('#register-form [name=email]', email);
+  await p.fill('#register-form [name=password]', PASSWORD);
+  await p.click('#register-form [type=submit]');
+  if (pay) {
+    await p.waitForSelector('#plans:not([hidden]) .plan');
+    await p.screenshot({ path: resolve(OUT, '0-plans.png') });
+    await p.locator('.plan').first().getByRole('button').click();
+  }
+  await p.waitForURL(BASE, { timeout: 30000 });
+  await p.waitForFunction(() => window.cupViewer?.viewer);
+};
+
 try {
-  await page.goto(BASE);
-  await page.waitForFunction(() => window.cupViewer?.viewer);
-  await page.waitForSelector('.account__login:not([hidden])');
-  step('шапка: «Войти»');
+  await signup(page, CLIENT);
+  await page.waitForSelector('.account__me:not([hidden])');
+  step(`регистрация и тариф «Месяц»: ${await page.textContent('.account__me')}`);
 
   await page.evaluate(() => window.cupViewer.state.set({ modelId: 'HB80-280', materialId: 'coated', autoRotate: false }));
   await settle();
@@ -80,23 +92,12 @@ try {
   await page.waitForFunction(() => window.cupViewer.state.get().design !== null, null, { timeout: 90000 });
   await page.evaluate(() => window.cupViewer.state.set({ tab: 'scene', sceneId: 'living', photo: { preset: 'front', frame: '4:5', second: { modelId: 'HB80-280', kind: 'pair' } } }));
   await settle();
-  await page.screenshot({ path: resolve(OUT, '1-before-login.png') });
+  await page.screenshot({ path: resolve(OUT, '1-scene.png') });
 
-  // Рендер без входа — окно входа.
-  await page.click('#photo-render');
-  await page.waitForSelector('.login-dialog:not([hidden])');
-  await page.fill('.login-dialog input[type=email]', EMAIL);
-  await page.click('text=Получить код');
-  const code = await codeFor(EMAIL);
-  await page.screenshot({ path: resolve(OUT, '2-code.png') });
-  await page.fill('.login-code', code);
-  await page.waitForSelector('.account__me:not([hidden])');
-  step(`вход по коду ${code}: ${await page.textContent('.account__me')}`);
-
-  // Теперь рендер уходит в очередь.
+  // Рендер уходит в очередь.
   await page.click('#photo-render');
   await page.waitForFunction(() => window.cupViewer && document.querySelector('.account__me')?.textContent.includes('2'));
-  step('задание в очереди, 1 токен зарезервирован');
+  step('задание в очереди, 1 стартовый токен зарезервирован');
   if (REAL) {
     step('считает настоящий исполнитель (Blender, черновик)…');
   } else {
@@ -128,46 +129,33 @@ try {
     const res = await page.evaluate(async (u) => [...new Uint8Array(await (await fetch(u)).arrayBuffer())], img);
     await writeFile(resolve(OUT, 'real-frame.png'), Buffer.from(res));
   }
-  // Знак снимается только купленными: без них «Убрать знак» ведёт к пакетам.
-  await page.click('text=/Убрать знак/');
+  // Кадр — без знака, «Убрать знак» больше нет.
+  if (await page.$('text=/Убрать знак/')) throw new Error('в «Моих рендерах» осталось «Убрать знак»');
+  await page.keyboard.press('Escape');
+  // Пакет внутри подписки — из меню.
+  await page.click('.account__me');
+  await page.getByRole('menuitem', { name: 'Пополнить токены' }).click();
   await page.waitForSelector('.buy-dialog:not([hidden]) .pack');
-  step('«Убрать знак» без купленных — окно пакетов');
   await page.screenshot({ path: resolve(OUT, '5-buy.png') });
   await page.click('.pack >> nth=0');
   await page.waitForFunction(() => document.querySelector('.account__me')?.textContent.includes('12'));
   step(`пакет куплен: ${await page.textContent('.account__me')}`);
-  const thumbBefore = await page.$eval('.render__img', (i) => i.src);
-  await page.click('text=/Убрать знак/');
-  await page.waitForFunction(() => !document.querySelector('.render__mark'));
-  await page.waitForFunction(() => document.querySelector('.account__me')?.textContent.includes('11'));
-  const thumbAfter = await page.$eval('.render__img', (i) => i.src);
-  if (thumbAfter === thumbBefore) throw new Error('миниатюра не сменилась после «Убрать знак»');
-  await page.waitForFunction(() => {
-    const img = document.querySelector('.render__img');
-    return img?.complete && img.naturalWidth > 0;
-  }, null, { timeout: 10000 });
-  step('«Убрать знак» — кадр без знака, списан купленный токен, миниатюра новая');
-  await page.screenshot({ path: resolve(OUT, '6-unmarked.png') });
-  await page.keyboard.press('Escape');
 
-  // Много кадров: выбрать нужные — архивом, лишние — удалить разом.
+  // Много кадров: выбрать нужные — архивом, лишние — удалить разом. В работе
+  // у каждого — не больше трёх, поэтому ставим и считаем по одному.
   if (!REAL) {
-    const ids = await page.evaluate(async () => {
-      const job = JSON.stringify(window.cupViewer.viewer.photoJob());
-      const out = [];
-      for (let i = 0; i < 5; i++) {
-        const form = new FormData();
-        form.append('job', job);
-        form.append('size', '1600');
-        const res = await fetch('api/jobs', { method: 'POST', body: form });
-        out.push((await res.json()).id);
-      }
-      return out;
-    });
     const frame = await page.evaluate(() => new Promise((ok) => {
       window.cupViewer.viewer.renderStill({ width: 320, height: 400 }).toBlob((b) => b.arrayBuffer().then((a) => ok([...new Uint8Array(a)])), 'image/png');
     }));
-    for (let i = 0; i < ids.length; i++) {
+    const ids = [];
+    for (let i = 0; i < 5; i++) {
+      ids.push(await page.evaluate(async () => {
+        const form = new FormData();
+        form.append('job', JSON.stringify(window.cupViewer.viewer.photoJob()));
+        form.append('size', 'standard');
+        const res = await fetch('api/jobs', { method: 'POST', body: form });
+        return (await res.json()).id;
+      }));
       const claim = await (await worker('api/worker/claim', { method: 'POST' })).json();
       const form = new FormData();
       form.append('seconds', '9');
@@ -217,15 +205,18 @@ try {
     await page.screenshot({ path: resolve(OUT, '8-reopened.png') });
   }
 
-  const admin = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  await admin.context().addCookies(await page.context().cookies());
+  // Админ — свой аккаунт: сайт открыт ему и без тарифа.
+  const admin = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  await signup(admin, EMAIL, { pay: false });
   await admin.goto(`${BASE}admin.html`);
   await admin.waitForSelector('#users-table tr:nth-child(2)');
   await admin.screenshot({ path: resolve(OUT, '9-admin.png') });
   await admin.click('[data-tab="queue"]');
   await admin.waitForSelector('#queue-table tr:nth-child(2)');
   await admin.screenshot({ path: resolve(OUT, '10-admin-queue.png') });
-  step('админка: пользователи и очередь');
+  await admin.click('[data-tab="plans"]');
+  await admin.waitForSelector('#plans-table tr:nth-child(2)');
+  step('админка: пользователи, очередь, тарифы');
 } finally {
   await browser.close();
   workerProc?.kill();

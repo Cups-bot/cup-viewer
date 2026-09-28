@@ -5,6 +5,8 @@
 
 Сайт отдаётся только из своих папок (config.PUBLIC_*) с теми же заголовками
 безопасности и кэша, что у dev-сервера (scripts/serve.mjs, docs/security.md).
+Страницы и данные сайта — только с действующей подпиской (config.GATED_*):
+без неё страница уводит на вход (login.html), данные отвечают 403.
 """
 
 import asyncio
@@ -14,10 +16,10 @@ import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
-from . import admin, auth, config, db, jobs
-from .security import worker_key
+from . import admin, auth, billing, config, db, jobs
+from .security import current_user, has_access, worker_key
 
 log = logging.getLogger("cupviewer")
 
@@ -63,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CupViewer", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-for module in (auth, jobs, admin):
+for module in (auth, billing, jobs, admin):
     app.include_router(module.router)
 
 
@@ -88,7 +90,7 @@ def api_missing(rest: str):
 
 
 @app.get("/{path:path}")
-def site(path: str):
+def site(path: str, request: Request):
     relative = path or "index.html"
     parts = relative.split("/")
     # Только прямые пути: «..» (и %2e%2e — Starlette раскодирует его раньше),
@@ -105,6 +107,15 @@ def site(path: str):
     target = (config.REPO / relative).resolve()
     if root not in target.parents or not target.is_file():
         raise HTTPException(404, "not_found")
+    # Подписка: без доступа страница сайта — на вход, данные — нет (403).
+    gated_page = relative in config.GATED_PAGES
+    if gated_page or relative.startswith(config.GATED_PREFIXES):
+        user = current_user(request)
+        allowed = has_access(user) and (relative != "admin.html" or bool(user["is_admin"]))
+        if not allowed:
+            if gated_page:
+                return RedirectResponse("login.html", status_code=302, headers={"Cache-Control": "no-store"})
+            raise HTTPException(403, "subscription_required")
     suffix = target.suffix.lower()
     media = TYPES.get(suffix) or mimetypes.guess_type(target.name)[0] or "application/octet-stream"
     if CHUNK.match(relative):

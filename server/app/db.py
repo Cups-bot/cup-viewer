@@ -8,13 +8,34 @@ from datetime import datetime, timedelta, timezone
 from . import config
 
 SCHEMA = """
+-- password_hash — scrypt (security.py); access_until — до когда оплачен доступ
+-- (подписка); welcome_expires_at — до когда живут стартовые токены (= конец
+-- оплаченного срока).
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   is_admin INTEGER NOT NULL DEFAULT 0,
   welcome_expires_at TEXT,
   created_ip TEXT,
+  created_at TEXT NOT NULL,
+  password_hash TEXT,
+  access_until TEXT
+);
+-- Неверные пароли: не больше LOGIN_FAILS на почту за LOGIN_FAILS_MINUTES.
+CREATE TABLE IF NOT EXISTS login_fails (
+  id INTEGER PRIMARY KEY,
+  email TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+-- Тарифы подписки: срок, цена, стартовые токены. Правит админка.
+CREATE TABLE IF NOT EXISTS plans (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  days INTEGER NOT NULL,
+  price_rub INTEGER NOT NULL,
+  starter_tokens INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  sort INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS login_codes (
   id INTEGER PRIMARY KEY,
@@ -31,8 +52,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TEXT NOT NULL
 );
 -- Журнал токенов: баланс — сумма. bucket: paid (купленные, не сгорают) или
--- welcome (приветственные, 30 дней). Резерв при постановке в очередь уже и
--- есть списание; при сбое — возврат той же суммы в тот же кошелёк.
+-- welcome (стартовые подписки — живут до конца оплаченного срока). Резерв при
+-- постановке в очередь уже и есть списание; при сбое — возврат той же суммы в
+-- тот же кошелёк.
 CREATE TABLE IF NOT EXISTS token_ops (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -72,6 +94,7 @@ CREATE TABLE IF NOT EXISTS workers (
   name TEXT PRIMARY KEY,
   seen_at TEXT NOT NULL
 );
+-- kind: tokens (пакет) или plan (подписка: plan_id, days, стартовые — в tokens).
 CREATE TABLE IF NOT EXISTS payments (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL,
@@ -79,7 +102,10 @@ CREATE TABLE IF NOT EXISTS payments (
   amount_rub INTEGER NOT NULL,
   status TEXT NOT NULL,
   paid_at TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'tokens',
+  plan_id TEXT,
+  days INTEGER
 );
 """
 
@@ -116,7 +142,14 @@ def connect() -> sqlite3.Connection:
 
 
 # Столбцы, добавленные после первых баз: на старой базе — ALTER TABLE.
-MIGRATIONS = [("jobs", "attempts", "INTEGER NOT NULL DEFAULT 0")]
+MIGRATIONS = [
+    ("jobs", "attempts", "INTEGER NOT NULL DEFAULT 0"),
+    ("users", "password_hash", "TEXT"),
+    ("users", "access_until", "TEXT"),
+    ("payments", "kind", "TEXT NOT NULL DEFAULT 'tokens'"),
+    ("payments", "plan_id", "TEXT"),
+    ("payments", "days", "INTEGER"),
+]
 
 
 def init() -> None:
@@ -126,6 +159,13 @@ def init() -> None:
         have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
         if column not in have:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+    # Пустая база — тарифы по умолчанию (дальше их правит админка).
+    if con.execute("SELECT COUNT(*) FROM plans").fetchone()[0] == 0:
+        for plan in config.DEFAULT_PLANS:
+            con.execute(
+                "INSERT INTO plans (id, label, days, price_rub, starter_tokens, active, sort) VALUES (?, ?, ?, ?, ?, 1, ?)",
+                (plan["id"], plan["label"], plan["days"], plan["price_rub"], plan["starter_tokens"], plan["sort"]),
+            )
 
 
 class tx:

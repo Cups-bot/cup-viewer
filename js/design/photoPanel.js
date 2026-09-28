@@ -277,8 +277,8 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     const me = account?.me;
     const cost = price();
     const b = me?.balance;
-    // Кадр оплачивается суммой (server/app/tokens.plan): купленные, иначе
-    // приветственные, иначе вместе — тогда кадр со знаком.
+    // Кадр оплачивается суммой (server/app/tokens.plan): сначала стартовые
+    // (сгорают с концом срока), потом купленные. Знака нет.
     const enough = Boolean(b) && b.paid + b.welcome >= cost;
     // Без сервера (dev) — ручное задание вместо рендера.
     const server = Boolean(account?.available);
@@ -286,11 +286,9 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     renderButton.disabled = busy || !server;
     renderButton.textContent = me && !enough ? 'Пополнить токены' : `Рендер · ${tokensText(cost)}`;
     if (!server) renderNote.textContent = 'Рендер — с сервером CupViewer (python -m server)';
-    else if (!me) renderNote.textContent = 'Войдите — 3 токена в подарок';
+    else if (!me) renderNote.textContent = 'Войдите, чтобы считать кадры';
     else if (!enough) renderNote.textContent = `На балансе ${tokensText(b.paid + b.welcome)} — не хватает на кадр`;
-    else if (b.paid >= cost) renderNote.textContent = `Кадр без знака · останется ${tokensText(b.paid - cost)}`;
-    else if (b.welcome >= cost) renderNote.textContent = `Приветственные токены: кадр с небольшим знаком · останется ${b.welcome - cost}`;
-    else renderNote.textContent = `Купленные и приветственные вместе: кадр с небольшим знаком`;
+    else renderNote.textContent = `После кадра останется ${tokensText(b.paid + b.welcome - cost)}`;
   };
   for (const button of sizeButtons) {
     button.addEventListener('click', () => {

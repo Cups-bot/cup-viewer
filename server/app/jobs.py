@@ -2,8 +2,8 @@
 
 Пользователь ставит задание с макетами → токены резервируются (это и есть
 списание) → исполнитель забирает задание, считает кадр, возвращает его → кадр
-в галерее 30 дней. Сбой исполнителя — токены возвращаются сами. Купленные
-токены идут в очереди раньше приветственных; у бесплатных — одно задание.
+в галерее 30 дней. Сбой исполнителя — токены возвращаются сами. Всё — только
+при действующей подписке (security.require_access); кадры без знака.
 """
 
 import io
@@ -19,8 +19,8 @@ from fastapi.responses import FileResponse
 from PIL import Image
 from pydantic import BaseModel
 
-from . import catalog, config, db, tokens, watermark
-from .security import require_user, require_worker, same_origin
+from . import catalog, config, db, thumbs, tokens
+from .security import require_access, require_worker, same_origin
 
 router = APIRouter()
 PNG = b"\x89PNG\r\n\x1a\n"
@@ -121,7 +121,6 @@ def job_view(con, job, *, admin: bool = False) -> dict:
         "size": config.tier_of(job["size"]),
         "cost": job["cost"],
         "bucket": job["bucket"],
-        "marked": bool(job["marked"]),
         "set": spec["set"],
         "frame": spec["camera"]["frame"],
         "cups": [c["id"] for c in spec["cups"]],
@@ -130,10 +129,8 @@ def job_view(con, job, *, admin: bool = False) -> dict:
         "expiresAt": job["expires_at"],
         "error": (error if error in USER_ERRORS else GENERIC_ERROR) if error else None,
         "seen": bool(job["seen"]),
-        # v — со знаком или без: после «Убрать знак» адрес другой, и браузер не
-        # отдаст из кэша прежний кадр со знаком (кэш кадра — 5 минут).
-        "thumbUrl": f"api/jobs/{job['id']}/image?kind=thumb&v={job['marked']}" if done and (folder / "thumb.webp").exists() else None,
-        "imageUrl": f"api/jobs/{job['id']}/image?v={job['marked']}" if done else None,
+        "thumbUrl": f"api/jobs/{job['id']}/image?kind=thumb" if done and (folder / "thumb.webp").exists() else None,
+        "imageUrl": f"api/jobs/{job['id']}/image?kind=full" if done else None,
     }
     if admin:
         out["errorRaw"] = error
@@ -150,22 +147,20 @@ def own_job(con, user, job_id: int):
 
 def enqueue(con, user, size: str, spec_json: str, status: str, note: str) -> int:
     """Резерв токенов и запись задания — одно правило для нового кадра и повтора:
-    чем платить (tokens.plan) и «у бесплатных одно задание»."""
+    чем платить (tokens.plan) и не больше MAX_ACTIVE_JOBS в работе. Очередь
+    общая: все пользователи — подписчики, приоритета по кошельку нет."""
     cost = config.PRICES[size]
     parts = tokens.plan(con, user, cost)
-    bucket = parts["bucket"]
-    if bucket != "paid":
-        active = con.execute(
-            "SELECT COUNT(*) FROM jobs WHERE user_id = ? AND bucket != 'paid' AND status IN ('new', 'queued', 'rendering')",
-            (user["id"],),
-        ).fetchone()[0]
-        if active >= config.FREE_ACTIVE_JOBS:
-            raise HTTPException(429, "one_free_job_at_a_time")
+    active = con.execute(
+        "SELECT COUNT(*) FROM jobs WHERE user_id = ? AND status IN ('new', 'queued', 'rendering')", (user["id"],),
+    ).fetchone()[0]
+    if active >= config.MAX_ACTIVE_JOBS:
+        raise HTTPException(429, "too_many_jobs")
     cur = con.execute(
         "INSERT INTO jobs (user_id, status, size, cost, bucket, priority, job_json, marked, expires_at, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (user["id"], status, size, cost, bucket, 0 if bucket == "paid" else 1, spec_json,
-         int(bucket != "paid"), db.stamp(days=config.RETENTION_DAYS), db.stamp()),
+        "VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?)",
+        (user["id"], status, size, cost, parts["bucket"], spec_json,
+         db.stamp(days=config.RETENTION_DAYS), db.stamp()),
     )
     job_id = cur.lastrowid
     tokens.charge_job(con, user["id"], parts, job_id=job_id, note=note)
@@ -184,7 +179,7 @@ def fail_job(con, job, error: str, note: str) -> None:
 async def create_job(request: Request, job: str = Form(...), size: str = Form("standard"),
                      art0: Optional[UploadFile] = File(None), art1: Optional[UploadFile] = File(None)):
     same_origin(request)
-    user = require_user(request)
+    user = require_access(request)
     size = config.tier_of(size)
     if size not in config.PRICES:
         raise HTTPException(400, "bad_size")
@@ -219,7 +214,7 @@ async def create_job(request: Request, job: str = Form(...), size: str = Form("s
 
 @router.get("/api/jobs")
 def list_jobs(request: Request, active: int = 0):
-    user = require_user(request)
+    user = require_access(request)
     con = db.connect()
     where = "status IN ('queued', 'rendering')" if active else "status NOT IN ('deleted', 'new')"
     rows = con.execute(f"SELECT * FROM jobs WHERE user_id = ? AND {where} ORDER BY id DESC LIMIT 200", (user["id"],)).fetchall()
@@ -233,7 +228,7 @@ class Seen(BaseModel):
 @router.post("/api/jobs/seen")
 def mark_seen(body: Seen, request: Request):
     same_origin(request)
-    user = require_user(request)
+    user = require_access(request)
     con = db.connect()
     for job_id in body.ids[:200]:
         con.execute("UPDATE jobs SET seen = 1 WHERE id = ? AND user_id = ?", (job_id, user["id"]))
@@ -241,7 +236,7 @@ def mark_seen(body: Seen, request: Request):
 
 
 def frame_file(job) -> Path:
-    return job_dir(job["id"]) / ("marked.png" if job["marked"] else "clean.png")
+    return job_dir(job["id"]) / "clean.png"
 
 
 def frame_name(job) -> str:
@@ -250,7 +245,7 @@ def frame_name(job) -> str:
 
 @router.get("/api/jobs/{job_id}/image")
 def job_image(job_id: int, request: Request, kind: str = "full", download: int = 0):
-    user = require_user(request)
+    user = require_access(request)
     job = own_job(db.connect(), user, job_id)
     path = job_dir(job_id) / "thumb.webp" if kind == "thumb" else frame_file(job)
     if job["status"] != "done" or not path.exists():
@@ -273,9 +268,9 @@ def parse_ids(ids: str) -> list[int]:
 
 @router.get("/api/jobs/archive")
 def archive(request: Request, background: BackgroundTasks, ids: str = ""):
-    """Выбранные кадры одним ZIP: те же файлы, что «Скачать PNG» у каждого
-    (со знаком — со знаком). PNG уже сжат — в архиве без сжатия."""
-    user = require_user(request)
+    """Выбранные кадры одним ZIP: те же файлы, что «Скачать PNG» у каждого.
+    PNG уже сжат — в архиве без сжатия."""
+    user = require_access(request)
     con = db.connect()
     jobs = [con.execute("SELECT * FROM jobs WHERE id = ? AND user_id = ? AND status = 'done'", (i, user["id"])).fetchone()
             for i in parse_ids(ids)]
@@ -296,7 +291,7 @@ def archive(request: Request, background: BackgroundTasks, ids: str = ""):
 def job_spec(job_id: int, request: Request):
     """Сцена кадра — вернуть её в редактор («Открыть в редакторе»): стаканы,
     углы, ракурс, формат и адреса макетов, пока они хранятся."""
-    user = require_user(request)
+    user = require_access(request)
     job = own_job(db.connect(), user, job_id)
     spec = json.loads(job["job_json"])
     folder = job_dir(job_id)
@@ -307,7 +302,7 @@ def job_spec(job_id: int, request: Request):
 
 @router.get("/api/jobs/{job_id}/art/{index}")
 def job_art(job_id: int, index: int, request: Request):
-    user = require_user(request)
+    user = require_access(request)
     job = own_job(db.connect(), user, job_id)
     cups = json.loads(job["job_json"])["cups"]
     if not 0 <= index < len(cups) or not cups[index].get("art"):
@@ -318,35 +313,13 @@ def job_art(job_id: int, index: int, request: Request):
     return FileResponse(path, headers={"Cache-Control": "private, max-age=300"})
 
 
-@router.post("/api/jobs/{job_id}/unmark")
-def unmark(job_id: int, request: Request):
-    """Знак снимается только купленными токенами (владелец, 2026-09-27): иначе из
-    трёх приветственных выходил чистый кадр, и знак не вёл к покупке."""
-    same_origin(request)
-    user = require_user(request)
-    with db.tx() as con:
-        job = own_job(con, user, job_id)
-        if job["status"] != "done" or not job["marked"]:
-            raise HTTPException(409, "not_marked")
-        owner = con.execute("SELECT * FROM users WHERE id = ?", (job["user_id"],)).fetchone()
-        if tokens.balance(con, owner)["paid"] < config.UNMARK_PRICE:
-            raise HTTPException(402, "paid_tokens_required")
-        tokens.add(con, owner["id"], "paid", -config.UNMARK_PRICE, "unmark", job_id=job_id, note="убрать знак")
-        con.execute("UPDATE jobs SET marked = 0 WHERE id = ?", (job_id,))
-    # Миниатюра галереи была со знаком — пересобираем из чистого кадра.
-    folder = job_dir(job_id)
-    watermark.thumb(folder / "clean.png", folder / "thumb.webp")
-    con = db.connect()
-    return job_view(con, con.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone())
-
-
 @router.post("/api/jobs/{job_id}/repeat")
 def repeat(job_id: int, request: Request):
     """Тот же кадр ещё раз после сбоя — с теми же макетами. Правила те же, что у
     нового кадра (цена, «у бесплатных одно задание»). Готовый кадр повторять
     незачем: рендер тот же — для изменений есть «Открыть в редакторе»."""
     same_origin(request)
-    user = require_user(request)
+    user = require_access(request)
     with db.tx() as con:
         job = own_job(con, user, job_id)
         if job["status"] != "failed":
@@ -374,7 +347,7 @@ def remove(con, job) -> None:
 @router.delete("/api/jobs/{job_id}")
 def delete_job(job_id: int, request: Request):
     same_origin(request)
-    user = require_user(request)
+    user = require_access(request)
     with db.tx() as con:
         remove(con, own_job(con, user, job_id))
     shutil.rmtree(job_dir(job_id), ignore_errors=True)
@@ -390,7 +363,7 @@ def delete_many(body: Ids, request: Request):
     """Удалить выбранные: считающиеся пропускаются, стоящие в очереди — с
     возвратом токенов."""
     same_origin(request)
-    user = require_user(request)
+    user = require_access(request)
     removed, skipped = [], 0
     with db.tx() as con:
         for job_id in list(dict.fromkeys(body.ids))[:200]:
@@ -462,9 +435,7 @@ async def done(job_id: int, request: Request, image: UploadFile = File(...), sec
     folder.mkdir(parents=True, exist_ok=True)
     clean = folder / "clean.png"
     clean.write_bytes(data)
-    if job["marked"]:
-        watermark.mark(clean, folder / "marked.png")
-    watermark.thumb(folder / ("marked.png" if job["marked"] else "clean.png"), folder / "thumb.webp")
+    thumbs.thumb(clean, folder / "thumb.webp")
     with db.tx() as con:
         con.execute(
             "UPDATE jobs SET status = 'done', finished_at = ?, duration_s = ?, seen = 0 WHERE id = ? AND status = 'rendering'",

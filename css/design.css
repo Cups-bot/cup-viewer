@@ -1972,12 +1972,6 @@
 }
 
 .render__status,
-.render__mark {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .render--failed .render__status {
   color: #d70015;
 }
