@@ -183,6 +183,7 @@ function initMaterialSwitch({ state, catalog, actions }) {
   const box = document.getElementById('material-switch');
   const pick = document.getElementById('material-pick');
   const name = document.getElementById('material-name');
+  const kind = document.getElementById('material-kind');
   if (!box) return;
   let items = [];
   let builtFor;
@@ -209,6 +210,8 @@ function initMaterialSwitch({ state, catalog, actions }) {
     });
     box.replaceChildren(...items);
     if (pick) pick.hidden = materials.length === 0;
+    // У бумаги — картон, у пластика — материал стакана.
+    if (kind) kind.textContent = catalog.model(modelId)?.type === 'paper' ? 'Картон' : 'Материал';
   };
 
   const render = ({ modelId, materialId }) => {
