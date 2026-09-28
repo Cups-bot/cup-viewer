@@ -10,12 +10,12 @@
 // Модуль грузится по требованию (§50): окно строится при первом открытии.
 
 import { hideLayer, showLayer } from '../ui/motion.js';
+import { PRINT_DPI, dpiOf } from './fileType.js';
 
 // Поле вокруг рамки — доля её ширины с каждой стороны: видно, что обрезано.
 const MARGIN = 0.07;
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 8;
-const LOW_DPI = 270;
 // Подписи направляющих из каталога (textureMapping.rect.guides[].id).
 const GUIDE_LABELS = Object.freeze({
   visible: 'видимая зона',
@@ -155,9 +155,10 @@ export function openCropper({ image, width, height, rect, placement }) {
     }
     line('#ed1c24', 0.6, [], () => g.rect(X(0), Y(0), rw * k, rh * k));
     zoom.value = String(Math.round((p.w / fill.w) * 100));
-    const perInch = (width / p.w) * 25.4;
-    dpi.textContent = perInch < LOW_DPI ? `≈ ${Math.round(perInch)} dpi — в печати будет мягче` : `≈ ${Math.round(perInch)} dpi`;
-    dpi.classList.toggle('is-low', perInch < LOW_DPI);
+    const perInch = dpiOf(width, p.w);
+    const low = perInch < PRINT_DPI;
+    dpi.textContent = low ? `≈ ${perInch} dpi — для печати нужно ${PRINT_DPI}, посмотреть можно` : `≈ ${perInch} dpi — годится для печати`;
+    dpi.classList.toggle('is-low', low);
   };
 
   // Масштаб вокруг точки (мм прямоугольника): она остаётся под курсором.

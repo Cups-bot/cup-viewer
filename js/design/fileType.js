@@ -50,6 +50,13 @@ export function fitWithin(width, height, { maxSide = Infinity, maxArea = Infinit
   return [w, h];
 }
 
+// Разрешение для печати (владелец, 2026-09-28): картинки меньше 300 dpi в
+// печать не принимают. Посмотреть на стакане можно — сайт предупреждает.
+export const PRINT_DPI = 300;
+
+// dpi растра шириной px на mm миллиметров печати, округлённо.
+export const dpiOf = (px, mm) => Math.round((px / mm) * 25.4);
+
 // Расхождение пропорций макета и развёртки, доля: 0.02 — 2 %.
 export function aspectMismatch([width, height], [unwrapWidth, unwrapHeight]) {
   const a = width / height;

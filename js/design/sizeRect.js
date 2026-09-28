@@ -10,7 +10,7 @@
 //
 // Файл никуда не отправляется: всё происходит в браузере (как prepareDesign.js).
 
-import { MAX_FILE_BYTES, RECOGNIZED_UNSUPPORTED, SIGNATURE_BYTES, SUPPORTED_TYPES, UNWRAP_LIMITS, detectFileType, fitWithin } from './fileType.js';
+import { MAX_FILE_BYTES, PRINT_DPI, RECOGNIZED_UNSUPPORTED, SIGNATURE_BYTES, SUPPORTED_TYPES, UNWRAP_LIMITS, detectFileType, dpiOf, fitWithin } from './fileType.js';
 import { DesignError } from './prepareDesign.js';
 import { eraseGuides, warpRectToSheet } from './rectWarp.js';
 import { encodeCanvas } from '../utils/encode.js';
@@ -21,8 +21,6 @@ const SHEET_DPI = 300;
 // Страница SIZE узнаётся по размеру (PDF) или пропорции (картинка).
 const PAGE_TOL_MM = 3;
 const ASPECT_TOL = 0.02;
-// Картинка реже 270 dpi в печати заметно мягче.
-const LOW_DPI = 270;
 // Направляющие поверх 3D: пунктир, мм.
 const GUIDE_WIDTH_MM = 0.45;
 const GUIDE_DASH_MM = [3, 1.5];
@@ -163,12 +161,11 @@ export async function prepareRect(source, model, { placement = null, signal } = 
       if (erased) g.putImageData(image, 0, 0);
     }
     // Разрешение рисунка в печати. У PDF растр — 12 px/мм от его страницы:
-    // увеличенный в рамке, он тоже мягче; страница SIZE в PDF — вектор.
+    // увеличенный в рамке, он тоже теряет; страница SIZE в PDF — вектор.
     let dpi = null;
     if (!source.vector || source.kind !== 'page') {
-      const pxPerMm = source.kind === 'page' ? source.width / pageMm[0] : source.width / place.w;
-      dpi = Math.round(pxPerMm * 25.4);
-      if (dpi < LOW_DPI) notes.push('rectLowRes');
+      dpi = source.kind === 'page' ? dpiOf(source.width, pageMm[0]) : dpiOf(source.width, place.w);
+      if (dpi < PRINT_DPI) notes.push('lowDpi');
     }
     if (source.pages > 1) notes.push('firstPage');
     throwIfAborted(signal);

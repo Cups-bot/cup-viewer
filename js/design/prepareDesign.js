@@ -7,6 +7,7 @@
 
 import {
   MAX_FILE_BYTES,
+  dpiOf,
   RECOGNIZED_UNSUPPORTED,
   SIGNATURE_BYTES,
   SUPPORTED_TYPES,
@@ -51,7 +52,7 @@ async function downscaleImage(file, type, [width, height]) {
 }
 
 // model — запись каталога: от её развёртки считается масштаб растра PDF.
-// Возвращает { textureUrl, unwrapUrl, width, height, pages, type, release() }.
+// Возвращает { textureUrl, unwrapUrl, width, height, pages, type, layers, dpi, release() }.
 // release() освобождает blob-URL — вызывать, когда макет сменился.
 export async function prepareDesign(file, model, { signal, onStage } = {}) {
   if (file.size > MAX_FILE_BYTES) throw new DesignError('too-big');
@@ -85,7 +86,7 @@ export async function prepareDesign(file, model, { signal, onStage } = {}) {
       try {
         throwIfAborted(signal);
         const url = track(await toBlob(canvas, 'image/png'));
-        return { textureUrl: url, unwrapUrl: url, width: canvas.width, height: canvas.height, pages, type, layers, release };
+        return { textureUrl: url, unwrapUrl: url, width: canvas.width, height: canvas.height, pages, type, layers, dpi: null, release };
       } finally {
         canvas.width = 0;
       }
@@ -107,7 +108,9 @@ export async function prepareDesign(file, model, { signal, onStage } = {}) {
     const [w, h] = fitWithin(width, height, UNWRAP_LIMITS);
     const unwrapUrl = w === width && h === height ? textureUrl : track(await downscaleImage(file, type, [w, h]));
     throwIfAborted(signal);
-    return { textureUrl, unwrapUrl, width: w, height: h, pages: 1, type, layers: null, release };
+    // dpi — по исходной ширине картинки на ширину развёртки (PDF — вектор, null).
+    const dpi = dpiOf(width, model.textureMapping.unwrapMm[0]);
+    return { textureUrl, unwrapUrl, width: w, height: h, pages: 1, type, layers: null, dpi, release };
   } catch (error) {
     release();
     throw error;

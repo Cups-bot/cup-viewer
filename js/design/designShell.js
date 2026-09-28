@@ -13,7 +13,7 @@ import { initPhotoPanel } from './photoPanel.js';
 import { initAccount } from '../account/account.js';
 import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
 import { PRINT_LABELS, asPrinted, printModesOf, zoneMmOf } from '../catalog/printModes.js';
-import { SIGNATURE_BYTES, detectFileType } from './fileType.js';
+import { PRINT_DPI, SIGNATURE_BYTES, detectFileType } from './fileType.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -28,9 +28,11 @@ const kindOf = (model) => KIND_LABELS[model.wall] ?? '';
 
 // Предупреждения прямоугольника SIZE (sizeRect.js → notes).
 const RECT_NOTES = Object.freeze({
-  rectLowRes: MESSAGES.rectLowRes,
   firstPage: MESSAGES.firstPageUsed,
 });
+
+// Предупреждение о разрешении: «≈ 184 dpi — меньше 300: …».
+const lowDpiNote = (dpi) => `≈ ${dpi} dpi — ${MESSAGES.lowDpi}`;
 
 export function initDesign({ state, mode, catalog, viewer, feedback }) {
   const actions = {
@@ -524,7 +526,8 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       width: prepared.width,
       height: prepared.height,
       // file и placement — для «Кадрировать»: окно открывается с тем же местом.
-      rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement, dpi: prepared.dpi },
+      rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement },
+      dpi: prepared.dpi,
     };
     if (guides) {
       try {
@@ -535,7 +538,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     }
     if (stale()) return;
     feedback.onLoaded();
-    const notes = prepared.notes.map((note) => RECT_NOTES[note]);
+    const notes = prepared.notes.map((note) => (note === 'lowDpi' ? lowDpiNote(prepared.dpi) : RECT_NOTES[note]));
     const done = [
       DONE[origin],
       'прямоугольник согнут в конус',
@@ -618,7 +621,7 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
         const parts = { ...current, [placed]: await sidePart(model, prepared.unwrapUrl, 'center') };
         design = await composePet(model, parts);
       } else {
-        design = { textureUrl: prepared.textureUrl, unwrapUrl: prepared.unwrapUrl, width: prepared.width, height: prepared.height };
+        design = { textureUrl: prepared.textureUrl, unwrapUrl: prepared.unwrapUrl, width: prepared.width, height: prepared.height, dpi: prepared.dpi };
       }
     } catch (error) {
       feedback.onLoaded();
@@ -641,6 +644,9 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
     // На пластике краска — только там, где картинка непрозрачна: у JPG
     // прозрачности нет, и белый фон тоже ляжет краской.
     if (model.type !== 'paper' && prepared.type === 'jpeg') notes.push(MESSAGES.jpegOnPlastic);
+    // Картинка на всю развёртку: меньше 300 dpi в печать не примут. У сторон
+    // PET логотип встаёт по центру своей зоны — там проверка не эта.
+    if (!placed && prepared.dpi && prepared.dpi < PRINT_DPI) notes.push(lowDpiNote(prepared.dpi));
     const ok = await commit(slot, design, notes.filter((note) => note !== MESSAGES.artLayerUsed), `${DONE[origin]}${prepared.layers?.used ? ' · взят слой conus' : ''}`);
     if (ok && slot === 'hero') {
       const sides = source?.kind === 'sides' ? source.sides : {};
@@ -892,7 +898,9 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
       thumb.src = thumbUrl;
       thumb.dataset.src = thumbUrl;
     }
-    const lowDpi = Boolean(design?.rect?.dpi && design.rect.dpi < 270);
+    // Статус карточки — разрешение для печати: меньше 300 dpi в печать не примут.
+    const lowDpi = Boolean(design?.dpi && design.dpi < PRINT_DPI);
+    const dpiText = design?.dpi ? `≈ ${design.dpi} dpi${lowDpi ? ` — для печати нужно ${PRINT_DPI}` : ''}` : null;
     hint?.classList.toggle('is-warning', shown && lowDpi);
     if (title && hint) {
       if (target !== 'second') {
@@ -901,8 +909,8 @@ function initUpload({ state, mode, catalog, viewer, feedback }) {
         hint.textContent = !design
           ? asRect ? 'PDF, AI, PNG или JPG — рисунок в рамке SIZE или картинка, её можно кадрировать' : defaults.hint
           : design.rect
-            ? ['Прямоугольник', design.rect.dpi ? `≈\u00a0${design.rect.dpi}\u00a0dpi${lowDpi ? ' — мягко для печати' : ''}` : null].filter(Boolean).join(' · ')
-            : 'Готовый макет';
+            ? ['Прямоугольник', dpiText].filter(Boolean).join(' · ')
+            : ['Готовый макет', dpiText].filter(Boolean).join(' · ');
       } else if (design) {
         title.textContent = 'Свой макет';
         hint.textContent = 'Нажмите, чтобы заменить';
