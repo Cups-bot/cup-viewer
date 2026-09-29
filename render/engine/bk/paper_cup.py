@@ -292,6 +292,7 @@ def emboss_paper(project: str, entry: dict, cup, path: str, depth_mm: Optional[f
         old = bpy.data.images.get(name)
         if old is not None:
             old.name = name + "_parked"
+            old.use_fake_user = True          # карта модели — чтобы свой конгрев можно было снять (emboss_reset)
             parked[old.name] = name
     try:
         maps = emboss.build(p, sheet, depth_mm, px_per_mm=EMBOSS_PX_PER_MM)
@@ -315,4 +316,14 @@ def emboss_paper(project: str, entry: dict, cup, path: str, depth_mm: Optional[f
     depth = depth_mm if depth_mm is not None else p.get("emboss", {}).get("depth_mm", 0.35)
     return {"source": os.path.basename(path), "depth_mm": depth, "relief_share": round(float(mask.mean()), 3),
             "px_per_mm": EMBOSS_PX_PER_MM}
+
+
+def emboss_reset(cup) -> None:
+    """Снять свой конгрев: вернуть карту модели (вафля EM-NM, обжим дна)."""
+    original = bpy.data.images.get("CUPS_Emboss")
+    for m in cup.data.materials:
+        if m and m.node_tree and m.name.startswith(PRINT):
+            node = m.node_tree.nodes.get(EMBOSS_TEX)
+            if node is not None and original is not None:
+                node.image = original
 
