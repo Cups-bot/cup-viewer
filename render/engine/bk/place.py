@@ -388,13 +388,21 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
             printed = paper_cup.dress_paper(PROJECT, entry, cup, cfg.get("_art"),
                                             clean=not cfg["print"].get("enabled", True),
                                             page=cfg.get("_art_page", 1), proof=proof_key)
+            # Конгрев (--emboss, emboss в задании): свой лист клиента картой
+            # нормалей — поверх печати или по чистому картону (слепой).
+            relief = paper_cup.emboss_paper(PROJECT, entry, cup, cfg["_emboss"], cfg.get("_emboss_depth"),
+                                            cfg.get("_emboss_page", 1)) if cfg.get("_emboss") else None
         except (paper_cup.PaperError, proof.ProofError) as exc:
             raise ConfigError(str(exc))
         info = board.apply(cup, board_id, entry.get("group", "single"), boards)
         if printed is None:
             printed = {"mode": "clean", "type": "paper"}
         printed.update(info)
+        if relief:
+            printed["emboss"] = relief
         return printed
+    if cfg.get("_emboss"):
+        raise ConfigError(f"{entry['key']}: конгрев бывает только у бумажных стаканов")
     if entry.get("adapter") == "own" or entry.get("material") == "own":
         # PET: печать — картинка в материале PET_Print на развёртке UVMap. Лист
         # из задания (стороны А/Б, сведённые сайтом, js/design/petSides.js, —

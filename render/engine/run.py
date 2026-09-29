@@ -65,7 +65,7 @@ def load_job(path: str, cfg: dict, place) -> dict:
      "cups": [{"id": "HB80-280", "board": "coated", "art": "макет.pdf", "rotate": 20,
                "pos_mm": [-47, 0]},
               {"id": "HB80-280", "board": "coated", "art": "макет.pdf", "rotate": 170,
-               "pos_mm": [47, 0]}]}
+               "pos_mm": [47, 0], "emboss": "конгрев.pdf", "emboss_depth": 0.35}]}
     pos_mm — место дна в мм от места героя сцены: вправо по кадру фона, вглубь.
     Без pos_mm у второго стакана место подбирает раскладка (layout: pair/side).
     Пути к макетам — от файла задания: папку задания можно отдать на другой компьютер.
@@ -83,6 +83,10 @@ def load_job(path: str, cfg: dict, place) -> dict:
             c["art"] = os.path.normpath(os.path.join(base, c["art"]))
             if not os.path.isfile(c["art"]):
                 raise place.ConfigError(f"{c['art']}: макет не найден")
+        if c.get("emboss"):
+            c["emboss"] = os.path.normpath(os.path.join(base, c["emboss"]))
+            if not os.path.isfile(c["emboss"]):
+                raise place.ConfigError(f"{c['emboss']}: лист конгрева не найден")
     hero = cups[0]
     cfg["cup_key"] = hero["id"]
     cfg["cup_variant"] = hero.get("variant")
@@ -94,6 +98,9 @@ def load_job(path: str, cfg: dict, place) -> dict:
         cfg["print"]["enabled"] = False
     cfg["_print_variant"] = "pad" if hero.get("print") == "pad" else None
     cfg["_proof"] = bool(hero.get("proof"))
+    cfg["_emboss"] = hero.get("emboss")
+    cfg["_emboss_depth"] = hero.get("emboss_depth")
+    cfg["_emboss_page"] = hero.get("emboss_page", 1)
     cfg["_cups"] = cups
     cfg["_layout"] = job.get("layout") or ("pair" if len(cups) > 1 and cups[1]["id"] == hero["id"] else "side")
     cam = job.get("camera") or {}
@@ -233,6 +240,9 @@ def main(argv=None) -> int:
     ap.add_argument("--proof", action="store_true",
                     help="«Имитация картона»: печать бумаги через профиль картона (catalog/proof, bk/proof.py)")
     ap.add_argument("--page", type=int, default=1, help="страница PDF макета бумаги")
+    ap.add_argument("--emboss", default=None,
+                    help="конгрев бумаги: лист на шаблоне модели (PDF/AI/PNG; чёрное выдавливается) — картой нормалей")
+    ap.add_argument("--emboss-depth", type=float, default=None, help="глубина конгрева, мм (по умолчанию 0,35)")
     ap.add_argument("--legacy-color", action="store_true",
                     help="служебное: прежний цветовой конвейер сцены (для калибровки экспозиции)")
     ap.add_argument("--rotate", type=float, default=0.0,
@@ -295,6 +305,8 @@ def main(argv=None) -> int:
     cfg["_rotate_deg"] = args.rotate
     cfg["_board"] = args.board
     cfg["_proof"] = args.proof
+    cfg["_emboss"] = os.path.abspath(args.emboss) if args.emboss else None
+    cfg["_emboss_depth"] = args.emboss_depth
     cfg["_legacy_color"] = args.legacy_color
     cfg["_camera"] = args.camera
     cfg["_frame"] = args.frame
@@ -330,7 +342,8 @@ def main(argv=None) -> int:
     elif args.second:
         hero = {"id": cfg["cup_key"], "variant": args.variant, "board": args.board,
                 "art": cfg.get("_art"), "page": args.page, "rotate": args.rotate,
-                "print": None if cfg["print"].get("enabled", True) else "none", "proof": args.proof}
+                "print": None if cfg["print"].get("enabled", True) else "none", "proof": args.proof,
+                "emboss": cfg["_emboss"], "emboss_depth": args.emboss_depth}
         if args.second in ("bigger", "smaller"):
             # «Два объёма»: соседний объём той же серии (тип и стенка — как у главного)
             me = place.resolve_cup(cfg)
