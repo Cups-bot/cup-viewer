@@ -1,15 +1,14 @@
-// Сцена вокруг холста: вкладки, выбор фото-сцены, развёртка,
-// сброс вида и подсказка. Источник истины — ViewerState: DOM только
-// показывает state и передаёт намерения в actions.
+// Сцена вокруг холста: вкладки, выбор фото-сцены, развёртка и сброс вида.
+// Источник истины — ViewerState: DOM только показывает state и передаёт
+// намерения в actions. «Как пользоваться» — инструкция с подсветкой
+// (js/ui/tour.js, шаги — js/design/tours.js).
 
 import { UnwrapView } from './unwrap.js';
-import { hideLayer, showLayer } from './motion.js';
 
 export function initStage({ state, viewer, catalog, actions }) {
   initTabs(state, actions);
   initScenes(state, catalog, actions);
   const unwrap = initUnwrap(actions);
-  initHelp();
   document.getElementById('stage')?.addEventListener('dblclick', () => actions.resetView());
   return { unwrap };
 }
@@ -132,36 +131,3 @@ function initUnwrap(actions) {
   return view;
 }
 
-// Подсказка «как управлять» — модальное окно: Escape и щелчок по затемнению
-// закрывают, фокус возвращается на кнопку, которой окно открыли.
-function initHelp() {
-  const button = document.getElementById('info-btn');
-  const dialog = document.getElementById('help-popover');
-  const backdrop = document.getElementById('help-backdrop');
-  const closeBtn = document.getElementById('help-close');
-  if (!button || !dialog) return;
-
-  let opener = null;
-  let open = false;
-  const show = () => {
-    opener = document.activeElement;
-    open = true;
-    showLayer(backdrop);
-    showLayer(dialog);
-    closeBtn?.focus();
-  };
-  const close = () => {
-    if (!open) return;
-    open = false;
-    hideLayer(dialog);
-    hideLayer(backdrop);
-    opener?.focus?.();
-  };
-
-  button.addEventListener('click', show);
-  closeBtn?.addEventListener('click', close);
-  backdrop?.addEventListener('click', close);
-  window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') close();
-  });
-}

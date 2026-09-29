@@ -272,7 +272,10 @@ export function initPhotoPanel({ state, viewer, catalog, mode, picker, feedback,
     for (const button of sizeButtons) {
       radio(button, button.dataset.size === size);
       const tier = tiers?.[button.dataset.size];
-      if (tier) button.textContent = `${tier.label} · ${tier.px} px`;
+      if (tier) {
+        const px = Object.assign(document.createElement('span'), { className: 'render-size__px', textContent: ` · ${tier.px} px` });
+        button.replaceChildren(tier.label, px);
+      }
     }
     const me = account?.me;
     const cost = price();

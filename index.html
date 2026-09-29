@@ -8,22 +8,28 @@
     <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
-    <link rel="stylesheet" href="css/viewer.css?v=212e26b0" />
-    <link rel="stylesheet" href="css/design.css?v=d33cff60" />
+    <link rel="stylesheet" href="css/viewer.css?v=a9df7b93" />
+    <link rel="stylesheet" href="css/design.css?v=ac7a9381" />
   </head>
   <body>
     <div class="app">
-      <!-- Шапка — только общее: логотип, кабинет, тема, «Как пользоваться».
-           Картон — свойство стакана: он в панели шагов, у стакана. -->
+      <!-- Шапка — как на colorcups.ru: логотип, по центру картон (общий выбор:
+           от него зависят и вид стакана, и цвет печати), справа кабинет, тема и
+           «Как пользоваться». -->
       <header class="site-header">
         <a class="site-logo" href="./" aria-label="Cup Viewer">
           <svg class="site-logo__full" aria-hidden="true"><use href="assets/icons/sprite.svg#brand-logo" /></svg>
         </a>
 
+        <!-- Картон — названия целиком (на узком экране короткие, полное — в подсказке). -->
+        <div class="paper-picker" id="material-pick" data-tour="paper" hidden>
+          <span class="paper-picker__label" id="material-kind">Картон</span>
+          <div class="segmented material-switch" id="material-switch" role="radiogroup" aria-label="Картон для печати"></div>
+        </div>
 
         <div class="site-header__actions">
           <!-- Кабинет (js/account/account.js): «Войти» или баланс с меню. Без сервера — скрыт. -->
-          <div class="account" id="account" hidden></div>
+          <div class="account" id="account" hidden data-tour="account"></div>
           <div class="theme-toggle" role="group" aria-label="Тема">
             <button class="theme-toggle__btn" type="button" data-theme-set="light" aria-label="Светлая тема" aria-pressed="false">
               <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#sun" /></svg>
@@ -32,7 +38,8 @@
               <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#moon" /></svg>
             </button>
           </div>
-          <button class="pill-btn" id="info-btn" type="button" aria-haspopup="dialog" aria-controls="help-popover" aria-label="Как пользоваться">
+          <!-- «Как пользоваться» — пошаговая инструкция с подсветкой (js/ui/tour.js). -->
+          <button class="pill-btn" id="info-btn" type="button" aria-label="Как пользоваться" data-tour="help">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#help" /></svg>
             <span class="pill-btn__text">Как пользоваться</span>
           </button>
@@ -51,7 +58,7 @@
         </div>
         <section class="rail__section" data-section="cup" aria-label="Стакан">
         <p class="rail__label">Стакан</p>
-        <button class="cup-current" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog">
+        <button class="cup-current" id="cup-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="cup-dialog" data-tour="cup">
           <span class="cup-current__art" id="cup-art" aria-hidden="true"></span>
           <span class="cup-current__text">
             <span class="cup-current__name" id="cup-name">Выбрать стакан</span>
@@ -59,16 +66,8 @@
           </span>
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
-        <!-- Картон (§14) — у стакана, как параметр товара: строка «Картон ·
-             название» и кружки образцов (выбор цвета в Apple Store, Printful).
-             Только совместимые с моделью; у BM один — показан как факт. -->
-        <div class="material-pick" id="material-pick" hidden>
-          <p class="material-pick__label"><span id="material-kind">Картон</span> · <b id="material-name"></b></p>
-          <div class="material-pick__swatches" id="material-switch" role="radiogroup" aria-label="Картон"></div>
-        </div>
-
         <!-- «Фотореал»: второй стакан в кадре (js/design/photoPanel.js). -->
-        <div class="second-cup" id="second-cup" hidden>
+        <div class="second-cup" id="second-cup" hidden data-tour="second">
           <div class="second-cup__card" id="second-card" hidden>
             <button class="cup-current second-cup__btn" id="second-btn" type="button" aria-haspopup="dialog">
               <span class="cup-current__art" id="second-art" aria-hidden="true"></span>
@@ -89,7 +88,7 @@
         </div>
         </section>
 
-        <section class="rail__section" data-section="art" aria-label="Макет">
+        <section class="rail__section" data-section="art" aria-label="Макет" data-tour="art">
         <p class="rail__label">Макет</p>
         <!-- «Фотореал» с двумя стаканами: чей макет грузим (js/design/designShell.js initUpload). -->
         <div class="segmented art-target" id="art-target" role="radiogroup" aria-label="Макет для стакана" hidden>
@@ -103,7 +102,7 @@
         </div>
         <p class="print-mode__note" id="print-mode-note" hidden></p>
         <!-- Бумага с прямоугольником SIZE (js/design/sizeRect.js): готовый конус или рисунок в прямоугольнике. -->
-        <div class="segmented print-mode art-form" id="art-form" role="radiogroup" aria-label="Вид макета" hidden>
+        <div class="segmented print-mode art-form" id="art-form" role="radiogroup" aria-label="Вид макета" hidden data-tour="form">
           <button class="segmented__item" type="button" role="radio" data-form="sheet" aria-checked="true">Готовый макет</button>
           <button class="segmented__item" type="button" role="radio" data-form="rect" aria-checked="false">Прямоугольник</button>
         </div>
@@ -153,7 +152,7 @@
         <section class="rail__section rail__section--result" data-section="result" aria-label="Результат">
         <p class="rail__label">Результат</p>
         <div class="rail__result">
-          <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled>
+          <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled data-tour="export">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
             <span>Скачать фото или видео</span>
           </button>
@@ -171,18 +170,32 @@
         <!-- Карточка сцены: сверху вкладки и фон, снизу ракурсы. -->
         <section class="stage-card">
           <div class="stage-card__bar">
-            <nav class="tabs" role="tablist" aria-label="Режим просмотра">
+            <nav class="tabs" role="tablist" aria-label="Режим просмотра" data-tour="tabs">
               <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
               <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
               <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">Фотореал</button>
             </nav>
+            <!-- Как показывать: подписанные тумблеры одной группой. «Имитация
+                 картона» — цвет, как напечатается на выбранном картоне (профиль,
+                 js/design/proof.js), во всех вкладках; «Направляющие» SIZE поверх
+                 макета — только на 3D, в файл и рендер не уходят. -->
+            <div class="view-toggles" role="group" aria-label="Как показывать">
+              <button class="bar-toggle" id="proof-toggle" type="button" aria-pressed="false" hidden data-tour="proof">
+                <span class="switch" aria-hidden="true"></span>
+                <span>Имитация картона</span>
+              </button>
+              <button class="bar-toggle" id="rect-guides" type="button" aria-pressed="false" hidden data-tour="guides" title="Видимая зона, линия крышки и отступ снизу из шаблона SIZE — только для проверки">
+                <span class="switch" aria-hidden="true"></span>
+                <span>Направляющие</span>
+              </button>
+            </div>
             <div class="stage-swatches">
               <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
             </div>
             <!-- «Фотореал»: ракурс и формат кадра. Ракурс — стрелками и точками,
                  без подписей: «Сверху, 25°» людей пугает, а что меняется — видно
                  по кадру. -->
-            <div class="photo-bar" id="photo-bar" hidden>
+            <div class="photo-bar" id="photo-bar" hidden data-tour="photo-bar">
               <div class="angle-switch" role="group" aria-label="Ракурс">
                 <span class="stage-card__label">Ракурс</span>
                 <button class="icon-btn angle-switch__arrow angle-switch__arrow--prev" type="button" data-step="-1" aria-label="Предыдущий ракурс">
@@ -197,14 +210,14 @@
             </div>
           </div>
 
-          <section class="stage" id="stage" aria-label="3D-просмотр">
+          <section class="stage" id="stage" aria-label="3D-просмотр" data-tour="stage">
             <div id="canvas-container"></div>
 
             <!-- Развёртка (§16): макет плоско, без разметки. -->
             <div class="unwrap" id="unwrap" hidden>
               <canvas class="unwrap__canvas" role="img" aria-label="Развёртка макета"></canvas>
               <p class="unwrap__hint"><span class="unwrap__hint-mouse">Колесо — приблизить, перетаскивание — сдвинуть, двойной клик — по размеру</span><span class="unwrap__hint-touch">Щипок — приблизить, двойное касание — по размеру</span></p>
-              <div class="unwrap-bar" role="toolbar" aria-label="Развёртка">
+              <div class="unwrap-bar" role="toolbar" aria-label="Развёртка" data-tour="unwrap-bar">
                 <button class="icon-btn" id="unwrap-zoom-out" type="button" aria-label="Отдалить" data-tip="Отдалить" data-tip-side="top">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#minus" /></svg>
                 </button>
@@ -243,16 +256,6 @@
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#autorotate" /></svg>
               </button>
               <span class="toolbar__sep" aria-hidden="true"></span>
-              <!-- Настройки вида сцены: цвет по профилю картона (js/design/proof.js)
-                   и направляющие SIZE поверх макета (js/design/sizeRect.js). -->
-              <button class="icon-btn" id="proof-toggle" type="button" aria-label="Имитация картона" aria-pressed="false" hidden
-                data-tip="Имитация картона — цвет печати по профилю типографии" data-tip-side="left">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#palette" /></svg>
-              </button>
-              <button class="icon-btn" id="rect-guides" type="button" aria-label="Направляющие SIZE" aria-pressed="false" hidden
-                data-tip="Направляющие SIZE: видимая зона, крышка, отступ снизу" data-tip-side="left">
-                <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#guides" /></svg>
-              </button>
               <button class="icon-btn" id="screenshot-btn" type="button" aria-label="Снимок экрана" data-tip="Снимок · S" data-tip-side="left">
                 <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
               </button>
@@ -267,7 +270,7 @@
             </div>
           </section>
 
-          <div class="stage-card__foot" id="studio-foot">
+          <div class="stage-card__foot" id="studio-foot" data-tour="views">
             <span class="stage-card__label">Ракурс</span>
             <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
           </div>
@@ -278,16 +281,16 @@
           <aside class="photo-panel" id="photo-panel" aria-label="Фон сцены" hidden>
             <div class="photo-panel__body">
               <p class="photo-panel__label">Фон</p>
-              <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон"></div>
+              <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон" data-tour="scenes"></div>
             </div>
             <div class="photo-panel__actions">
               <!-- Уровень кадра: размер и цену задаёт сервер (server/app/config.py TIERS), здесь — подсказка. -->
               <div class="segmented render-size" id="render-size" role="radiogroup" aria-label="Качество кадра">
-                <button class="segmented__item" type="button" role="radio" data-size="standard" title="Соцсети, сайт, маркетплейсы">Standard · 2000 px</button>
-                <button class="segmented__item" type="button" role="radio" data-size="ultra" title="Максимум деталей: печать, баннеры, каталог">Ultra · 4000 px</button>
+                <button class="segmented__item" type="button" role="radio" data-size="standard" title="Соцсети, сайт, маркетплейсы">Standard<span class="render-size__px"> · 2000 px</span></button>
+                <button class="segmented__item" type="button" role="radio" data-size="ultra" title="Максимум деталей: печать, баннеры, каталог">Ultra<span class="render-size__px"> · 4000 px</span></button>
               </div>
               <div class="photo-panel__row">
-                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" aria-describedby="photo-render-note">Рендер · 1 токен</button>
+                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" aria-describedby="photo-render-note" data-tour="render">Рендер · 1 токен</button>
                 <!-- Задание вручную (dev-сервер без кабинета): папка для Blender, render/README.md. -->
                 <button class="icon-btn photo-panel__job" id="photo-job" type="button" hidden aria-label="Задание для рендера" data-tip="Задание для рендера — с макетом" data-tip-side="left">
                   <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
@@ -301,21 +304,21 @@
 
       <!-- Нижняя панель на узком экране: те же шаги, что в левой панели. -->
       <nav class="action-bar" aria-label="Действия">
-        <button class="action-bar__item" type="button" data-mobile-nav="cup">
+        <button class="action-bar__item" type="button" data-mobile-nav="cup" data-tour="cup">
           <span class="action-bar__art" id="action-cup-art" aria-hidden="true">
             <svg class="icon"><use href="assets/icons/sprite.svg#cup" /></svg>
           </span>
           <span class="action-bar__text" id="action-cup-name">Стакан</span>
         </button>
-        <button class="action-bar__item" type="button" id="action-second" aria-haspopup="dialog" hidden>
+        <button class="action-bar__item" type="button" id="action-second" aria-haspopup="dialog" hidden data-tour="second">
           <svg class="icon" aria-hidden="true"><use id="action-second-icon" href="assets/icons/sprite.svg#plus" /></svg>
           <span class="action-bar__text" id="action-second-name">Второй</span>
         </button>
-        <button class="action-bar__item" type="button" data-mobile-nav="design">
+        <button class="action-bar__item" type="button" data-mobile-nav="design" data-tour="art">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
           <span class="action-bar__text">Макет</span>
         </button>
-        <button class="action-bar__item action-bar__item--accent" type="button" data-mobile-nav="export">
+        <button class="action-bar__item action-bar__item--accent" type="button" data-mobile-nav="export" data-tour="export">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
           <span class="action-bar__text">Скачать</span>
         </button>
@@ -353,39 +356,10 @@
       </div>
     </div>
 
-    <!-- «Как пользоваться». -->
-    <div class="dialog-backdrop" id="help-backdrop" hidden></div>
-    <div class="dialog help-dialog" id="help-popover" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
-      <div class="dialog__head">
-        <p class="dialog__title" id="help-title">Как пользоваться</p>
-        <button class="icon-btn" type="button" id="help-close" aria-label="Закрыть">
-          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
-        </button>
-      </div>
-      <ol class="help-steps">
-        <li><b>Стакан</b> — по объёму и типу стенки; картон — сразу под ним.</li>
-        <li><b>Макет</b> — готовый конус из шаблона Формации (PDF, AI, PNG) или рисунок в прямоугольнике SIZE — сайт согнёт его сам. Файл можно просто перетащить на страницу.</li>
-        <li><b>Проверка</b> — 3D и развёртка; кнопка с палитрой у сцены — «Имитация картона»: цвет, каким он выйдет на картоне. Фото и видео оборота — кнопка «Скачать».</li>
-        <li><b>«Фотореал»</b> — стакан в настоящей сцене. «Рендер» — кадр за токены: Standard для соцсетей и сайта, Ultra — для печати. Готовые кадры — в «Моих рендерах», в меню под балансом.</li>
-      </ol>
-      <ul class="help-list">
-        <li><b>Тянуть стакан</b><span>поворот стакана — свет и тени на месте</span></li>
-        <li><b>Тянуть фон</b><span>облёт камерой; в «Фотореале» — поворот стакана</span></li>
-        <li><b>Колесо, щипок</b><span>приблизить и отдалить</span></li>
-        <li><b>Двойной клик</b><span>исходный вид</span></li>
-        <li><b><span class="kbd">A</span></b><span>автоповорот</span></li>
-        <li><b><span class="kbd">S</span></b><span>снимок экрана</span></li>
-        <li><b><span class="kbd">F</span></b><span>во весь экран</span></li>
-        <li><b><span class="kbd">B</span></b><span>следующий фон</span></li>
-        <li><b><span class="kbd">V</span></b><span>скачать фото или видео</span></li>
-        <li><b><span class="kbd">1</span>–<span class="kbd">6</span></b><span>ракурс: спереди, справа, сзади, слева, сверху, шов</span></li>
-      </ul>
-    </div>
-
     <div class="drop-overlay" id="drop-overlay" hidden>
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=079f2072"></script>
+    <script type="module" src="dist/design.js?v=8a632906"></script>
   </body>
 </html>

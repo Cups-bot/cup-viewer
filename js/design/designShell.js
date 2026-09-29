@@ -14,6 +14,8 @@ import { initAccount } from '../account/account.js';
 import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
 import { PRINT_LABELS, asPrinted, printModesOf, zoneMmOf } from '../catalog/printModes.js';
 import { PRINT_DPI, SIGNATURE_BYTES, detectFileType } from './fileType.js';
+import { createTour, tourSeen } from '../ui/tour.js';
+import { HELP_STEP, TOURS, WELCOME } from './tours.js';
 
 // Подписи полей из каталога. Сами строки UI живут здесь, а не в catalog/.
 const KIND_LABELS = Object.freeze({
@@ -71,6 +73,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   const exportCenter = initExport({ state, mode, viewer, feedback });
   initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
   initActionBar({ state, exportCenter, sheet });
+  initTour({ state, sheet });
 
   // Кнопки, которым нужна модель в сцене.
   const needsModel = [
@@ -177,47 +180,49 @@ function initModelPicker({ state, catalog, actions }) {
 // Материал (§14) — переключатель в шапке, как выбор картона на colorcups.ru:
 // только совместимые с моделью. Один материал (BM) — показан, но выбирать
 // нечего.
-// Картон — кружки образцов и название выбранного над ними; наведение
-// показывает название того, на который навели (как выбор цвета в Apple Store).
+// Картон — как «Картон для печати» на colorcups.ru: все варианты видны сразу
+// и подписаны целиком (кружки без подписей приходилось перебирать наведением —
+// владелец, 2026-09-29). На узком экране — короткие названия из каталога
+// (short), полное — в подсказке. Только совместимые с моделью; у BM один —
+// показан как факт, а подпись — «Материал».
 function initMaterialSwitch({ state, catalog, actions }) {
   const box = document.getElementById('material-switch');
   const pick = document.getElementById('material-pick');
-  const name = document.getElementById('material-name');
   const kind = document.getElementById('material-kind');
   if (!box) return;
   let items = [];
   let builtFor;
-  const current = () => catalog.material(state.get().materialId)?.name ?? '';
   const build = (modelId) => {
     builtFor = modelId;
     const materials = modelId ? catalog.materialsFor(modelId) : [];
     items = materials.map((material) => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'material-swatch';
+      item.className = 'segmented__item material-switch__item';
       item.setAttribute('role', 'radio');
-      item.setAttribute('aria-label', material.name);
       item.dataset.material = material.id;
-      item.dataset.tip = material.note ? `${material.name} — ${material.note}` : material.name;
+      item.title = material.note ? `${material.name} — ${material.note}` : material.name;
       const swatch = document.createElement('span');
       paintSwatch(swatch, material);
-      item.append(swatch);
+      const long = Object.assign(document.createElement('span'), { className: 'material-switch__long', textContent: material.name });
+      const short = Object.assign(document.createElement('span'), { className: 'material-switch__short', textContent: material.short ?? material.name });
+      item.append(swatch, long, short);
       item.disabled = materials.length < 2;
       item.addEventListener('click', () => actions.selectMaterial(material.id));
-      item.addEventListener('pointerenter', () => name && (name.textContent = material.name));
-      item.addEventListener('pointerleave', () => name && (name.textContent = current()));
       return item;
     });
-    box.replaceChildren(...items);
+    // Подложку выбранного (motion.js initSegments) не выбрасываем вместе с
+    // пунктами — без неё выбранный картон не выделен.
+    box.replaceChildren(...box.querySelectorAll(':scope > .seg-thumb'), ...items);
     if (pick) pick.hidden = materials.length === 0;
-    // У бумаги — картон, у пластика — материал стакана.
-    if (kind) kind.textContent = catalog.model(modelId)?.type === 'paper' ? 'Картон' : 'Материал';
+    const paper = catalog.model(modelId)?.type === 'paper';
+    if (kind) kind.textContent = paper ? 'Картон' : 'Материал';
+    box.setAttribute('aria-label', paper ? 'Картон для печати' : 'Материал стакана');
   };
 
   const render = ({ modelId, materialId }) => {
     if (modelId !== builtFor) build(modelId);
     for (const item of items) item.setAttribute('aria-checked', String(item.dataset.material === materialId));
-    if (name) name.textContent = current();
   };
   state.subscribe(['modelId', 'materialId'], render);
   render(state.get());
@@ -274,18 +279,51 @@ function initPageHead({ state, catalog }) {
   render(state.get());
 }
 
-// «Имитация картона» (js/design/proof.js): только у материала с профилем
-// картона (proof в catalog/materials.json) — у крафта и пластика его нет.
+// «Имитация картона» (js/design/proof.js): подписанный тумблер над сценой во
+// всех вкладках, и на развёртке тоже — рядом с «Направляющими», одной группой
+// «как показывать» (владелец, 2026-09-29: значок без слов был не очевиден).
+// Только у материала с профилем картона (proof в catalog/materials.json) — у
+// крафта и пластика его нет.
 function initProofToggle({ state, catalog }) {
   const button = document.getElementById('proof-toggle');
   if (!button) return;
   button.addEventListener('click', () => state.set({ proof: !state.get().proof }));
   const render = ({ modelId, materialId, proof }) => {
-    button.hidden = !modelId || !catalog.material(materialId)?.proof;
-    button.setAttribute('aria-pressed', String(proof));
+    const material = catalog.material(materialId);
+    button.hidden = !modelId || !material?.proof;
+    button.setAttribute('aria-pressed', String(Boolean(proof)));
+    button.title = `Как напечатается на картоне «${material?.name ?? ''}» — по профилю типографии. Выключено — цвета файла на идеально белом`;
   };
   state.subscribe(['modelId', 'materialId', 'proof'], render);
   render(state.get());
+}
+
+// «Как пользоваться» — пошаговая инструкция с подсветкой (js/ui/tour.js), у
+// каждой вкладки своя (tours.js). При самом первом входе приходит сама и
+// начинается со знакомства — как на colorcups.ru: кнопку справки замечают не
+// все. Не мешает: ждёт, пока закроется окно или лист поверх страницы.
+function initTour({ state, sheet }) {
+  const tour = createTour();
+  const button = document.getElementById('info-btn');
+  const run = (welcome = false) => {
+    sheet?.hide();
+    const current = TOURS[state.get().tab] ?? TOURS['3d'];
+    const steps = welcome ? [WELCOME, ...current.steps, HELP_STEP] : current.steps;
+    tour.start(steps, { title: current.title, welcome });
+  };
+  button?.addEventListener('click', () => (tour.open ? tour.close() : run()));
+  if (tourSeen()) return;
+  const busy = () => document.querySelector('.dialog:not([hidden]), .crop-dialog:not([hidden])') || document.getElementById('rail')?.classList.contains('is-open');
+  const welcome = () => {
+    if (tourSeen() || tour.open) return;
+    if (busy()) {
+      setTimeout(welcome, 1500);
+      return;
+    }
+    run(true);
+  };
+  // Пауза: пусть страница дорисуется, иначе рамке не за что зацепиться.
+  setTimeout(welcome, 1200);
 }
 
 // Окно экспорта (§20): модуль грузится при первом открытии (§50).
@@ -397,13 +435,46 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
   const slotModel = (t) => (t === 'second' ? photoSecond() : asPrinted(catalog.model(state.get().modelId), state.get().printMode));
   const slotKey = (t) => (t === 'second' ? 'design2' : 'design');
 
+  // Бумага с прямоугольником SIZE (catalog: textureMapping.rect): макет — готовый
+  // конус или рисунок в прямоугольнике, который сайт гнёт сам (sizeRect.js).
+  // У каждого вида свой файл: переключение не переносит картинку из одного в
+  // другой (владелец, 2026-09-29) — можно держать два разных макета.
+  const rectOf = (model) => (model?.textureMapping?.sides ? null : model?.textureMapping?.rect ?? null);
+  const FORM_KEY = 'cupviewer.artForm';
+  let form = (() => {
+    try {
+      return localStorage.getItem(FORM_KEY) === 'rect' ? 'rect' : 'sheet';
+    } catch {
+      return 'sheet';
+    }
+  })();
+  const saveForm = () => {
+    try {
+      localStorage.setItem(FORM_KEY, form);
+    } catch {
+      // не запомнили — в следующий раз откроется «Готовый макет»
+    }
+  };
+  // Вид главного стакана сейчас: прямоугольник — только у стакана, где он есть.
+  const which = () => (form === 'rect' && rectOf(slotModel('hero')) ? 'rect' : 'sheet');
+  // Исходники макета главного стакана по видам — ими макет переносится на
+  // другой стакан и возвращается после перезагрузки (designStore):
+  // { kind: 'file', file }, у тампопечати { kind: 'sides', sides: { A, B } },
+  // шаблон Формации { kind: 'template', file, as } — всё это вид «sheet»;
+  // рисунок в прямоугольнике SIZE { kind: 'rect', file, placement } — «rect».
+  const sources = { sheet: null, rect: null };
+  // Готовые макеты тех же видов для текущего стакана: переключение между ними
+  // мгновенное, без повторной обработки файла.
+  const kept = { sheet: null, rect: null };
+
   // Растры, которые сделала загрузка: освобождаются, когда на них больше не
-  // ссылается ни макет главного, ни макет второго.
+  // ссылается ни макет главного (в том числе отложенный второго вида), ни
+  // макет второго стакана.
   const owned = [];
   const own = (urls, release) => owned.push({ urls: urls.filter(Boolean), release });
   const referenced = (s) => {
     const urls = new Set();
-    for (const d of [s.design, s.design2]) {
+    for (const d of [s.design, s.design2, kept.sheet, kept.rect]) {
       if (!d) continue;
       urls.add(d.textureUrl);
       urls.add(d.unwrapUrl);
@@ -412,6 +483,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     return urls;
   };
   state.subscribe(['design', 'design2'], (s) => {
+    kept[which()] = s.design;
     const live = referenced(s);
     for (let i = owned.length - 1; i >= 0; i--) {
       if (owned[i].urls.some((url) => live.has(url))) continue;
@@ -461,29 +533,23 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     return true;
   };
 
-  // Исходник макета главного стакана: им макет переносится на другой стакан и
-  // возвращается после перезагрузки (designStore). { kind: 'file', file },
-  // у тампопечати { kind: 'sides', sides: { A, B } }, шаблон Формации
-  // { kind: 'template', file, as: 'field' | 'sides' } — из него всё сразу,
-  // или рисунок в прямоугольнике SIZE { kind: 'rect', file }.
-  let source = null;
-
-  // Бумага с прямоугольником SIZE (catalog: textureMapping.rect): макет — готовый
-  // конус или рисунок в прямоугольнике, который сайт гнёт сам (sizeRect.js).
-  let form = 'sheet';
-  const rectOf = (model) => (model?.textureMapping?.sides ? null : model?.textureMapping?.rect ?? null);
   // Направляющие SIZE поверх 3D: только вид — в рендер уходит лист без них.
+  // Видны только во вкладке 3D: в «Фотореале» кадр такой, каким его посчитает
+  // Blender, на развёртке — лист, как уйдёт в печать.
   let guides = false;
+  const showGuides = () => guides && state.get().tab === '3d';
   const guided = async (design, model) => {
     const { withGuides } = await import('./sizeRect.js');
     const sheet = await withGuides(design.rect.url, model);
     own([sheet.url], sheet.release);
     return { ...design, textureUrl: sheet.url };
   };
-  const remember = (next) => {
-    source = next;
-    if (next) saveDesignSource(next);
-    else clearDesignSource();
+  // Запомнить исходник вида (по умолчанию — текущего): в памяти и в браузере.
+  const remember = (next, slot = which()) => {
+    sources[slot] = next;
+    const key = slot === 'rect' ? 'hero-rect' : 'hero';
+    if (next) saveDesignSource(next, key);
+    else clearDesignSource(key);
   };
   const DONE = { user: 'Макет на модели', switch: 'Макет перенесён на этот стакан', restore: 'Макет с прошлого раза' };
 
@@ -587,7 +653,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
       rect: { url: prepared.rectUrl, file, kind: prepared.kind, placement: prepared.placement },
       dpi: prepared.dpi,
     };
-    if (guides) {
+    if (showGuides()) {
       try {
         design = await guided(design, model);
       } catch (error) {
@@ -605,7 +671,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     ].filter(Boolean).join(' · ');
     const ok = await commit(slot, design, notes, done);
     if (ok && slot === 'hero') {
-      remember({ kind: 'rect', file, placement: prepared.placement });
+      remember({ kind: 'rect', file, placement: prepared.placement }, 'rect');
       render();
     }
   };
@@ -644,7 +710,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
       const ok = await commit(slot, template.design, notes.filter((n) => n !== template.note),
         `${DONE[origin]} · ${template.note}${template.layer ? ' · взят слой conus' : ''}`);
       if (ok && slot === 'hero') {
-        remember({ kind: 'template', file, as: model.textureMapping.sides ? 'sides' : 'field' });
+        remember({ kind: 'template', file, as: model.textureMapping.sides ? 'sides' : 'field' }, 'sheet');
         render();
       }
       return;
@@ -707,9 +773,9 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     if (!placed && prepared.dpi && prepared.dpi < PRINT_DPI) notes.push(lowDpiNote(prepared.dpi));
     const ok = await commit(slot, design, notes.filter((note) => note !== MESSAGES.artLayerUsed), `${DONE[origin]}${prepared.layers?.used ? ' · взят слой conus' : ''}`);
     if (ok && slot === 'hero') {
-      const sides = source?.kind === 'sides' ? source.sides : {};
+      const sides = sources.sheet?.kind === 'sides' ? sources.sheet.sides : {};
       // Логотип стороны — поверх сторон; прочее (файл целиком) — заново.
-      remember(placed ? { kind: 'sides', sides: { ...sides, [placed]: file } } : { kind: 'file', file });
+      remember(placed ? { kind: 'sides', sides: { ...sides, [placed]: file } } : { kind: 'file', file }, 'sheet');
       // Имя файла в зоне — из исходника, а он запомнен после показа макета.
       render();
     }
@@ -720,6 +786,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
   // целиком не переносится: у них разный смысл макета.
   const carry = async (origin) => {
     const model = slotModel('hero');
+    const source = sources[which()];
     if (!model || !source) return;
     const pad = Boolean(model.textureMapping.sides);
     if (source.kind === 'rect') {
@@ -743,7 +810,10 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     const key = `${s.modelId}|${s.printMode}`;
     if (key === heroKey) return;
     heroKey = key;
-    if (source && !s.design) carry('switch');
+    // Готовые макеты — под прежний стакан; исходники переносятся заново.
+    kept.sheet = null;
+    kept.rect = null;
+    if (sources[which()] && !s.design) carry('switch');
   });
 
   // Убрать сторону PET: лист пересобирается из оставшейся; без сторон — нет макета.
@@ -752,9 +822,9 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     const key = slotKey(target);
     const current = { ...(state.get()[key]?.sides ?? {}) };
     delete current[side];
-    if (target === 'hero' && source?.kind === 'sides') {
-      const sides = { ...source.sides, [side]: null };
-      remember(Object.values(sides).some(Boolean) ? { kind: 'sides', sides } : null);
+    if (target === 'hero' && sources.sheet?.kind === 'sides') {
+      const sides = { ...sources.sheet.sides, [side]: null };
+      remember(Object.values(sides).some(Boolean) ? { kind: 'sides', sides } : null, 'sheet');
     }
     if (!Object.values(current).some(Boolean)) {
       state.set({ [key]: null });
@@ -785,26 +855,40 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
   const replaceButton = document.getElementById('art-replace');
   const guidesButton = document.getElementById('rect-guides');
   const cropButton = document.getElementById('rect-crop');
+  // Направляющие на готовом макете прямоугольника — как сейчас выбрано.
+  const withGuidesState = async (design, model) => {
+    if (!design?.rect) return design;
+    if (!showGuides()) return { ...design, textureUrl: design.unwrapUrl };
+    return design.textureUrl === design.unwrapUrl ? guided(design, model) : design;
+  };
   for (const b of formButtons) {
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       if (b.dataset.form === form) return;
       form = b.dataset.form;
+      saveForm();
       render();
-      // Уже загруженный файл — заново в новом смысле: SIZE, принятый за конус, и наоборот.
-      if (target === 'hero' && (source?.kind === 'file' || source?.kind === 'rect') && state.get().design) {
-        apply(source.file, 'hero', null, { as: form });
+      if (target !== 'hero') return;
+      // У каждого вида свой макет: готовый — сразу, только файл (после
+      // перезагрузки, смены стакана) — обработать заново, ничего — пусто.
+      const slot = which();
+      if (kept[slot]) {
+        state.set({ design: await withGuidesState(kept[slot], slotModel('hero')) });
+      } else {
+        state.set({ design: null });
+        if (sources[slot]) carry('user');
       }
     });
   }
-  guidesButton?.addEventListener('click', async () => {
-    guides = !guides;
-    render();
+  // Наложить или снять направляющие на готовых макетах-прямоугольниках — как
+  // сейчас нужно (showGuides): по нажатию и при смене вкладки.
+  const syncGuides = async () => {
+    const want = showGuides();
     for (const slot of ['hero', 'second']) {
       const key = slotKey(slot);
       const design = state.get()[key];
-      if (!design?.rect) continue;
+      if (!design?.rect || (design.textureUrl !== design.unwrapUrl) === want) continue;
       let next = { ...design, textureUrl: design.unwrapUrl };
-      if (guides) {
+      if (want) {
         try {
           next = await guided(design, slotModel(slot));
         } catch (error) {
@@ -814,7 +898,13 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
       }
       if (state.get()[key] === design) state.set({ [key]: next });
     }
+  };
+  guidesButton?.addEventListener('click', () => {
+    guides = !guides;
+    render();
+    syncGuides();
   });
+  state.subscribe(['tab'], syncGuides);
   // «Кадрировать»: то же окно, с тем местом картинки, что сейчас на стакане.
   cropButton?.addEventListener('click', async () => {
     const slot = target;
@@ -899,7 +989,8 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
       }
     }
     if (guidesButton) {
-      guidesButton.hidden = !rectShown;
+      // Только на 3D (showGuides): на развёртке и в «Фотореале» их не видно.
+      guidesButton.hidden = !rectShown || s.tab !== '3d';
       guidesButton.setAttribute('aria-pressed', String(guides));
     }
     if (cropButton) cropButton.hidden = !rectShown || design.rect.kind === 'page';
@@ -936,6 +1027,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     hint?.classList.toggle('is-warning', shown && lowDpi);
     if (title && hint) {
       if (target !== 'second') {
+        const source = sources[which()];
         const name = source?.kind === 'file' || source?.kind === 'rect' ? source.file.name : null;
         title.textContent = design ? (name ?? 'Макет на стакане') : asRect ? 'Загрузить прямоугольник' : defaults.title;
         // Длинное имя обрезается многоточием — целиком оно в подсказке.
@@ -1007,11 +1099,13 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
 
   // Макет с прошлого раза: кладётся, как только стакан выбран (сессия его
   // уже выбрала — сразу).
-  loadDesignSource().then((saved) => {
-    if (!saved || source || state.get().design) return;
-    source = saved;
-    if (saved.kind === 'rect') form = 'rect';
-    if (state.get().modelId) carry('restore');
+  Promise.all([loadDesignSource('hero'), loadDesignSource('hero-rect')]).then(([sheetSaved, rectSaved]) => {
+    if (sources.sheet || sources.rect || state.get().design) return;
+    // До двух видов прямоугольник хранился в той же записи «hero».
+    if (sheetSaved?.kind === 'rect' && !rectSaved) [sheetSaved, rectSaved] = [null, sheetSaved];
+    sources.sheet = sheetSaved ?? null;
+    sources.rect = rectSaved ?? null;
+    if (state.get().modelId && sources[which()]) carry('restore');
     render();
   });
 

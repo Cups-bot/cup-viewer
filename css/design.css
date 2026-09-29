@@ -1,4 +1,4 @@
-/* Раскладка Design Mode: шапка (логотип, кабинет, тема, помощь), слева
+/* Раскладка Design Mode: шапка (логотип, картон, кабинет, тема, помощь), слева
    панель шагов — стакан с картоном, макет, результат; справа заголовок и
    карточка сцены. Узкий экран: сцене — всё, панель шагов — нижний лист,
    который открывают кнопки нижней панели действий. */
@@ -32,7 +32,7 @@
   z-index: 30;
   grid-area: header;
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   gap: 16px;
   padding: 0 16px 0 20px;
@@ -60,65 +60,60 @@
   gap: 8px;
 }
 
-/* Картон — у стакана: «Картон · название» и кружки образцов под ней
-   (выбор цвета в Apple Store, Printful). Названия не обрезаются, место — одна
-   строка. Один картон (BM) — показан как факт. */
-.material-pick {
+/* Картон — по центру шапки, как «Картон для печати» на colorcups.ru: все
+   варианты подписаны и видны сразу, выбранный — подложкой. Кружки без
+   подписей приходилось перебирать наведением (владелец, 2026-09-29).
+   Один материал (BM) показан как факт, не как выбор. */
+.paper-picker {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 2px 4px 0;
+  align-items: center;
+  gap: 10px;
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.material-pick[hidden] {
+.paper-picker[hidden] {
   display: none;
 }
 
-.material-pick__label {
+.paper-picker__label {
+  flex: none;
   font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
 }
 
-.material-pick__label b {
-  font-weight: 600;
-  color: var(--ink);
+.material-switch {
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.material-pick__swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.material-switch::-webkit-scrollbar {
+  display: none;
 }
 
-.material-swatch {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  cursor: pointer;
-  background: none;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  transition: border-color 0.15s ease;
+.material-switch__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
 }
 
-.material-swatch .swatch-dot {
-  width: 26px;
-  height: 26px;
+.material-switch__item .swatch-dot {
+  width: 14px;
+  height: 14px;
 }
 
-@media (hover: hover) {
-  .material-swatch:not(:disabled):hover {
-    border-color: var(--line-strong);
-  }
+.material-switch__short {
+  display: none;
 }
 
-.material-swatch[aria-checked='true'] {
-  border-color: var(--action);
-}
-
-.material-swatch:disabled {
+.material-switch__item:disabled {
+  opacity: 1;
   cursor: default;
 }
 
@@ -701,8 +696,37 @@
 
   .site-header {
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'logo actions'
+      'picker picker';
     gap: 8px 12px;
     padding: 10px 12px 10px 14px;
+  }
+
+  .site-header:has(.paper-picker[hidden]) {
+    grid-template-areas: 'logo actions';
+  }
+
+  .site-logo {
+    grid-area: logo;
+  }
+
+  .site-header__actions {
+    grid-area: actions;
+  }
+
+  .paper-picker {
+    grid-area: picker;
+    justify-self: stretch;
+  }
+
+  .paper-picker .material-switch {
+    flex: 1 1 auto;
+  }
+
+  .material-switch__item {
+    flex: 1 0 auto;
+    justify-content: center;
   }
 
   /* Панель шагов — нижний лист (Canva, Pacdora на телефоне: холсту — весь
@@ -864,6 +888,20 @@
     height: 24px;
   }
 
+  /* Короткие названия картона (short в каталоге), полное — в подсказке. */
+  .material-switch__long,
+  .material-switch__item .swatch-dot {
+    display: none;
+  }
+
+  .material-switch__short {
+    display: inline;
+  }
+
+  .material-switch__item {
+    padding: 0 8px;
+  }
+
   .main {
     padding: 10px 8px 8px;
   }
@@ -934,6 +972,10 @@
     padding: 8px 10px;
   }
 
+  .paper-picker__label {
+    display: none;
+  }
+
   .theme-toggle__btn {
     width: 28px;
   }
@@ -956,7 +998,13 @@
 
 @media (max-height: 620px) and (min-width: 700px) and (max-width: 1023px) {
   .site-header {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-areas: 'logo picker actions';
     padding: 6px 12px;
+  }
+
+  .paper-picker {
+    justify-self: center;
   }
 
   .stage-card__bar {
@@ -1001,13 +1049,13 @@
     min-width: 44px;
   }
 
+  .material-switch__item,
   .view-presets .segmented__item {
     min-height: 40px;
   }
 
-  .material-swatch {
-    width: 44px;
-    height: 44px;
+  .bar-toggle {
+    height: 40px;
   }
 }
 
@@ -1102,6 +1150,71 @@
     grid-column: 2;
     grid-row: 2;
     border-left: 1px solid var(--line);
+  }
+}
+
+/* Строка над сценой: вкладки, рядом — как показывать (имитация картона,
+   направляющие); фон и ракурс фото-сцены — справа. */
+.stage-card__bar {
+  justify-content: flex-start;
+}
+
+.stage-swatches {
+  margin-left: auto;
+}
+
+/* «Как показывать» — подписанные тумблеры одной капсулой, по высоте как
+   вкладки рядом: читается как одна группа настроек вида, а не два
+   разных элемента. Без видимых тумблеров группы нет. */
+.view-toggles {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: var(--pill);
+}
+
+.view-toggles:not(:has(> .bar-toggle:not([hidden]))),
+.bar-toggle[hidden] {
+  display: none;
+}
+
+.bar-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px 0 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--pill);
+}
+
+.bar-toggle[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+/* Черта между двумя видимыми тумблерами. */
+.bar-toggle:not([hidden]) ~ .bar-toggle:not([hidden])::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -1px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+@media (hover: hover) {
+  .bar-toggle:hover {
+    background: var(--fill);
   }
 }
 
@@ -1403,9 +1516,29 @@
     font-size: 11px;
   }
 
+  /* Качество и кнопка рендера — одной строкой: каждый ряд под кадром
+     отнимает его высоту. */
   .photo-panel__actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     padding: 8px 12px 10px;
     border-top: none;
+  }
+
+  .render-size {
+    flex: none;
+  }
+
+  .photo-panel__row {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Заголовок страницы — в фото-сцене лишний: стакан и картон видны в
+     нижней панели и шапке, а высота нужна кадру. */
+  .main:has(.stage-card.is-photo) > .page-head {
+    display: none;
   }
 
   .photo-panel__note {
@@ -1423,6 +1556,29 @@
 @media (max-width: 600px) {
   .stage-card.is-photo > .stage-card__bar {
     row-gap: 6px;
+  }
+
+  .stage-card__bar {
+    row-gap: 6px;
+  }
+
+  /* «Как показывать» — своей строкой во всю ширину: подписи целиком. */
+  .view-toggles {
+    flex: 1 1 auto;
+  }
+
+  .bar-toggle {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Качество — без пикселей: они в подсказке, а строка — вместе с кнопкой. */
+  .render-size__px {
+    display: none;
+  }
+
+  .scene-cards {
+    grid-auto-columns: 80px;
   }
 
   .photo-bar {
@@ -1989,6 +2145,7 @@
 }
 
 .render-size .segmented__item {
+  gap: 0.3em;
   justify-content: center;
   padding: 0 6px;
   font-size: 12.5px;
@@ -2017,5 +2174,184 @@
   .site-header .account__login {
     width: auto;
     padding: 0 14px;
+  }
+}
+
+/* ── «Как пользоваться» — инструкция с подсветкой (js/ui/tour.js) ────────
+   Как на colorcups.ru: экран вокруг размыт, но не затемнён — цвета макета
+   на стакане остаются собой; элемент шага — в вырезе и обведён. */
+.tour-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 14%, transparent);
+  backdrop-filter: blur(6px) saturate(96%);
+  animation: fade-in 0.28s var(--ease) both;
+  transition: clip-path 0.26s var(--ease);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tour-veil {
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: none;
+  }
+}
+
+.tour-ring {
+  position: fixed;
+  z-index: 999;
+  pointer-events: none;
+  border-radius: 16px;
+  box-shadow: 0 0 0 2px var(--action), 0 0 0 8px color-mix(in srgb, var(--action) 18%, transparent);
+  transition: top 0.26s var(--ease), left 0.26s var(--ease), width 0.26s var(--ease), height 0.26s var(--ease);
+}
+
+.tour-ring[hidden] {
+  display: none;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 1000;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 16px 16px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border-radius: 18px;
+  outline: none;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  animation: tour-in 0.22s var(--ease) both;
+  transition: top 0.26s var(--ease), left 0.26s var(--ease);
+}
+
+.tour-card.is-welcome {
+  width: 380px;
+}
+
+.tour-card:focus-visible {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 2px var(--focus);
+}
+
+.tour-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tour-card__close {
+  width: 30px;
+  height: 30px;
+  margin-right: -6px;
+}
+
+.tour-card__title {
+  margin: 4px 0 6px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tour-card__body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Путь по шагам — номерами в кружках. */
+.tour-card__list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  list-style: none;
+  counter-reset: tour;
+}
+
+.tour-card__list li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  counter-increment: tour;
+}
+
+.tour-card__list li::before {
+  content: counter(tour);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--action);
+  background: var(--brand-soft);
+  border-radius: 50%;
+}
+
+.tour-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tour-card__back[hidden],
+.tour-card__skip[hidden] {
+  display: none;
+}
+
+.tour-card__skip {
+  min-height: 36px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+@media (hover: hover) {
+  .tour-card__skip:hover {
+    color: var(--ink);
+  }
+}
+
+.tour-card__next {
+  margin-left: auto;
+}
+
+.tour-icon--back {
+  transform: rotate(90deg);
+}
+
+/* Телефон: карточка — во всю ширину у края экрана, где нет элемента шага. */
+@media (max-width: 600px) {
+  .tour-card,
+  .tour-card.is-welcome {
+    width: auto;
+    right: 16px;
+  }
+}
+
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-veil,
+  .tour-ring,
+  .tour-card {
+    animation: none;
+    transition: none;
   }
 }
