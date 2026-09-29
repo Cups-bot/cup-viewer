@@ -8,7 +8,15 @@ Timeweb — этап Ж.
 
 ## Запуск
 
-Один раз — окружение (библиотеки из `requirements.txt`):
+Всё сразу — двойной щелчок по `start-local.bat` в корне репозитория: при первом
+запуске ставит библиотеки, собирает сайт, поднимает сервер и исполнитель рендера
+(черновик) — каждое в своём окне — и открывает http://127.0.0.1:8000. Что уже
+работает, не дублирует. `start-local.bat stop` — остановить всё,
+`start-local.bat noworker` — без рендера, `start-local.bat dev` — ещё и сборка в
+режиме наблюдения (правка кода; перед коммитом — `npm run build`). Полное
+качество на ноутбуке: `set CV_WORKER_PROFILE=laptop` перед запуском.
+
+Вручную. Один раз — окружение (библиотеки из `requirements.txt`):
 
 ```bat
 python -m venv server\.venv
@@ -27,9 +35,9 @@ server\.venv\Scripts\python server\run.py
 server\.venv\Scripts\python server\worker.py
 ```
 
-Локально исполнитель считает черновики (профиль `draft`: 48–64 сэмпла,
-800–1000 px) при любом выбранном размере — ноутбук не тянет полное качество.
-На сервере с видеокартой: `set CV_WORKER_PROFILE=full`.
+Профиль исполнителя — `CV_WORKER_PROFILE`: `laptop` (по умолчанию в
+`worker.py`: 256 сэмплов, полный размер), `draft` (48–64 сэмпла, 800–1000 px —
+его ставит `start-local.bat`), `cloud` — GPU-сервер.
 
 Вход — страница `login.html`: почта и пароль. Письма пока не уходят: код
 сброса пароля («Забыли пароль?») печатается в консоли сервера:
@@ -58,7 +66,7 @@ server\.venv\Scripts\python server\worker.py
 | `CV_DATA` | `server/data` | база и файлы |
 | `CV_ADMINS` | danilkakhudia@gmail.com | почты администраторов через запятую |
 | `CV_SERVER` | http://127.0.0.1:8000/ | куда ходит исполнитель |
-| `CV_WORKER_PROFILE` | draft | `draft` или `full` |
+| `CV_WORKER_PROFILE` | laptop | `draft`, `laptop` или `cloud` |
 | `CV_BLENDER`, `CV_THREADS` | Blender 5.2, 4 | Blender исполнителя |
 
 Цены кадров, пакеты, сроки хранения — `app/config.py` (`PRICES`, `PACKS`, `RETENTION_DAYS`).

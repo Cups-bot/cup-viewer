@@ -1,6 +1,8 @@
 # Окончания строк — LF во всём репозитории и в рабочей копии: исходники
 # правят на Windows и на Unix, а сборка и diff не должны видеть лишних \r.
 * text=auto eol=lf
+# cmd.exe с LF путает метки и goto — у .bat окончания CRLF.
+*.bat text eol=crlf
 *.png binary
 *.jpg binary
 *.webp binary
