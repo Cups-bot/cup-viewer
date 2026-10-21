@@ -10,6 +10,7 @@ import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
 import { initPhotoPanel } from './photoPanel.js';
+import { initFinishPanel } from './finishPanel.js';
 import { initAccount } from '../account/account.js';
 import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
 import { PRINT_LABELS, asPrinted, printModesOf, zoneMmOf } from '../catalog/printModes.js';
@@ -67,6 +68,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initMaterialSwitch({ state, catalog, actions });
   const sheet = initRailSheet();
   upload = initUpload({ state, mode, catalog, viewer, feedback, sheet });
+  initFinishPanel({ state, mode, catalog, feedback });
   initEmptyState({ state, picker });
   initPageHead({ state, catalog });
   initProofToggle({ state, catalog });
@@ -551,6 +553,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     if (next) saveDesignSource(next, key);
     else clearDesignSource(key);
   };
+  const onMetal = () => catalog.material(state.get().materialId)?.printBlend === 'metal';
   const DONE = { user: 'Макет на модели', switch: 'Макет перенесён на этот стакан', restore: 'Макет с прошлого раза' };
 
   const composePet = async (model, parts) => {
@@ -719,6 +722,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     try {
       prepared = await prepareDesign(file, model, {
         signal,
+        transparent: onMetal(),
         onStage: (stage) => stage === 'pdf' && feedback.onLoading('Растрируем PDF…'),
       });
     } catch (error) {
@@ -814,6 +818,15 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     kept.sheet = null;
     kept.rect = null;
     if (sources[which()] && !s.design) carry('switch');
+  });
+
+  // Сменили картон на металлизированный или обратно — PDF растрируется заново:
+  // на металле прозрачное остаётся прозрачным.
+  let metalKey = onMetal();
+  state.subscribe(['materialId'], (s) => {
+    if (onMetal() === metalKey) return;
+    metalKey = onMetal();
+    if (sources[which()] && s.design) carry('restore');
   });
 
   // Убрать сторону PET: лист пересобирается из оставшейся; без сторон — нет макета.

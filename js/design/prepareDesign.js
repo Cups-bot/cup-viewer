@@ -54,7 +54,9 @@ async function downscaleImage(file, type, [width, height]) {
 // model — запись каталога: от её развёртки считается масштаб растра PDF.
 // Возвращает { textureUrl, unwrapUrl, width, height, pages, type, layers, dpi, release() }.
 // release() освобождает blob-URL — вызывать, когда макет сменился.
-export async function prepareDesign(file, model, { signal, onStage } = {}) {
+// transparent — PDF с прозрачностью и на бумаге: у металлизированного картона
+// прозрачное в макете — голый металл.
+export async function prepareDesign(file, model, { signal, onStage, transparent = false } = {}) {
   if (file.size > MAX_FILE_BYTES) throw new DesignError('too-big');
 
   const head = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
@@ -81,7 +83,7 @@ export async function prepareDesign(file, model, { signal, onStage } = {}) {
         fit: (w, h) => fitWithin(w, h, UNWRAP_LIMITS),
         signal,
         // Бумага под рисунком белая сама; у пластика вне рисунка — пластик.
-        transparent: model.type !== 'paper',
+        transparent: transparent || model.type !== 'paper',
       });
       try {
         throwIfAborted(signal);
