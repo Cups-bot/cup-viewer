@@ -19,10 +19,11 @@ const cubeOf = (key) => {
   return { side: manifest.side, data };
 };
 
-test('профиль картона: мелованный, немелованный, Soft Touch — есть; крафт и пластик — нет', () => {
+test('профиль картона: мелованный, немелованный, Soft Touch — есть; крафт, металлизированные и пластик — нет', () => {
   const keys = Object.fromEntries(catalog.materials.map((m) => [m.id, m.proof ?? null]));
   assert.deepEqual(keys, {
-    coated: 'coated', uncoated: 'uncoated', 'soft-touch': 'varnish', kraft: null, 'pp-frosted': null, 'pet-clear': null,
+    coated: 'coated', uncoated: 'uncoated', 'soft-touch': 'varnish', kraft: null,
+    'metal-silver': null, 'metal-pearl': null, 'metal-holo': null, 'pp-frosted': null, 'pet-clear': null,
   });
   for (const key of Object.values(keys).filter(Boolean)) {
     const cube = cubeOf(key);
