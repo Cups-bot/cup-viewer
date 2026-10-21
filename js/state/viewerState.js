@@ -24,6 +24,9 @@ export const STATE_KEYS = Object.freeze([
   // Макет второго стакана «Фотореала» (CupViewer v2): того же вида, что design.
   // null — у пары макет главного, у другого стакана — чистый лист.
   'design2',
+  // Отделки (js/catalog/finishes.js): { emboss, foil, ink } — маски полного листа
+  // и параметры; null — без отделок.
+  'finish',
   'tab',
   'autoRotate',
   'view',
@@ -48,6 +51,7 @@ const DEFAULTS = Object.freeze({
   sceneId: null,
   design: null,
   design2: null,
+  finish: null,
   tab: '3d',
   autoRotate: true,
   view: null,

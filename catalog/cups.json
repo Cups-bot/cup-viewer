@@ -30,7 +30,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -87,7 +90,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -144,7 +150,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -201,7 +210,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -258,7 +270,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -315,7 +330,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -372,7 +390,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -430,7 +451,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -487,7 +511,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -544,7 +571,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -601,7 +631,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -658,7 +691,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -779,7 +815,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -838,7 +877,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -896,7 +938,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -967,7 +1012,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",
@@ -1359,7 +1407,10 @@
         "coated",
         "uncoated",
         "soft-touch",
-        "kraft"
+        "kraft",
+        "metal-silver",
+        "metal-pearl",
+        "metal-holo"
       ],
       "defaultMaterial": "uncoated",
       "printType": "offset",

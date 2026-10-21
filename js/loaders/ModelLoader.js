@@ -3,11 +3,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { disposeObject, measure, frameObject } from '../utils/helpers.js';
 import { applyPaperSurface } from '../core/paperSurface.js';
-import { installPrintShading, setPrintWithoutWhite } from '../core/printShading.js';
+import { installPrintShading, setBoardMetal, setFinish, setPrintWithoutWhite } from '../core/printShading.js';
 
 // Параметры, ради которых картону нужен MeshPhysicalMaterial (в файле он
 // MeshStandardMaterial): бархат soft-touch, лак, коэффициент преломления.
-const PHYSICAL_PARAMS = ['sheen', 'clearcoat', 'ior', 'specularIntensity'];
+const PHYSICAL_PARAMS = ['sheen', 'clearcoat', 'ior', 'specularIntensity', 'iridescence'];
 
 // Правила печати для модели без записи каталога: макет ложится на материалы,
 // у которых в файле уже есть карта цвета.
@@ -145,6 +145,8 @@ export class ModelLoader {
 
     this.cup = cup;
     this.print = cup?.textureMapping ?? DEFAULT_PRINT;
+    // Отделки лежат на развёртке прежнего стакана — новому их кладёт Viewer.setFinish.
+    this.finish = null;
     model.traverse((node) => {
       if (node.isMesh) repairInvertedNormals(node.geometry);
     });
@@ -172,8 +174,12 @@ export class ModelLoader {
 
     // Картон глухой: лист для него кладётся без прозрачности.
     this.wallOpacity = 1;
-    this.#usePhysical(PHYSICAL_PARAMS.some((key) => finish[key] != null));
+    // Перламутровой фольге нужен перелив — он есть только у физического материала.
+    this.#usePhysical(PHYSICAL_PARAMS.some((key) => finish[key] != null) || Boolean(this.finish?.physical));
     const withoutWhite = material.printBlend === 'multiply';
+    // Металлизированный картон: цвет даёт металл и макет, а не картон из файла.
+    const metal = material.printBlend === 'metal' ? material.metal ?? 'silver' : null;
+    const tone = metal ? new THREE.Color(finish.boardTone ?? '#dcdfe3') : null;
 
     let updated = 0;
     for (const material of this.printMaterials) {
@@ -189,9 +195,12 @@ export class ModelLoader {
       }
       // Цвет картона: у крафта свой, у остальных — тот, что в файле модели.
       const base = material.userData.base;
-      if (finish.boardColor) material.color.set(finish.boardColor);
+      if (metal) material.color.set('#ffffff');
+      else if (finish.boardColor) material.color.set(finish.boardColor);
       else if (base) material.color.copy(base.color);
       setPrintWithoutWhite(material, withoutWhite);
+      setBoardMetal(material, metal, tone);
+      this.#applyFinishTo(material);
       if (material.isMeshPhysicalMaterial) this.#applyPhysicalParams(material, finish);
       material.needsUpdate = true;
       updated++;
@@ -213,6 +222,25 @@ export class ModelLoader {
     material.clearcoatRoughness = finish.clearcoatRoughness ?? 0;
     material.ior = finish.ior ?? base.ior ?? 1.5;
     material.specularIntensity = finish.specularIntensity ?? base.specularIntensity ?? 1;
+    // Перелив: у перламутра и голографии — свой; у перламутровой фольги —
+    // включается здесь, а шейдер оставляет его только на фольге.
+    const foilIridescence = this.finish?.physical ? 1 : 0;
+    material.iridescence = finish.iridescence ?? foilIridescence;
+    material.iridescenceIOR = finish.iridescenceIOR ?? 1.6;
+    material.iridescenceThicknessRange = finish.iridescenceThicknessRange ?? [320, 480];
+  }
+
+  // Отделки (конгрев, фольга, металлик-краска): текстура core/finishMap.js и
+  // её параметры. null — без отделок. Перекладывает материал: перламутровой
+  // фольге нужен физический материал.
+  setFinish(finish) {
+    this.finish = finish?.map ? finish : null;
+    if (this.material?.kind === 'paper') this.applyMaterial(this.material);
+  }
+
+  #applyFinishTo(material) {
+    const finish = this.finish;
+    setFinish(material, finish?.map ?? null, finish ?? {});
   }
 
   // Картону из файла нужен физический материал только на время soft-touch и

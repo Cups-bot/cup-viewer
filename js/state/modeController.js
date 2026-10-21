@@ -32,6 +32,7 @@ const GUARDED_KEYS = Object.freeze({
   materialId: 'changeMaterial',
   design: 'uploadDesign',
   design2: 'uploadDesign',
+  finish: 'uploadDesign',
   photo: 'arrangeScene',
 });
 

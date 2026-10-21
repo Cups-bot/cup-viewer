@@ -37,6 +37,8 @@ import { MESSAGES } from './ui/messages.js';
 import { createZip } from './utils/zip.js';
 import { ModelLoader } from './loaders/ModelLoader.js';
 import { TextureManager } from './loaders/TextureManager.js';
+import { buildFinishMap, EMBOSS_DEPTH_MM } from './core/finishMap.js';
+import { foilOf, inkOf } from './catalog/finishes.js';
 
 // Максимальный шаг кадра, который учитывает анимация (сек).
 const MAX_FRAME_DELTA = 0.1;
@@ -1279,6 +1281,57 @@ export class Viewer {
   }
 
   // Подбор силы затенения полости вживую (отладочный API).
+  // Отделки бумажного стакана (§ отделки, js/catalog/finishes.js):
+  //   { emboss: { url, depth }, foil: { url, color }, ink: { url, color } } — любое
+  // поле может отсутствовать; null — без отделок. Маски — растры полного листа
+  // развёртки. Пока считается текстура, на экране остаётся прежнее; если за
+  // это время отделки сменили, старый результат выбрасывается.
+  async setFinish(spec) {
+    const seq = (this.finishSeq = (this.finishSeq ?? 0) + 1);
+    const cup = this.modelLoader.cup;
+    const model = this.modelLoader.currentModel;
+    const masks = { emboss: spec?.emboss?.url ?? null, foil: spec?.foil?.url ?? null, ink: spec?.ink?.url ?? null };
+    let map = null;
+    if (cup?.type === 'paper' && model && (masks.emboss || masks.foil || masks.ink)) {
+      map = await this.hold(
+        buildFinishMap({
+          masks,
+          sheetMm: cup.textureMapping.unwrapMm,
+          embossDepthMm: spec?.emboss?.depth ?? EMBOSS_DEPTH_MM,
+        }).catch((error) => {
+          console.warn('Отделки не легли:', error);
+          this.#toast(MESSAGES.designFailed, 'error');
+          return null;
+        }),
+      );
+    }
+    if (seq !== this.finishSeq || cup !== this.modelLoader.cup) {
+      map?.dispose();
+      return;
+    }
+    this.finishMapTexture?.dispose();
+    this.finishMapTexture = map;
+    if (map) map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    // Высота в текстуре — ±1 мм; в шейдер — в единицах сцены.
+    const box = new THREE.Box3().setFromObject(model);
+    const unitsPerMm = (box.max.y - box.min.y) / (cup.size?.heightMm || 100);
+    const foil = foilOf(spec?.foil?.color ?? 'gold');
+    const ink = inkOf(spec?.ink?.color ?? 'silver');
+    this.modelLoader.setFinish(
+      map
+        ? {
+            map,
+            foilColor: new THREE.Color(foil.color),
+            inkColor: new THREE.Color(ink.color),
+            reliefScale: 2 * unitsPerMm,
+            foilIridescence: foil.iridescence ? 1 : 0,
+            physical: Boolean(foil.iridescence && masks.foil),
+          }
+        : null,
+    );
+    this.invalidateModel();
+  }
+
   setCavityStrength(value) {
     setCavityStrength(value);
     this.invalidate();

@@ -88,6 +88,18 @@ export function bindEngine({ state, viewer, catalog, unwrap, onSceneFailed }) {
   };
   state.subscribe(['modelId', 'materialId', 'design', 'printMode', 'proof'], present);
 
+  // Отделки — после того как стакан встал: текстура отделок считается по его
+  // развёртке и масштабу. Новая модель приходит без отделок (ModelLoader).
+  let finishKey = null;
+  const syncFinish = async (s) => {
+    await lastPresent;
+    const key = `${viewer.modelLoader.cup?.id ?? ''}|${JSON.stringify(s.finish)}`;
+    if (key === finishKey) return;
+    finishKey = key;
+    await viewer.setFinish(s.finish);
+  };
+  state.subscribe(['modelId', 'finish'], syncFinish);
+
   state.subscribe(['backgroundId'], (s) => {
     const background = catalog.background(s.backgroundId);
     if (background) viewer.setBackground(background);
