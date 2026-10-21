@@ -410,6 +410,8 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
         printed.update(info)
         if decorated:
             printed["finish"] = decorated
+        # Металл в кадре — фотобоксу нужны отражения для него (decor.reflection_set).
+        printed["metal"] = bool(metal) or any(k in (cfg.get("_finish") or {}) for k in ("foil", "ink"))
         if relief:
             printed["emboss"] = relief
         return printed

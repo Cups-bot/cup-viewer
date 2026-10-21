@@ -1,5 +1,5 @@
 // Текстура отделок для шейдера печати (core/printShading.js): маски клиента
-// (чёрное — где отделка, как лист конгрева у Формации) → одна RGBA-текстура
+// (рисунок на прозрачном фоне или чёрное на белом, как лист конгрева у Формации) → одна RGBA-текстура
 // в координатах листа макета.
 //
 //   R — фольга, G — металлизированная краска,
@@ -27,7 +27,11 @@ async function loadBitmap(url) {
   return createImageBitmap(blob);
 }
 
-// Покрытие маски 0…1: чёрное — 1, белое и прозрачное — 0.
+// Покрытие маски 0…1. Отделка — то, что отличается от основного тона маски:
+// серое или чёрное на белом (белая дуга развёртки с рисунком — так присылает
+// владелец, 2026-10-22), светлое на тёмном. Маска одного тона на прозрачном
+// фоне — отделка по силуэту. Прозрачное — без отделки.
+const TONE_BINS = 64;
 async function coverage(url, width, height) {
   if (!url) return null;
   const bitmap = await loadBitmap(url);
@@ -39,12 +43,27 @@ async function coverage(url, width, height) {
   bitmap.close?.();
   const { data } = ctx.getImageData(0, 0, width, height);
   canvas.width = 0;
-  const out = new Float32Array(width * height);
-  for (let i = 0, p = 0; i < out.length; i++, p += 4) {
-    const lum = (0.2126 * data[p] + 0.7152 * data[p + 1] + 0.0722 * data[p + 2]) / 255;
-    const alpha = data[p + 3] / 255;
+  const n = width * height;
+  const lum = new Float32Array(n);
+  const hist = new Float64Array(TONE_BINS);
+  let opaque = 0;
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    lum[i] = (0.2126 * data[p] + 0.7152 * data[p + 1] + 0.0722 * data[p + 2]) / 255;
+    const a = data[p + 3] / 255;
+    hist[Math.min(TONE_BINS - 1, Math.floor(lum[i] * TONE_BINS))] += a;
+    opaque += a;
+  }
+  const out = new Float32Array(n);
+  if (opaque < 1) return out;
+  // Основной тон — самый частый среди непрозрачного.
+  const bg = (hist.indexOf(Math.max(...hist)) + 0.5) / TONE_BINS;
+  let distinct = 0;
+  for (let i = 0, p = 3; i < n; i++, p += 4) if (data[p] >= 128 && Math.abs(lum[i] - bg) > 0.25) distinct++;
+  const silhouette = distinct < opaque * 0.0005;
+  for (let i = 0, p = 3; i < n; i++, p += 4) {
+    const a = data[p] / 255;
     // Мягкий порог: сглаженный край маски остаётся сглаженным.
-    out[i] = alpha * Math.min(1, Math.max(0, (0.85 - lum) / 0.7));
+    out[i] = silhouette ? a : a * Math.min(1, Math.max(0, (Math.abs(lum[i] - bg) - 0.05) / 0.25));
   }
   return out;
 }

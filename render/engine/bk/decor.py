@@ -2,7 +2,8 @@
 js/core/finishMap.js): металлизированный картон, тиснение фольгой,
 металлизированная краска и конгрев.
 
-Маски — файлы клиента той же развёртки, что макет: чёрное — где отделка
+Маски — файлы клиента той же развёртки, что макет: рисунок на прозрачном
+фоне или чёрное на белом — где отделка
 (прозрачное — без отделки). Лист растягивается на развёртку, как на сайте.
 
   конгрев — выдавлен вверх на свою высоту, фаска 0,4 мм;
@@ -53,7 +54,10 @@ def linear(hexstr: str):
 # ---------------------------------------------------------------------------
 
 def coverage(path: str, size) -> np.ndarray:
-    """Покрытие маски 0…1 (снизу вверх): чёрное — 1, белое и прозрачное — 0."""
+    """Покрытие маски 0…1 (снизу вверх), как на сайте (core/finishMap.js):
+    отделка — то, что отличается от основного тона маски (серое или чёрное на
+    белом, светлое на тёмном); маска одного тона на прозрачном фоне — по
+    силуэту. Прозрачное — без отделки."""
     if not os.path.isfile(path):
         raise DecorError(f"{path}: маска отделки не найдена")
     im = bpy.data.images.load(path, check_existing=False)
@@ -67,8 +71,16 @@ def coverage(path: str, size) -> np.ndarray:
     finally:
         bpy.data.images.remove(im)
     px = px.reshape(h, w, 4)
+    alpha = px[..., 3]
     lum = 0.2126 * px[..., 0] + 0.7152 * px[..., 1] + 0.0722 * px[..., 2]
-    return px[..., 3] * np.clip((0.85 - lum) / 0.7, 0.0, 1.0)
+    if alpha.sum() < 1:
+        return np.zeros_like(alpha)
+    hist, _ = np.histogram(np.clip(lum, 0, 1), bins=64, range=(0, 1), weights=alpha)
+    bg = (hist.argmax() + 0.5) / 64
+    diff = np.abs(lum - bg)
+    if ((alpha >= 0.5) & (diff > 0.25)).sum() < alpha.sum() * 0.0005:
+        return alpha.copy()
+    return alpha * np.clip((diff - 0.05) / 0.25, 0.0, 1.0)
 
 
 def _blur(a: np.ndarray, radius_px: float) -> np.ndarray:
@@ -303,3 +315,77 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
                 surface = _layer(nt, surface, sep.outputs[0], sheen.outputs["BSDF"])
             nt.links.new(surface, out.inputs["Surface"])
     return {k: {"share": round(float(c.mean()), 3)} for k, c in cov.items()}
+
+
+# ---------------------------------------------------------------------------
+# студия для металла
+# ---------------------------------------------------------------------------
+
+# Отражения металла. Белый мир фотобокса за камерой зеркальная фольга отражала
+# как белую бумагу — металл пропадал. Металл в студии снимают с чёрными флагами
+# и узкими софтбоксами: блеск — это их отражения. Кольцо вокруг стакана видно
+# только отражениям (не камере, не свету): фон кадра и освещение прежние.
+# (угол от направления на камеру, градусы; яркость 0…1) — симметрично.
+REFLECTION_STRIPS = ((0, 0.03), (12, 0.02), (19, 1.0), (27, 1.0), (34, 0.01), (62, 0.01), (70, 0.7), (78, 0.7), (86, 0.01), (180, 0.0))
+REFLECTION_STRENGTH = 5.0
+
+
+def is_metallic(printed: Optional[dict]) -> bool:
+    return bool(printed and printed.get("metal"))
+
+
+def reflection_set(height: float, camera, coll, prefix: str = "BK_"):
+    """Кольцо отражений вокруг стакана (начало координат), лицом к камере."""
+    import math
+    segments = 128
+    radius = 8.0 * height
+    lo, hi = -2.0 * height, 10.0 * height
+    verts, faces = [], []
+    for i in range(segments):
+        a = 2 * math.pi * i / segments
+        x, y = radius * math.sin(a), -radius * math.cos(a)
+        verts += [(x, y, lo), (x, y, hi)]
+        j = (i + 1) % segments
+        faces.append((2 * i, 2 * j, 2 * j + 1, 2 * i + 1))
+    mesh = bpy.data.meshes.new(prefix + "Metal_Reflections")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    mat = bpy.data.materials.new(prefix + "Metal_Reflections")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Strength"].default_value = REFLECTION_STRENGTH
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Object"], sep.inputs["Vector"])
+    # Угол от направления на камеру (−Y кольца): atan2(x, −y) → 0…1, 0,5 — камера.
+    angle = _math(nt, "ARCTAN2", sep.outputs["X"], _math(nt, "MULTIPLY", sep.outputs["Y"], -1.0))
+    t = _math(nt, "MULTIPLY_ADD", angle, 1.0 / (2 * math.pi))
+    t.node.inputs[2].default_value = 0.5
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    els = ramp.color_ramp.elements
+    stops = sorted({(0.5 + s * deg / 360.0, v) for deg, v in REFLECTION_STRIPS for s in (-1, 1)})
+    while len(els) < len(stops):
+        els.new(0.0)
+    for el, (pos, v) in zip(els, stops):
+        el.position = pos
+        el.color = (v, v, v, 1.0)
+    nt.links.new(t, ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], emit.inputs["Color"])
+    nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+    # Не источник света: прямым светом его не выбирать — только отражения.
+    mat.cycles.emission_sampling = "NONE"
+    mesh.materials.append(mat)
+    obj = bpy.data.objects.new(prefix + "Metal_Reflections", mesh)
+    coll.objects.link(obj)
+    obj.visible_camera = False
+    obj.visible_diffuse = False
+    obj.visible_shadow = False
+    obj.visible_transmission = False
+    obj.visible_volume_scatter = False
+    obj.visible_glossy = True
+    cam = camera.matrix_world.translation
+    obj.rotation_euler.z = math.atan2(cam.x, -cam.y)
+    return obj

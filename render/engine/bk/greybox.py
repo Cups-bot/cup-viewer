@@ -160,6 +160,9 @@ def build(cfg: dict, shot_name: str, samples: Optional[int] = None,
     if key not in made:
         raise place.ConfigError(f"{shot_name}: камеры {key!r} нет, есть {', '.join(made)}")
     scene.camera = made[key]
+    from bk import decor
+    if any(decor.is_metallic(c["printed"]) for c in cups):
+        decor.reflection_set(href, scene.camera, stage, PREFIX)
 
     side = int(shot.get("resolution", 1600))
     scene.render.resolution_x = scene.render.resolution_y = side
