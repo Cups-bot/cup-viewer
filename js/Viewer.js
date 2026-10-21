@@ -1430,6 +1430,18 @@ export class Viewer {
     return ((degrees % 360) + 360) % 360;
   }
 
+  // Поза для рендера на сером фотофоне: как стакан повёрнут к камере (0 —
+  // лицевой стороной, как у рендера) и под каким углом сверху смотрит камера.
+  studioPose() {
+    const model = this.modelLoader.currentModel;
+    const face = this.#faceAngle(model);
+    if (face === null) return null;
+    const rotate = (((this.getModelRotation() - face) % 360) + 360) % 360;
+    const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+    const elevation = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)));
+    return { rotate: Math.round(rotate * 10) / 10, elevation };
+  }
+
   // Возвращает камеру в исходный кадр (двойной клик по сцене, кнопка Reset).
   resetView() {
     // В фото-сцене исходный вид один — съёмочная точка. Студийное

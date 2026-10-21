@@ -2,9 +2,9 @@
 chcp 65001 >nul
 setlocal
 rem ─────────────────────────────────────────────────────────────────────────
-rem  CupViewer локально — всё одним запуском, каждое в своём окне:
-rem    сервер: сайт, вход, кабинет, админка, API   http://127.0.0.1:8000
-rem    исполнитель рендера: Blender, по умолчанию черновик — ноутбук не греется
+rem  CupViewer (лёгкая версия) локально — всё одним запуском, каждое в своём окне:
+rem    сервер: сайт и рендер без входа и токенов   http://127.0.0.1:8000
+rem    исполнитель рендера: Blender, кадр 2000 px на сером фотофоне
 rem
 rem    start-local.bat            собрать сайт и запустить (что уже работает — не дублирует)
 rem    start-local.bat stop       остановить всё запущенное этим файлом
@@ -13,8 +13,8 @@ rem    start-local.bat dev        и сборка в режиме наблюде
 rem                               сразу в dist (отладочная сборка — перед
 rem                               коммитом npm run build)
 rem
-rem  Полное качество рендера на ноутбуке (Standard ~5-6 мин на кадр):
-rem    set CV_WORKER_PROFILE=laptop  и затем start-local.bat
+rem  Кадр по умолчанию — полное качество (~5-6 мин на ноутбуке). Быстрый черновик:
+rem    set CV_WORKER_PROFILE=draft  и затем start-local.bat
 rem ─────────────────────────────────────────────────────────────────────────
 cd /d "%~dp0"
 
@@ -28,14 +28,14 @@ if /i "%~1"=="stop" goto stop
 
 set "PY=server\.venv\Scripts\python.exe"
 if "%CV_PORT%"=="" set "CV_PORT=8000"
-if "%CV_WORKER_PROFILE%"=="" set "CV_WORKER_PROFILE=draft"
+if "%CV_WORKER_PROFILE%"=="" set "CV_WORKER_PROFILE=laptop"
 if "%CV_BLENDER%"=="" set "CV_BLENDER=C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
 set "URL=http://127.0.0.1:%CV_PORT%/"
 rem Исполнитель ходит на этот же сервер.
 if "%CV_SERVER%"=="" set "CV_SERVER=%URL%"
 
 echo.
-echo  CupViewer — локальный запуск
+echo  CupViewer — лёгкая версия, локальный запуск
 echo  ────────────────────────────
 
 where node >nul 2>nul || (echo  [!] Нет Node.js — поставьте с nodejs.org и запустите снова. & goto fail)
@@ -68,7 +68,7 @@ if errorlevel 1 (
 rem Ждём ответа сервера (до 40 с): исполнителю нужен его ключ.
 set /a N=0
 :wait
-curl -s -o nul "%URL%login.html" && goto up
+curl -s -o nul "%URL%index.html" && goto up
 set /a N+=1
 if %N% geq 40 (echo  [!] Сервер не ответил за 40 с — смотрите окно «CupViewer server». & goto fail)
 ping -n 2 127.0.0.1 >nul
@@ -101,8 +101,7 @@ if errorlevel 1 (
 :open
 echo.
 echo  Готово: %URL%
-echo    вход — почта и пароль; код «Забыли пароль?» — в окне «CupViewer server»
-echo    админка — %URL%admin.html
+echo    кнопка «Рендер» — кадр считает Blender в окне «CupViewer worker»
 echo    остановить всё — start-local.bat stop
 echo.
 if not defined CV_NO_OPEN start "" "%URL%"

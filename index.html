@@ -9,7 +9,7 @@
     <script src="js/ui/themeBoot.js?v=404de260"></script>
     <link rel="stylesheet" href="css/app.css?v=f34d1730" />
     <link rel="stylesheet" href="css/viewer.css?v=a9df7b93" />
-    <link rel="stylesheet" href="css/design.css?v=a2dec2fb" />
+    <link rel="stylesheet" href="css/design.css?v=1760a866" />
   </head>
   <body>
     <div class="app">
@@ -28,8 +28,6 @@
         </div>
 
         <div class="site-header__actions">
-          <!-- Кабинет (js/account/account.js): «Войти» или баланс с меню. Без сервера — скрыт. -->
-          <div class="account" id="account" hidden data-tour="account"></div>
           <div class="theme-toggle" role="group" aria-label="Тема">
             <button class="theme-toggle__btn" type="button" data-theme-set="light" aria-label="Светлая тема" aria-pressed="false">
               <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#sun" /></svg>
@@ -66,35 +64,10 @@
           </span>
           <svg class="cup-current__chevron" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
         </button>
-        <!-- «Фотореал»: второй стакан в кадре (js/design/photoPanel.js). -->
-        <div class="second-cup" id="second-cup" hidden data-tour="second">
-          <div class="second-cup__card" id="second-card" hidden>
-            <button class="cup-current second-cup__btn" id="second-btn" type="button" aria-haspopup="dialog">
-              <span class="cup-current__art" id="second-art" aria-hidden="true"></span>
-              <span class="cup-current__text">
-                <span class="cup-current__name" id="second-name"></span>
-                <span class="cup-current__meta" id="second-meta"></span>
-              </span>
-            </button>
-            <button class="icon-btn second-cup__remove" id="second-remove" type="button" aria-label="Убрать второй стакан" data-tip="Убрать" data-tip-side="left">
-              <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
-            </button>
-          </div>
-          <button class="second-cup__add" id="second-add" type="button" aria-haspopup="dialog" aria-describedby="second-note">
-            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#plus" /></svg>
-            <span>Второй стакан</span>
-          </button>
-          <p class="second-cup__note" id="second-note" hidden>В этой сцене — один стакан</p>
-        </div>
         </section>
 
         <section class="rail__section" data-section="art" aria-label="Макет" data-tour="art">
         <p class="rail__label">Макет</p>
-        <!-- «Фотореал» с двумя стаканами: чей макет грузим (js/design/designShell.js initUpload). -->
-        <div class="segmented art-target" id="art-target" role="radiogroup" aria-label="Макет для стакана" hidden>
-          <button class="segmented__item" type="button" role="radio" data-cup="hero">Стакан 1</button>
-          <button class="segmented__item" type="button" role="radio" data-cup="second">Стакан 2</button>
-        </div>
         <!-- Вид печати пластика (js/catalog/printModes.js): BM — выбор, PET — подпись. -->
         <div class="segmented print-mode" id="print-mode" role="radiogroup" aria-label="Вид печати" hidden>
           <button class="segmented__item" type="button" role="radio" data-mode="silk" aria-checked="true">Шелкотрафарет</button>
@@ -150,7 +123,7 @@
         </section>
 
         <!-- Отделка бумаги (js/design/finishPanel.js): маски той же развёртки, что макет. -->
-        <section class="rail__section finish" id="finish" data-section="finish" aria-label="Отделка" hidden>
+        <section class="rail__section finish" id="finish" data-section="finish" aria-label="Отделка" data-tour="finish" hidden>
         <p class="rail__label">Отделка</p>
         <p class="finish__note">Маска — файл той же развёртки, что макет: чёрное — где отделка</p>
         <div class="finish__rows" id="finish-rows"></div>
@@ -160,7 +133,12 @@
         <section class="rail__section rail__section--result" data-section="result" aria-label="Результат">
         <p class="rail__label">Результат</p>
         <div class="rail__result">
-          <button class="btn btn--accent btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled data-tour="export">
+          <!-- Рендер в Blender на сером фотофоне (js/design/renderPanel.js, сервер server/). -->
+          <button class="btn btn--accent btn--block" id="render-btn" type="button" aria-haspopup="dialog" disabled data-tour="render">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#camera" /></svg>
+            <span>Рендер</span>
+          </button>
+          <button class="btn btn--block" id="export-btn" type="button" aria-haspopup="dialog" disabled data-tour="export">
             <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
             <span>Скачать фото или видео</span>
           </button>
@@ -181,7 +159,6 @@
             <nav class="tabs" role="tablist" aria-label="Режим просмотра" data-tour="tabs">
               <button class="stage-tab is-active" type="button" role="tab" aria-selected="true" data-tab="3d">3D</button>
               <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="unwrap">Развёртка</button>
-              <button class="stage-tab" type="button" role="tab" aria-selected="false" data-tab="scene">Фотореал</button>
             </nav>
             <!-- Как показывать: подписанные тумблеры одной группой. «Имитация
                  картона» — цвет, как напечатается на выбранном картоне (профиль,
@@ -199,22 +176,6 @@
             </div>
             <div class="stage-swatches">
               <div class="swatches" id="bg-swatches" role="group" aria-label="Фон"></div>
-            </div>
-            <!-- «Фотореал»: ракурс и формат кадра. Ракурс — стрелками и точками,
-                 без подписей: «Сверху, 25°» людей пугает, а что меняется — видно
-                 по кадру. -->
-            <div class="photo-bar" id="photo-bar" hidden data-tour="photo-bar">
-              <div class="angle-switch" role="group" aria-label="Ракурс">
-                <span class="stage-card__label">Ракурс</span>
-                <button class="icon-btn angle-switch__arrow angle-switch__arrow--prev" type="button" data-step="-1" aria-label="Предыдущий ракурс">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
-                </button>
-                <span class="angle-switch__dots" id="photo-angles"></span>
-                <button class="icon-btn angle-switch__arrow angle-switch__arrow--next" type="button" data-step="1" aria-label="Следующий ракурс">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#chevron-down" /></svg>
-                </button>
-              </div>
-              <div class="segmented photo-bar__frames" id="photo-frames" role="radiogroup" aria-label="Формат кадра"></div>
             </div>
           </div>
 
@@ -283,30 +244,6 @@
             <div class="segmented view-presets" id="view-presets" role="group" aria-label="Ракурс"></div>
           </div>
 
-          <!-- «Фотореал» (CupViewer v2): справа от кадра (на узком экране — под
-               ним) — фон сцены и рендер. Стаканы не двигаются — только поворот
-               жестом по кадру. -->
-          <aside class="photo-panel" id="photo-panel" aria-label="Фон сцены" hidden>
-            <div class="photo-panel__body">
-              <p class="photo-panel__label">Фон</p>
-              <div class="scene-cards" id="photo-scenes" role="radiogroup" aria-label="Фон" data-tour="scenes"></div>
-            </div>
-            <div class="photo-panel__actions">
-              <!-- Уровень кадра: размер и цену задаёт сервер (server/app/config.py TIERS), здесь — подсказка. -->
-              <div class="segmented render-size" id="render-size" role="radiogroup" aria-label="Качество кадра">
-                <button class="segmented__item" type="button" role="radio" data-size="standard" title="Соцсети, сайт, маркетплейсы">Standard<span class="render-size__px"> · 2000 px</span></button>
-                <button class="segmented__item" type="button" role="radio" data-size="ultra" title="Максимум деталей: печать, баннеры, каталог">Ultra<span class="render-size__px"> · 4000 px</span></button>
-              </div>
-              <div class="photo-panel__row">
-                <button class="btn btn--accent photo-panel__render" id="photo-render" type="button" aria-describedby="photo-render-note" data-tour="render">Рендер · 1 токен</button>
-                <!-- Задание вручную (dev-сервер без кабинета): папка для Blender, render/README.md. -->
-                <button class="icon-btn photo-panel__job" id="photo-job" type="button" hidden aria-label="Задание для рендера" data-tip="Задание для рендера — с макетом" data-tip-side="left">
-                  <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
-                </button>
-              </div>
-              <p class="photo-panel__note" id="photo-render-note">Рендер появится вместе с личным кабинетом</p>
-            </div>
-          </aside>
         </section>
       </main>
 
@@ -317,10 +254,6 @@
             <svg class="icon"><use href="assets/icons/sprite.svg#cup" /></svg>
           </span>
           <span class="action-bar__text" id="action-cup-name">Стакан</span>
-        </button>
-        <button class="action-bar__item" type="button" id="action-second" aria-haspopup="dialog" hidden data-tour="second">
-          <svg class="icon" aria-hidden="true"><use id="action-second-icon" href="assets/icons/sprite.svg#plus" /></svg>
-          <span class="action-bar__text" id="action-second-name">Второй</span>
         </button>
         <button class="action-bar__item" type="button" data-mobile-nav="design" data-tour="art">
           <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#upload" /></svg>
@@ -358,9 +291,29 @@
         <p>Ничего не нашлось.</p>
         <button class="btn" type="button" id="cup-reset-search">Сбросить поиск</button>
       </div>
-      <!-- Только при выборе второго стакана «Фотореала» (designShell pickSecond). -->
-      <div class="cup-dialog__foot" id="cup-dialog-foot" hidden>
-        <button class="btn btn--block" type="button" id="cup-second-none">Без второго стакана</button>
+    </div>
+
+    <!-- Рендер: ход задания и готовый кадр (js/design/renderPanel.js). -->
+    <div class="dialog-backdrop" id="render-backdrop" hidden></div>
+    <div class="dialog render-dialog" id="render-dialog" role="dialog" aria-modal="true" aria-labelledby="render-title" hidden>
+      <div class="dialog__head">
+        <div>
+          <p class="dialog__title" id="render-title">Рендер</p>
+          <p class="dialog__sub" id="render-sub">Серый фотофон, фотореалистичный кадр</p>
+        </div>
+        <button class="icon-btn" type="button" id="render-close" aria-label="Закрыть">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#close" /></svg>
+        </button>
+      </div>
+      <div class="render-dialog__frame" id="render-frame">
+        <span class="spinner" aria-hidden="true"></span>
+      </div>
+      <p class="render-dialog__status" id="render-status" aria-live="polite"></p>
+      <div class="render-dialog__actions">
+        <a class="btn btn--accent" id="render-download" hidden>
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/sprite.svg#download" /></svg>
+          <span>Скачать PNG</span>
+        </a>
       </div>
     </div>
 
@@ -368,6 +321,6 @@
       <div class="drop-overlay__message"><span class="drop-overlay__anim" data-lottie="wrap" aria-hidden="true"></span>Отпустите файл макета</div>
     </div>
 
-    <script type="module" src="dist/design.js?v=31a5dc88"></script>
+    <script type="module" src="dist/design.js?v=f8ba2e26"></script>
   </body>
 </html>

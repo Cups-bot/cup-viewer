@@ -2474,3 +2474,41 @@
   opacity: 0;
   border: none;
 }
+
+/* ── Рендер: ход задания и готовый кадр ─────────────────────────────────── */
+
+.render-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.render-dialog__frame {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-height: calc(100dvh - 260px);
+  overflow: hidden;
+  background: var(--surface-3);
+  border-radius: 14px;
+}
+
+.render-dialog__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.render-dialog__status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.render-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.render-dialog__actions .btn[hidden] {
+  display: none;
+}

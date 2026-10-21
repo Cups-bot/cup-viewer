@@ -9,9 +9,8 @@ import { saveSession } from './session.js';
 import { DesignError, prepareDesign } from './prepareDesign.js';
 import { aspectMismatch } from './fileType.js';
 import { MESSAGES } from '../ui/messages.js';
-import { initPhotoPanel } from './photoPanel.js';
 import { initFinishPanel } from './finishPanel.js';
-import { initAccount } from '../account/account.js';
+import { initRenderPanel } from './renderPanel.js';
 import { clearDesignSource, loadDesignSource, saveDesignSource } from './designStore.js';
 import { PRINT_LABELS, asPrinted, printModesOf, zoneMmOf } from '../catalog/printModes.js';
 import { PRINT_DPI, SIGNATURE_BYTES, detectFileType } from './fileType.js';
@@ -53,18 +52,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   };
 
   const picker = initModelPicker({ state, catalog, actions });
-  // Кабинет: вход, токены, рендер, «Мои рендеры» (без сервера CupViewer — скрыт).
-  // «В редактор» из «Моих рендеров»: сцена кадра и его макеты — обратно на сайт.
   let upload = null;
-  const account = initAccount({
-    catalog,
-    feedback,
-    onOpenJob: (spec) => restoreJob(spec, { state, catalog, feedback, upload }),
-    onOpenScene: () => {
-      if (!mode.check('openScene')) return;
-      state.set({ tab: 'scene', sceneId: state.get().sceneId ?? catalog.scenes[0]?.id ?? null });
-    },
-  });
   initMaterialSwitch({ state, catalog, actions });
   const sheet = initRailSheet();
   upload = initUpload({ state, mode, catalog, viewer, feedback, sheet });
@@ -73,7 +61,7 @@ export function initDesign({ state, mode, catalog, viewer, feedback }) {
   initPageHead({ state, catalog });
   initProofToggle({ state, catalog });
   const exportCenter = initExport({ state, mode, viewer, feedback });
-  initPhotoPanel({ state, viewer, catalog, mode, picker, feedback, account, cupPhoto: railPhoto, describe: (m) => `${m.name} · ${kindOf(m)}` });
+  initRenderPanel({ state, catalog, viewer, feedback });
   initActionBar({ state, exportCenter, sheet });
   initTour({ state, sheet });
 
