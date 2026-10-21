@@ -87,6 +87,12 @@ def load_job(path: str, cfg: dict, place) -> dict:
             c["emboss"] = os.path.normpath(os.path.join(base, c["emboss"]))
             if not os.path.isfile(c["emboss"]):
                 raise place.ConfigError(f"{c['emboss']}: лист конгрева не найден")
+        # Отделки сайта (bk/decor.py): маски — файлы рядом с заданием.
+        for part in (c.get("finish") or {}).values():
+            if part.get("mask"):
+                part["mask"] = os.path.normpath(os.path.join(base, part["mask"]))
+                if not os.path.isfile(part["mask"]):
+                    raise place.ConfigError(f"{part['mask']}: маска отделки не найдена")
     hero = cups[0]
     cfg["cup_key"] = hero["id"]
     cfg["cup_variant"] = hero.get("variant")
@@ -101,6 +107,7 @@ def load_job(path: str, cfg: dict, place) -> dict:
     cfg["_emboss"] = hero.get("emboss")
     cfg["_emboss_depth"] = hero.get("emboss_depth")
     cfg["_emboss_page"] = hero.get("emboss_page", 1)
+    cfg["_finish"] = hero.get("finish")
     cfg["_cups"] = cups
     cfg["_layout"] = job.get("layout") or ("pair" if len(cups) > 1 and cups[1]["id"] == hero["id"] else "side")
     cam = job.get("camera") or {}

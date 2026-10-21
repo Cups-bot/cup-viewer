@@ -45,11 +45,11 @@ def specs(cfg: dict) -> List[dict]:
              "art": cfg.get("_art"), "page": cfg.get("_art_page", 1), "rotate": cfg.get("_rotate_deg", 0.0),
              "print": None if cfg["print"].get("enabled", True) else "none", "proof": cfg.get("_proof"),
              "emboss": cfg.get("_emboss"), "emboss_depth": cfg.get("_emboss_depth"),
-             "emboss_page": cfg.get("_emboss_page", 1)}]
+             "emboss_page": cfg.get("_emboss_page", 1), "finish": cfg.get("_finish")}]
 
 
 _KEYS = ("cup_key", "cup_variant", "_board", "_art", "_art_page", "_rotate_deg", "_art_given", "_print_variant",
-         "_proof", "_emboss", "_emboss_depth", "_emboss_page")
+         "_proof", "_emboss", "_emboss_depth", "_emboss_page", "_finish")
 
 
 @contextmanager
@@ -68,6 +68,7 @@ def use(cfg: dict, spec: dict):
     cfg["_emboss"] = spec.get("emboss")
     cfg["_emboss_depth"] = spec.get("emboss_depth")
     cfg["_emboss_page"] = spec.get("emboss_page", 1)
+    cfg["_finish"] = spec.get("finish")
     # Макет стакана из задания. Бумага берёт его из _art, литой PP — из блока
     # режима печати, как при --art: без этого PP в задании печатал калибровку.
     if spec.get("art"):

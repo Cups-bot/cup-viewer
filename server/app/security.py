@@ -74,8 +74,18 @@ def has_access(user) -> bool:
     return bool(until) and db.parse(until) > db.now()
 
 
+def local_user():
+    """Лёгкая версия: все запросы — от одного локального пользователя."""
+    con = db.connect()
+    con.execute("INSERT OR IGNORE INTO users (email, is_admin, created_at, access_until) VALUES (?, 0, ?, ?)",
+                (config.LITE_EMAIL, db.stamp(), "9999-12-31T00:00:00+00:00"))
+    return con.execute("SELECT * FROM users WHERE email = ?", (config.LITE_EMAIL,)).fetchone()
+
+
 def require_access(request: Request):
     """Пользователь с действующей подпиской: иначе 401 (не вошёл) или 402."""
+    if config.LITE:
+        return local_user()
     user = require_user(request)
     if not has_access(user):
         raise HTTPException(402, "subscription_required")

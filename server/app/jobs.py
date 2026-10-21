@@ -177,7 +177,9 @@ def fail_job(con, job, error: str, note: str) -> None:
 
 @router.post("/api/jobs")
 async def create_job(request: Request, job: str = Form(...), size: str = Form("standard"),
-                     art0: Optional[UploadFile] = File(None), art1: Optional[UploadFile] = File(None)):
+                     art0: Optional[UploadFile] = File(None), art1: Optional[UploadFile] = File(None),
+                     emboss0: Optional[UploadFile] = File(None), foil0: Optional[UploadFile] = File(None),
+                     ink0: Optional[UploadFile] = File(None)):
     same_origin(request)
     user = require_access(request)
     size = config.tier_of(size)
@@ -199,6 +201,16 @@ async def create_job(request: Request, job: str = Form(...), size: str = Form("s
                 cup["art"] = await save_upload(upload, folder, f"art-{index + 1}", config.MAX_ART_BYTES)
             elif cup.get("print") != "none":
                 cup["print"] = "none"
+        # Маски отделок главного стакана: без файла отделки нет.
+        masks = {"emboss": emboss0, "foil": foil0, "ink": ink0}
+        finish = spec["cups"][0].get("finish") or {}
+        for kind in list(finish):
+            if masks.get(kind) is None:
+                del finish[kind]
+            else:
+                finish[kind]["mask"] = await save_upload(masks[kind], folder, f"mask-{kind}-1", config.MAX_ART_BYTES)
+        if not finish:
+            spec["cups"][0].pop("finish", None)
     except HTTPException:
         with db.tx() as con:
             fail_job(con, con.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone(),
@@ -331,7 +343,7 @@ def repeat(job_id: int, request: Request):
         new_id = enqueue(con, user, config.tier_of(job["size"]), job["job_json"], "queued", f"повтор кадра {job_id}")
         dst = job_dir(new_id)
         dst.mkdir(parents=True, exist_ok=True)
-        for art in src.glob("art-*"):
+        for art in [*src.glob("art-*"), *src.glob("mask-*")]:
             shutil.copyfile(art, dst / art.name)
         return job_view(con, con.execute("SELECT * FROM jobs WHERE id = ?", (new_id,)).fetchone())
 
@@ -398,13 +410,14 @@ def claim(request: Request, response: Response):
     spec = json.loads(job["job_json"])
     tier = config.tier_of(job["size"])
     return {"id": job["id"], "size": tier, "px": config.TIERS[tier]["px"], "job": spec,
-            "arts": [c["art"] for c in spec["cups"] if c.get("art")]}
+            "arts": [c["art"] for c in spec["cups"] if c.get("art")]
+            + [p["mask"] for c in spec["cups"] for p in (c.get("finish") or {}).values() if p.get("mask")]}
 
 
 @router.get("/api/worker/jobs/{job_id}/files/{name}")
 def worker_file(job_id: int, name: str, request: Request):
     require_worker(request)
-    if "/" in name or "\\" in name or not name.startswith("art-"):
+    if "/" in name or "\\" in name or not name.startswith(("art-", "mask-")):
         raise HTTPException(400, "bad_name")
     path = job_dir(job_id) / name
     if not path.exists():

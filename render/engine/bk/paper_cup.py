@@ -150,16 +150,27 @@ def _flatten(im):
     return flat
 
 
+def _clear():
+    im = bpy.data.images.get("CUPS_Blank_Clear")
+    if im is None:
+        im = bpy.data.images.new("CUPS_Blank_Clear", 4, 4, alpha=True)
+        im.generated_color = (1, 1, 1, 0)
+        im.pack()
+    return im
+
+
 def dress_paper(project: str, entry: dict, cup, art: Optional[str], clean: bool,
-                page: int = 1, proof: Optional[str] = None) -> Optional[dict]:
+                page: int = 1, proof: Optional[str] = None, keep_alpha: bool = False) -> Optional[dict]:
     """Макет на стакан. clean — чистый картон; art — свой лист; иначе — из файла модели.
 
     proof — ключ профиля картона («Имитация картона», bk/proof.py): лист
     печатается через куб, у чистого картона — белый лист тоже, как на сайте.
+    keep_alpha — металлизированный картон: прозрачное в макете — голый металл
+    (bk/decor.py), его не заливаем белым.
     """
     node = _art_node(cup)
     if clean:
-        node.image = _blank()
+        node.image = _clear() if keep_alpha else _blank()
         if proof:
             from bk import proof as proofing
             node.image = proofing.image(node.image, proof)
@@ -177,7 +188,8 @@ def dress_paper(project: str, entry: dict, cup, art: Optional[str], clean: bool,
             bpy.data.images.remove(im)
             raise PaperError(f"{entry['key']}: ожидается полный лист развёртки {pw:g}×{ph:g} мм, "
                              f"а у макета пропорции {w}×{h}")
-        im = _flatten(im)
+        if not keep_alpha:
+            im = _flatten(im)
         im.name = "CUPS_Art_" + os.path.splitext(os.path.basename(src))[0][:40]
         im.colorspace_settings.name = "sRGB"
         if not im.packed_file:
@@ -285,6 +297,30 @@ def emboss_paper(project: str, entry: dict, cup, path: str, depth_mm: Optional[f
     # (снизу вверх, как у картинки Blender) — pixels[:] картинки на 16 млн
     # пикселей был бы кортежем в гигабайты.
     sheet = types.SimpleNamespace(size=(w, h), pixels=mask.astype(np.float32).ravel())
+    _press(emboss, p, entry, cup, sheet, depth_mm, f"{os.path.abspath(path)}|{depth_mm}|{model}")
+    depth = depth_mm if depth_mm is not None else p.get("emboss", {}).get("depth_mm", 0.35)
+    return {"source": os.path.basename(path), "depth_mm": depth, "relief_share": round(float(mask.mean()), 3),
+            "px_per_mm": EMBOSS_PX_PER_MM}
+
+
+def press_height(project: str, entry: dict, cup, height: np.ndarray, tag: str) -> None:
+    """Готовый рельеф листа: высота в мм (снизу вверх, как у картинки Blender) —
+    конгрев выше листа, вдавленная фольга ниже (bk/decor.py). Фаски уже в
+    высоте — у emboss.build своей фаски нет."""
+    emboss, paper = _cup_mockup(project)
+    model = os.path.splitext(os.path.basename(entry["blend"]))[0]
+    try:
+        p = paper.load_params(model)
+    except FileNotFoundError:
+        raise PaperError(f"{entry['key']}: нет параметров модели {model} для рельефа")
+    p = dict(p)
+    p["emboss"] = {**p.get("emboss", {}), "bevel_mm": 0.0}
+    h, w = height.shape
+    sheet = types.SimpleNamespace(size=(w, h), pixels=height.astype(np.float32).ravel())
+    _press(emboss, p, entry, cup, sheet, 1.0, f"{tag}|{model}")
+
+
+def _press(emboss, p: dict, entry: dict, cup, sheet, depth_mm: Optional[float], tag_src: str) -> None:
     # emboss.build пишет карты под постоянными именами — прежние (вафля,
     # обжим дна, карты другого стакана кадра) убираем с дороги.
     parked = {}
@@ -296,7 +332,7 @@ def emboss_paper(project: str, entry: dict, cup, path: str, depth_mm: Optional[f
             parked[old.name] = name
     try:
         maps = emboss.build(p, sheet, depth_mm, px_per_mm=EMBOSS_PX_PER_MM)
-        tag = hashlib.sha256(f"{os.path.abspath(path)}|{depth_mm}|{model}".encode()).hexdigest()[:8]
+        tag = hashlib.sha256(tag_src.encode()).hexdigest()[:8]
         for im in set(maps.values()):
             im.name = f"{im.name}_{tag}"
     finally:
@@ -313,9 +349,6 @@ def emboss_paper(project: str, entry: dict, cup, path: str, depth_mm: Optional[f
             placed += role == "print"
     if not placed:
         raise PaperError(f"{entry['key']}: в материале печати нет узла рельефа {EMBOSS_TEX}")
-    depth = depth_mm if depth_mm is not None else p.get("emboss", {}).get("depth_mm", 0.35)
-    return {"source": os.path.basename(path), "depth_mm": depth, "relief_share": round(float(mask.mean()), 3),
-            "px_per_mm": EMBOSS_PX_PER_MM}
 
 
 def emboss_reset(cup) -> None:

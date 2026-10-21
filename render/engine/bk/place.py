@@ -384,10 +384,12 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
         proof_key = proof.key_for(board_id) if cfg.get("_proof") else None
         if cfg.get("_proof") and not proof_key:
             raise ConfigError(f"{entry['key']}: для картона {board_id!r} профиля нет — имитировать нечем")
+        metal = (boards["boards"].get(board_id) or {}).get("metal")
         try:
             printed = paper_cup.dress_paper(PROJECT, entry, cup, cfg.get("_art"),
                                             clean=not cfg["print"].get("enabled", True),
-                                            page=cfg.get("_art_page", 1), proof=proof_key)
+                                            page=cfg.get("_art_page", 1), proof=proof_key,
+                                            keep_alpha=bool(metal))
             # Конгрев (--emboss, emboss в задании): свой лист клиента картой
             # нормалей — поверх печати или по чистому картону (слепой).
             relief = paper_cup.emboss_paper(PROJECT, entry, cup, cfg["_emboss"], cfg.get("_emboss_depth"),
@@ -395,14 +397,24 @@ def dress_cup(cfg: dict, shot: dict, cup, height: float) -> Optional[dict]:
         except (paper_cup.PaperError, proof.ProofError) as exc:
             raise ConfigError(str(exc))
         info = board.apply(cup, board_id, entry.get("group", "single"), boards)
+        # Металлизированный картон и отделки — на копиях материалов этого стакана.
+        from bk import decor
+        try:
+            if metal:
+                decor.metal_board(cup, metal)
+            decorated = decor.apply(PROJECT, entry, cup, cfg["_finish"], entry["print"]["page_mm"])                 if cfg.get("_finish") else None
+        except (decor.DecorError, paper_cup.PaperError) as exc:
+            raise ConfigError(str(exc))
         if printed is None:
             printed = {"mode": "clean", "type": "paper"}
         printed.update(info)
+        if decorated:
+            printed["finish"] = decorated
         if relief:
             printed["emboss"] = relief
         return printed
-    if cfg.get("_emboss"):
-        raise ConfigError(f"{entry['key']}: конгрев бывает только у бумажных стаканов")
+    if cfg.get("_emboss") or cfg.get("_finish"):
+        raise ConfigError(f"{entry['key']}: конгрев и отделки бывают только у бумажных стаканов")
     if entry.get("adapter") == "own" or entry.get("material") == "own":
         # PET: печать — картинка в материале PET_Print на развёртке UVMap. Лист
         # из задания (стороны А/Б, сведённые сайтом, js/design/petSides.js, —

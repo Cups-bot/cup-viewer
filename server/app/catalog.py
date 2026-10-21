@@ -3,6 +3,7 @@
 браузеру не доверяем (§3 концепции)."""
 
 import json
+import re
 from functools import lru_cache
 
 from fastapi import HTTPException
@@ -10,6 +11,35 @@ from fastapi import HTTPException
 from . import config
 
 FRAMES = {"1:1", "3:4", "4:5"}
+HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+FINISH_KINDS = ("emboss", "foil", "ink")
+
+
+def check_finish(finish, entry) -> dict:
+    """Отделки бумажного стакана: конгрев (высота, мм), фольга и металлик-краска
+    (цвет #rrggbb; у фольги — перелив). Маски приходят файлами (jobs.create_job)."""
+    if not isinstance(finish, dict) or entry["type"] != "paper":
+        raise HTTPException(400, "bad_finish")
+    out = {}
+    for kind in FINISH_KINDS:
+        part = finish.get(kind)
+        if part is None:
+            continue
+        if not isinstance(part, dict):
+            raise HTTPException(400, "bad_finish")
+        if kind == "emboss":
+            depth = part.get("depth")
+            if not isinstance(depth, (int, float)) or not 0.05 <= depth <= 1.0:
+                raise HTTPException(400, "bad_finish")
+            out[kind] = {"depth": float(depth)}
+        else:
+            color = part.get("color")
+            if not isinstance(color, str) or not HEX.match(color):
+                raise HTTPException(400, "bad_finish")
+            out[kind] = {"color": color.lower()}
+            if kind == "foil" and part.get("iridescence") is True:
+                out[kind]["iridescence"] = True
+    return out
 
 
 @lru_cache(maxsize=1)
@@ -77,5 +107,9 @@ def check_job(job: dict) -> dict:
             if entry["type"] != "pp" or not (entry.get("render") or {}).get("print", {}).get("pad"):
                 raise HTTPException(400, "bad_print")
             out["print"] = "pad"
+        if cup.get("finish") is not None:
+            finish = check_finish(cup["finish"], entry)
+            if finish:
+                out["finish"] = finish
         clean.append(out)
     return {"set": job["set"], "camera": {"preset": preset, "frame": frame}, "cups": clean}

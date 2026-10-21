@@ -27,8 +27,12 @@ TIERS = {
     "ultra": {"label": "Ultra", "px": int(os.environ.get("CV_PX_ULTRA", "4000")),
               "price": int(os.environ.get("CV_PRICE_ULTRA", "5"))},
 }
+# Лёгкая версия (ветка lite, владелец 2026-10-21): локальный сервер без входа,
+# подписки и токенов — один локальный пользователь, кадр бесплатно.
+LITE = os.environ.get("CV_LITE", "1") == "1"
+LITE_EMAIL = "local@cupviewer"
 # Токены: цена кадра по уровню.
-PRICES = {tier: t["price"] for tier, t in TIERS.items()}
+PRICES = {tier: 0 if LITE else t["price"] for tier, t in TIERS.items()}
 # Кадры до уровней заказывали по пикселям: 1600 — нынешний Standard, 3000 — Ultra.
 LEGACY_SIZES = {"1600": "standard", "3000": "ultra"}
 
@@ -94,12 +98,12 @@ MAX_IMAGE_BYTES = 80 * 1024 * 1024
 # (там render/, server/data/, .git). vendor/ — декодер Draco (PET, EM90-530)
 # и pdf.js (макеты PDF): без них эти стаканы и PDF не открываются.
 # Ссылок клиенту нет (владелец, 2026-09-27: общий сервис) — view.html не отдаётся.
-PUBLIC_FILES = {"index.html", "admin.html", "login.html"}
+PUBLIC_FILES = {"index.html"} if LITE else {"index.html", "admin.html", "login.html"}
 PUBLIC_DIRS = {"dist", "css", "js", "assets", "catalog", "vendor"}
 # Закрыто подпиской (владелец, 2026-09-28): страницы сайта и данные — модели,
 # фоны, каталог, шаблоны, декодеры. Без доступа страница уводит на вход
 # (login.html), данные — 403. Код и стили открыты: в них нет ничего, кроме
 # самой страницы входа.
-GATED_PAGES = {"index.html", "admin.html"}
-GATED_PREFIXES = ("assets/models/", "assets/hdri/", "assets/textures/", "assets/thumbs/",
-                  "assets/templates/", "catalog/", "vendor/")
+GATED_PAGES = set() if LITE else {"index.html", "admin.html"}
+GATED_PREFIXES = () if LITE else ("assets/models/", "assets/hdri/", "assets/textures/", "assets/thumbs/",
+                                  "assets/templates/", "catalog/", "vendor/")
