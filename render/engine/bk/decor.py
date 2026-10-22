@@ -28,11 +28,14 @@ from bk import paper_cup
 
 PRINT = "Paper_Print"
 ART_NODE = "CUPS_Artwork"
+RELIEF_NODE = "CUPS_EmbossNormal"      # карта нормалей рельефа (cup_mockup/materials.py EMBOSS_NORMAL)
 FOIL_DEPTH_MM = 0.2
 EMBOSS_BEVEL_MM = 0.4
 FOIL_BEVEL_MM = 0.08
 FOIL_GRAIN_MM = 0.25
-FOIL_GRAIN_HEIGHT_MM = 0.01
+# Тоньше, чем на сайте: в Blender зерно рисуется по-настоящему, и при 0,01 мм
+# фольга выглядела мятой.
+FOIL_GRAIN_HEIGHT_MM = 0.003
 SHEET_PX_PER_MM = 12.0                 # как карта рельефа (paper_cup.EMBOSS_PX_PER_MM)
 
 
@@ -296,7 +299,13 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
             b = _bsdf(nt)
             out = next(n for n in nt.nodes if n.bl_idname == "ShaderNodeOutputMaterial")
             surface = out.inputs["Surface"].links[0].from_socket
-            normal = b.inputs["Normal"].links[0].from_socket if b.inputs["Normal"].is_linked else None
+            # Фольга и краска гладкие — ворс картона не повторяют: им только
+            # рельеф листа (конгрев, вдавливание, зерно фольги), без бампа
+            # волокна. С ним зеркало становилось шершавым и размыто отражало
+            # софтбоксы — фольга выходила светло-серой, как краска.
+            relief = nt.nodes.get(RELIEF_NODE)
+            normal = relief.outputs["Normal"] if relief is not None else (
+                b.inputs["Normal"].links[0].from_socket if b.inputs["Normal"].is_linked else None)
             tex = nt.nodes.new("ShaderNodeTexImage")
             tex.image = im
             tex.extension = "EXTEND"
@@ -326,7 +335,7 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
 # и узкими софтбоксами: блеск — это их отражения. Кольцо вокруг стакана видно
 # только отражениям (не камере, не свету): фон кадра и освещение прежние.
 # (угол от направления на камеру, градусы; яркость 0…1) — симметрично.
-REFLECTION_STRIPS = ((0, 0.03), (12, 0.02), (19, 1.0), (27, 1.0), (34, 0.01), (62, 0.01), (70, 0.7), (78, 0.7), (86, 0.01), (180, 0.0))
+REFLECTION_STRIPS = ((0, 0.35), (12, 0.3), (19, 1.0), (27, 1.0), (34, 0.08), (62, 0.08), (70, 0.7), (78, 0.7), (86, 0.05), (180, 0.03))
 REFLECTION_STRENGTH = 5.0
 
 
@@ -335,11 +344,16 @@ def is_metallic(printed: Optional[dict]) -> bool:
 
 
 def reflection_set(height: float, camera, coll, prefix: str = "BK_"):
-    """Кольцо отражений вокруг стакана (начало координат), лицом к камере."""
+    """Кольцо отражений вокруг стакана (начало координат), лицом к камере.
+
+    Стенка стакана расширяется кверху: зеркало смотрит чуть вниз и отражало
+    ярко освещённый пол фотобокса перед стаканом. Как чёрная карта у
+    фотографа: пол отражениям не виден (greybox), а кольцо уходит глубоко
+    под пол и закрывает эти направления."""
     import math
     segments = 128
     radius = 8.0 * height
-    lo, hi = -2.0 * height, 10.0 * height
+    lo, hi = -12.0 * height, 10.0 * height
     verts, faces = [], []
     for i in range(segments):
         a = 2 * math.pi * i / segments
@@ -386,6 +400,8 @@ def reflection_set(height: float, camera, coll, prefix: str = "BK_"):
     obj.visible_transmission = False
     obj.visible_volume_scatter = False
     obj.visible_glossy = True
+    # matrix_world камеры только что поставленной ещё не пересчитан.
+    bpy.context.view_layer.update()
     cam = camera.matrix_world.translation
     obj.rotation_euler.z = math.atan2(cam.x, -cam.y)
     return obj

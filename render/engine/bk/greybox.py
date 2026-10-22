@@ -163,6 +163,9 @@ def build(cfg: dict, shot_name: str, samples: Optional[int] = None,
     from bk import decor
     if any(decor.is_metallic(c["printed"]) for c in cups):
         decor.reflection_set(href, scene.camera, stage, PREFIX)
+        floor = bpy.data.objects.get(PREFIX + "Cyclorama")
+        if floor is not None:
+            floor.visible_glossy = False
 
     side = int(shot.get("resolution", 1600))
     scene.render.resolution_x = scene.render.resolution_y = side
