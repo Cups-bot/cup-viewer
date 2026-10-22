@@ -16,6 +16,7 @@ import {
   fitWithin,
 } from './fileType.js';
 import { encodeCanvas } from '../utils/encode.js';
+import { clearPaperWhite } from './metalArt.js';
 
 export class DesignError extends Error {
   // reason: 'too-big' | 'unsupported' | 'broken'
@@ -54,9 +55,10 @@ async function downscaleImage(file, type, [width, height]) {
 // model — запись каталога: от её развёртки считается масштаб растра PDF.
 // Возвращает { textureUrl, unwrapUrl, width, height, pages, type, layers, dpi, release() }.
 // release() освобождает blob-URL — вызывать, когда макет сменился.
-// transparent — PDF с прозрачностью и на бумаге: у металлизированного картона
-// прозрачное в макете — голый металл.
-export async function prepareDesign(file, model, { signal, onStage, transparent = false } = {}) {
+// transparent — PDF с прозрачностью и на бумаге (маски отделок).
+// metal — макет для металлизированного картона: с прозрачностью, а белый фон
+// развёртки тоже становится прозрачным — голым металлом (metalArt.js).
+export async function prepareDesign(file, model, { signal, onStage, transparent = false, metal = false } = {}) {
   if (file.size > MAX_FILE_BYTES) throw new DesignError('too-big');
 
   const head = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
@@ -83,10 +85,11 @@ export async function prepareDesign(file, model, { signal, onStage, transparent 
         fit: (w, h) => fitWithin(w, h, UNWRAP_LIMITS),
         signal,
         // Бумага под рисунком белая сама; у пластика вне рисунка — пластик.
-        transparent: transparent || model.type !== 'paper',
+        transparent: transparent || metal || model.type !== 'paper',
       });
       try {
         throwIfAborted(signal);
+        if (metal) clearPaperWhite(canvas);
         const url = track(await toBlob(canvas, 'image/png'));
         return { textureUrl: url, unwrapUrl: url, width: canvas.width, height: canvas.height, pages, type, layers, dpi: null, release };
       } finally {
@@ -101,8 +104,23 @@ export async function prepareDesign(file, model, { signal, onStage, transparent 
       throw new DesignError('broken', 'картинка не декодируется');
     }
     const { width, height } = bitmap;
-    bitmap.close();
     throwIfAborted(signal);
+    if (metal) {
+      const [w, h] = fitWithin(width, height, UNWRAP_LIMITS);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+      bitmap.close();
+      try {
+        clearPaperWhite(canvas);
+        const url = track(await toBlob(canvas, 'image/png'));
+        return { textureUrl: url, unwrapUrl: url, width: w, height: h, pages: 1, type, layers: null, dpi: dpiOf(width, model.textureMapping.unwrapMm[0]), release };
+      } finally {
+        canvas.width = 0;
+      }
+    }
+    bitmap.close();
 
     // 3D берёт исходный файл: TextureManager сам уменьшит его до 2048 тем же
     // путём, что и раньше, — прозрачность PNG ведёт себя как прежде.

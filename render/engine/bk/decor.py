@@ -236,7 +236,18 @@ def metal_board(cup, metal: dict) -> None:
         board = _mix_rgb(nt, 1.0, linear(metal["tone"]), tinted, "MULTIPLY")
         nt.links.new(_mix_rgb(nt, white, board, art.outputs["Color"]), b.inputs["Base Color"])
         not_white = _math(nt, "SUBTRACT", 1.0, white)
-        nt.links.new(_math(nt, "MULTIPLY", not_white, metal["metalness"]), b.inputs["Metallic"])
+        # Металл сквозь краску — по её светлоте (как boardSee на сайте): тёмная
+        # краска закрывает металл и перелив, чёрное остаётся чёрным.
+        lum = nt.nodes.new("ShaderNodeRGBToBW")
+        nt.links.new(art.outputs["Color"], lum.inputs["Color"])
+        ink = _math(nt, "MULTIPLY", alpha, not_white)
+        see = nt.nodes.new("ShaderNodeMix")
+        see.data_type = "FLOAT"
+        nt.links.new(ink, see.inputs["Factor"])
+        _sock(see, "A", "VALUE").default_value = 1.0
+        nt.links.new(_math(nt, "SQRT", lum.outputs["Val"]), _sock(see, "B", "VALUE"))
+        visible = _math(nt, "MULTIPLY", not_white, see.outputs["Result"])
+        nt.links.new(_math(nt, "MULTIPLY", visible, metal["metalness"]), b.inputs["Metallic"])
         rough = _math(nt, "ADD", metal["roughness"], _math(nt, "MULTIPLY", alpha, 0.08))
         mix = nt.nodes.new("ShaderNodeMix")
         mix.data_type = "FLOAT"
@@ -248,7 +259,7 @@ def metal_board(cup, metal: dict) -> None:
         b.inputs["Sheen Weight"].default_value = 0.0
         ir = metal.get("iridescence")
         if ir:
-            _thin_film(nt, b, ir["ior"], ir["range"][0], ir["range"][1], ir.get("streaks", HOLO_STREAKS_BOARD), not_white)
+            _thin_film(nt, b, ir["ior"], ir["range"][0], ir["range"][1], ir.get("streaks", HOLO_STREAKS_BOARD), visible)
 
 
 def _mask_image(foil: Optional[np.ndarray], ink: Optional[np.ndarray], shape, tag: str):

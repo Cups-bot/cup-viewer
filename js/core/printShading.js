@@ -33,6 +33,9 @@ const MAP_CHUNK = /* glsl */ `
 	// Белила — белое и почти белое там, где в макете есть краска.
 	float boardWhite = boardArt.a * smoothstep( 0.72, 0.9, min( min( boardArt.r, boardArt.g ), boardArt.b ) );
 	vec3 boardMetal = boardTone * mix( vec3( 1.0 ), boardArt.rgb, boardArt.a );
+	// Металл сквозь краску виден по её светлоте: прозрачная светлая краска
+	// окрашивает металл, тёмная закрывает его — чёрное остаётся чёрным.
+	float boardSee = mix( 1.0, sqrt( dot( boardArt.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) ), boardArt.a * ( 1.0 - boardWhite ) );
 	diffuseColor.rgb *= mix( boardMetal, boardArt.rgb, boardWhite );
 #else
 	#include <map_fragment>
@@ -83,7 +86,7 @@ const SURFACE_CHUNK = /* glsl */ `
 #include <metalnessmap_fragment>
 #if defined( BOARD_METAL ) && defined( USE_MAP )
 	// Белила глушат металл; под краской металл блестит чуть слабее голого.
-	metalnessFactor *= 1.0 - boardWhite;
+	metalnessFactor *= ( 1.0 - boardWhite ) * boardSee;
 	roughnessFactor = mix( roughnessFactor + 0.08 * boardArt.a, 0.6, boardWhite );
 #endif
 #ifdef USE_FINISH
@@ -114,7 +117,7 @@ const IRIDESCENCE_CHUNK = /* glsl */ `
 #ifdef USE_IRIDESCENCE
 	float iridescenceMask = 1.0;
 	#if defined( BOARD_METAL ) && defined( USE_MAP )
-		iridescenceMask = 1.0 - boardWhite;
+		iridescenceMask = ( 1.0 - boardWhite ) * boardSee;
 	#else
 		iridescenceMask = 0.0;
 	#endif

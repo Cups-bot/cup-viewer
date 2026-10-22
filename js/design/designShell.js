@@ -710,7 +710,7 @@ function initUpload({ state, mode, catalog, viewer, feedback, sheet }) {
     try {
       prepared = await prepareDesign(file, model, {
         signal,
-        transparent: onMetal(),
+        metal: onMetal(),
         onStage: (stage) => stage === 'pdf' && feedback.onLoading('Растрируем PDF…'),
       });
     } catch (error) {
