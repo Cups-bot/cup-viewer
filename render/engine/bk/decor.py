@@ -33,6 +33,14 @@ FOIL_DEPTH_MM = 0.2
 EMBOSS_BEVEL_MM = 0.4
 FOIL_BEVEL_MM = 0.08
 FOIL_GRAIN_MM = 0.25
+# Перламутр (голография): плёнка, толщина в нм — полный круг радуги; вклад
+# направления отражения и полос по листу; частота полос по ширине листа.
+HOLO_IOR = 1.9
+HOLO_RANGE = (250.0, 650.0)
+HOLO_VIEW = 1.6
+HOLO_STREAK = 2.2
+HOLO_STREAKS_BOARD = 3.5
+HOLO_STREAKS_FOIL = 18.0
 # Тоньше, чем на сайте: в Blender зерно рисуется по-настоящему, и при 0,01 мм
 # фольга выглядела мятой.
 FOIL_GRAIN_HEIGHT_MM = 0.003
@@ -168,22 +176,31 @@ def _uv(nt):
     return vec.links[0].from_socket
 
 
-def _waves(nt, scale: float):
-    """Пятна перелива: крупный плавный шум по листу (как finishWaves на сайте)."""
+def _holo(nt, streaks: float):
+    """Перламутр — голографическая плёнка (образец владельца — стакан CHIN CHIN,
+    2026-10-22): радуга вертикальными полосами по светлому серебру, бежит при
+    повороте. Цвет — по направлению отражения (как на сайте, printShading.js)
+    плюс вытянутые вдоль высоты полосы по листу; streaks — их частота по ширине.
+    0…1, по кругу радуги туда и обратно."""
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    refl = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Reflection"], refl.inputs["Vector"])
+    mp = nt.nodes.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = (streaks, streaks * 0.08, 1.0)
+    nt.links.new(_uv(nt), mp.inputs["Vector"])
     noise = nt.nodes.new("ShaderNodeTexNoise")
-    noise.inputs["Scale"].default_value = scale
-    noise.inputs["Detail"].default_value = 1.0
-    noise.inputs["Roughness"].default_value = 0.4
-    nt.links.new(_uv(nt), noise.inputs["Vector"])
+    noise.inputs["Scale"].default_value = 1.0
+    noise.inputs["Detail"].default_value = 2.0
+    noise.inputs["Roughness"].default_value = 0.5
+    nt.links.new(mp.outputs["Vector"], noise.inputs["Vector"])
+    v = _math(nt, "ADD", _math(nt, "MULTIPLY", refl.outputs["X"], HOLO_VIEW),
+              _math(nt, "MULTIPLY", noise.outputs["Fac"], HOLO_STREAK))
+    return _math(nt, "PINGPONG", v, 1.0)
+
+
+def _thin_film(nt, bsdf, ior: float, lo: float, hi: float, streaks: float, mask=None):
     rng = nt.nodes.new("ShaderNodeMapRange")
-    rng.inputs["From Min"].default_value = 0.3
-    rng.inputs["From Max"].default_value = 0.7
-    nt.links.new(noise.outputs["Fac"], rng.inputs["Value"])
-    return rng
-
-
-def _thin_film(nt, bsdf, ior: float, lo: float, hi: float, scale: float, mask=None):
-    rng = _waves(nt, scale)
+    nt.links.new(_holo(nt, streaks), rng.inputs["Value"])
     rng.inputs["To Min"].default_value = lo
     rng.inputs["To Max"].default_value = hi
     out = rng.outputs["Result"]
@@ -231,7 +248,7 @@ def metal_board(cup, metal: dict) -> None:
         b.inputs["Sheen Weight"].default_value = 0.0
         ir = metal.get("iridescence")
         if ir:
-            _thin_film(nt, b, ir["ior"], ir["range"][0], ir["range"][1], ir.get("scale", 3.0), not_white)
+            _thin_film(nt, b, ir["ior"], ir["range"][0], ir["range"][1], ir.get("streaks", HOLO_STREAKS_BOARD), not_white)
 
 
 def _mask_image(foil: Optional[np.ndarray], ink: Optional[np.ndarray], shape, tag: str):
@@ -320,7 +337,10 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
             if "foil" in cov:
                 sheen = _metal_bsdf(nt, normal, linear(foil["color"]), 1.0, 0.1)
                 if foil.get("iridescence"):
-                    _thin_film(nt, sheen, 1.6, 420.0, 600.0, 3.0)
+                    # Перламутровая фольга — тот же радужный перелив, что у перламутрового картона.
+                    # Полосы чаще, чем у картона: фольга — буквы и знаки, на них
+                    # широкая полоса легла бы одним оттенком.
+                    _thin_film(nt, sheen, HOLO_IOR, HOLO_RANGE[0], HOLO_RANGE[1], HOLO_STREAKS_FOIL)
                 surface = _layer(nt, surface, sep.outputs[0], sheen.outputs["BSDF"])
             nt.links.new(surface, out.inputs["Surface"])
     return {k: {"share": round(float(c.mean()), 3)} for k, c in cov.items()}
@@ -335,7 +355,7 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
 # и узкими софтбоксами: блеск — это их отражения. Кольцо вокруг стакана видно
 # только отражениям (не камере, не свету): фон кадра и освещение прежние.
 # (угол от направления на камеру, градусы; яркость 0…1) — симметрично.
-REFLECTION_STRIPS = ((0, 0.35), (12, 0.3), (19, 1.0), (27, 1.0), (34, 0.08), (62, 0.08), (70, 0.7), (78, 0.7), (86, 0.05), (180, 0.03))
+REFLECTION_STRIPS = ((0, 0.55), (12, 0.5), (19, 1.0), (27, 1.0), (34, 0.4), (62, 0.4), (70, 0.85), (78, 0.85), (86, 0.3), (180, 0.2))
 REFLECTION_STRENGTH = 5.0
 
 

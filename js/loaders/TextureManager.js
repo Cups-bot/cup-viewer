@@ -50,6 +50,9 @@ export class TextureManager {
     const image = empty ? null : await this.#loadImage(url, limit);
 
     const texture = new THREE.Texture(sheet ? this.#layOnSheet(image) : image);
+    // Чистый лист «макета нет»: на металлизированном картоне это голый металл,
+    // а не белила (core/printShading.js).
+    texture.userData.blank = url === blankSheetUrl();
     texture.needsUpdate = true;
     return this.#configure(texture);
   }

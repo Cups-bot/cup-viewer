@@ -226,8 +226,9 @@ export class ModelLoader {
     // включается здесь, а шейдер оставляет его только на фольге.
     const foilIridescence = this.finish?.physical ? 1 : 0;
     material.iridescence = finish.iridescence ?? foilIridescence;
-    material.iridescenceIOR = finish.iridescenceIOR ?? 1.6;
-    material.iridescenceThicknessRange = finish.iridescenceThicknessRange ?? [320, 480];
+    // Перламутровая фольга — тот же радужный перелив, что у перламутрового картона.
+    material.iridescenceIOR = finish.iridescenceIOR ?? 1.9;
+    material.iridescenceThicknessRange = finish.iridescenceThicknessRange ?? [250, 650];
   }
 
   // Отделки (конгрев, фольга, металлик-краска): текстура core/finishMap.js и

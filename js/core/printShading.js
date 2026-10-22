@@ -7,8 +7,9 @@
 // МЕТАЛЛИЗИРОВАННЫЙ КАРТОН (BOARD_METAL): ламинат с металлом. Прозрачное в
 // макете — голый металл, белое — белила (глухой белый, без блеска металла),
 // цветное — краска по металлу: металл просвечивает сквозь неё и окрашивается.
-// BOARD_HOLO — голографический ламинат: толщина интерференционной плёнки
-// бежит полосами, цвет перелива меняется по стенке и с поворотом.
+// BOARD_PEARL — перламутровый (радужный, голографический) ламинат: толщина
+// интерференционной плёнки бежит пятнами, цвет перелива меняется по стенке и
+// с поворотом. Перламутровая фольга переливается так же.
 //
 // ОТДЕЛКИ (USE_FINISH) — одна служебная текстура в координатах листа макета:
 //   R — фольга (тиснение фольгой, блестит сильнее всего, вдавлена на 0,2 мм);
@@ -28,6 +29,7 @@ const MAP_CHUNK = /* glsl */ `
 	diffuseColor.rgb *= mix( vec3( 1.0 ), sampledDiffuseColor.rgb, sampledDiffuseColor.a );
 #elif defined( BOARD_METAL ) && defined( USE_MAP )
 	vec4 boardArt = texture2D( map, vMapUv );
+	boardArt.a *= boardPrinted;
 	// Белила — белое и почти белое там, где в макете есть краска.
 	float boardWhite = boardArt.a * smoothstep( 0.72, 0.9, min( min( boardArt.r, boardArt.g ), boardArt.b ) );
 	vec3 boardMetal = boardTone * mix( vec3( 1.0 ), boardArt.rgb, boardArt.a );
@@ -41,6 +43,7 @@ const PARS_CHUNK = /* glsl */ `
 #include <common>
 #ifdef BOARD_METAL
 	uniform vec3 boardTone;
+	uniform float boardPrinted;
 #endif
 #if defined( BOARD_METAL ) || defined( USE_FINISH )
 	// Пятна перелива: плавные волны по листу, а не мелкий узор — у радужного
@@ -120,12 +123,18 @@ const IRIDESCENCE_CHUNK = /* glsl */ `
 	#endif
 	material.iridescence *= iridescenceMask;
 	#if defined( BOARD_METAL ) || defined( USE_FINISH )
-		#ifdef BOARD_HOLO
-			float irWaves = finishWaves( vMapUv, 1.4 );
-		#else
-			float irWaves = finishWaves( vMapUv, 0.9 );
+		// Голография (образец — стакан CHIN CHIN): цвет по направлению
+		// отражения — радуга бежит при повороте — плюс полосы вдоль высоты.
+		// Как render/engine/bk/decor.py (_holo).
+		vec3 irRefl = reflect( - normalize( vViewPosition ), normal );
+		float irStreaks = 3.5;
+		#ifdef USE_FINISH
+			// У фольги полосы чаще: на буквах широкая полоса легла бы одним оттенком.
+			irStreaks = mix( irStreaks, 18.0, finishFoil );
 		#endif
-		material.iridescenceThickness = mix( iridescenceThicknessMinimum, iridescenceThicknessMaximum, clamp( irWaves, 0.0, 1.0 ) );
+		float irV = irRefl.x * 1.6 + 2.2 * finishWaves( vec2( vMapUv.x * irStreaks / 1.4, vMapUv.y * irStreaks * 0.08 / 1.4 ), 1.0 );
+		float irWaves = 1.0 - abs( 2.0 * fract( irV * 0.5 ) - 1.0 );
+		material.iridescenceThickness = mix( iridescenceThicknessMinimum, iridescenceThicknessMaximum, irWaves );
 	#endif
 #endif
 `;
@@ -168,6 +177,15 @@ function finishUniforms() {
 
 export function installPrintShading(material) {
   material.userData.finishUniforms ??= finishUniforms();
+  // Макета нет (чистый лист) — 0: металл без белил. Читается при каждой
+  // отрисовке: лист меняется без пересборки материала. Ставится каждой копии
+  // заново: Material.copy переносит userData через JSON, и getter застыл бы числом.
+  Object.defineProperty(material.userData.finishUniforms, 'boardPrinted', {
+    value: { get value() { return material.map?.userData.blank ? 0 : 1; } },
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
   material.onBeforeCompile = printShading;
   // Ключ программы — по набору define: печать и отделки собирают разные шейдеры.
   material.customProgramCacheKey = () => `print|${Object.keys(material.defines ?? {}).sort().join(',')}`;
@@ -186,10 +204,9 @@ export function setPrintWithoutWhite(material, on) {
   setDefine(material, 'PRINT_WITHOUT_WHITE', on);
 }
 
-// Металлизированный картон: kind — 'silver' | 'pearl' | 'holo' | null.
+// Металлизированный картон: kind — 'silver' | 'pearl' | null.
 export function setBoardMetal(material, kind, tone) {
   setDefine(material, 'BOARD_METAL', Boolean(kind));
-  setDefine(material, 'BOARD_HOLO', kind === 'holo');
   if (tone) material.userData.finishUniforms.boardTone.value = tone;
 }
 
