@@ -343,7 +343,12 @@ def apply(project: str, entry: dict, cup, finish: dict, page_mm) -> dict:
             nt.links.new(tex.outputs["Color"], sep.inputs["Color"])
             if "ink" in cov:
                 # Металлик-пантон — сатиновый: широкий мягкий блик, без зеркала.
+                # Всегда оверпринтом (владелец, 2026-10-22): по белому — прямо на
+                # картон, по краске — перемножается с рисунком под ней.
                 paint = _metal_bsdf(nt, normal, linear(ink["color"]), 0.85, 0.42)
+                under = b.inputs["Base Color"]
+                under = under.links[0].from_socket if under.is_linked else tuple(under.default_value)
+                nt.links.new(_mix_rgb(nt, 1.0, under, linear(ink["color"]), "MULTIPLY"), paint.inputs["Base Color"])
                 surface = _layer(nt, surface, sep.outputs[1], paint.outputs["BSDF"])
             if "foil" in cov:
                 sheen = _metal_bsdf(nt, normal, linear(foil["color"]), 1.0, 0.1)
